@@ -20,8 +20,10 @@ import secrets
 import threading
 import time
 from collections import defaultdict, deque
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
@@ -135,6 +137,18 @@ def _fetch_existing(language: str, words: list[str]) -> set[str]:
 
 
 # ---------- Endpunkte ----------
+
+@app.get("/", include_in_schema=False)
+def index():
+    """Startseite für Menschen (die API-Doku liegt unter /docs)."""
+    return FileResponse(Path(__file__).parent / "static" / "index.html")
+
+
+@app.get("/verzeichnis", include_in_schema=False)
+def verzeichnis():
+    """Alphabetisches Stichwortverzeichnis zum Blättern."""
+    return FileResponse(Path(__file__).parent / "static" / "verzeichnis.html")
+
 
 @app.post("/entries", response_model=EntryOut, status_code=201)
 def create_entry(entry: EntryIn, _=Depends(require_api_key)):

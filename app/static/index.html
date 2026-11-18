@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wörterbuch</title>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --ink: #2b2620;
+    --muted: #8a7f6f;
+    --accent: #a05c2c;
+    --card: #ffffff;
+    --line: #e8e0d4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8vh 1rem 3rem;
+  }
+  header { text-align: center; margin-bottom: 2.5rem; }
+  h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: normal;
+    letter-spacing: .02em;
+    margin: 0 0 .4rem;
+  }
+  .stats { color: var(--muted); font-size: .95rem; font-style: italic; }
+  .search {
+    width: min(620px, 100%);
+    display: flex;
+    gap: .5rem;
+  }
+  #q {
+    flex: 1;
+    font: inherit;
+    font-size: 1.2rem;
+    padding: .7rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    outline: none;
+  }
+  #q:focus { border-color: var(--accent); }
+  #lang {
+    font: inherit;
+    padding: .7rem .8rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+  }
+  #results {
+    width: min(620px, 100%);
+    margin-top: 1.8rem;
+    list-style: none;
+    padding: 0;
+  }
+  #results li {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: .8rem 1.1rem;
+    margin-bottom: .6rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+  }
+  #results .word { font-size: 1.15rem; }
+  #results .def { color: var(--muted); font-size: .9rem; text-align: right; }
+  .hint { color: var(--muted); margin-top: 1.5rem; font-size: .9rem; }
+  footer { margin-top: auto; padding-top: 3rem; color: var(--muted); font-size: .8rem; }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Wörterbuch</h1>
+  <div class="stats" id="stats">…</div>
+</header>
+
+<div class="search">
+  <input id="q" type="search" placeholder="Wort suchen …" autofocus autocomplete="off">
+  <select id="lang"></select>
+</div>
+
+<ul id="results"></ul>
+<div class="hint" id="hint"></div>
+
+<footer>
+  Maschinell geerntet · <a href="/verzeichnis">Stichwortverzeichnis</a> · <a href="/docs">API-Doku</a>
+</footer>
+
+<script>
+const q = document.getElementById('q');
+const lang = document.getElementById('lang');
+const results = document.getElementById('results');
+const hint = document.getElementById('hint');
+let timer = null;
+
+async function loadMeta() {
+  const [stats, langs] = await Promise.all([
+    fetch('/stats').then(r => r.json()),
+    fetch('/languages').then(r => r.json()),
+  ]);
+  document.getElementById('stats').textContent =
+    stats.total_entries.toLocaleString('de-DE') + ' Einträge';
+  for (const l of langs) {
+    const o = document.createElement('option');
+    o.value = l.language;
+    o.textContent = l.language.toUpperCase() + ' (' + l.count.toLocaleString('de-DE') + ')';
+    lang.appendChild(o);
+  }
+}
+
+async function search() {
+  const term = q.value.trim();
+  if (term.length < 2) { results.innerHTML = ''; hint.textContent = ''; return; }
+  const params = new URLSearchParams({ language: lang.value, q: term, limit: 50 });
+  const rows = await fetch('/entries?' + params).then(r => r.json());
+  results.innerHTML = '';
+  hint.textContent = rows.length === 50 ? 'Erste 50 Treffer — Suche verfeinern für mehr.' :
+                     rows.length === 0 ? 'Nichts gefunden.' : '';
+  for (const e of rows) {
+    const li = document.createElement('li');
+    const w = document.createElement('span');
+    w.className = 'word';
+    w.textContent = e.word;
+    const d = document.createElement('span');
+    d.className = 'def';
+    d.textContent = e.definition || '';
+    li.append(w, d);
+    results.appendChild(li);
+  }
+}
+
+q.addEventListener('input', () => {
+  clearTimeout(timer);
+  timer = setTimeout(search, 200);
+});
+lang.addEventListener('change', search);
+
+loadMeta().then(search);
+</script>
+</body>
+</html>
