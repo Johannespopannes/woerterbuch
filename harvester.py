@@ -32,6 +32,8 @@ import re
 import string
 import sys
 import time
+import urllib.error
+import urllib.parse
 import urllib.request
 
 MODEL_BASE_URL = os.environ.get("MODEL_BASE_URL", "https://api.openai.com/v1")
@@ -174,7 +176,10 @@ def letter_words(language: str, letter: str) -> list[str]:
     offset = 0
     while True:
         page = api_get(
-            f"/entries?language={language}&prefix={letter}&limit=1000&offset={offset}"
+            "/entries?" + urllib.parse.urlencode({
+                "language": language, "prefix": letter,
+                "limit": 1000, "offset": offset,
+            })
         )
         if not page:
             break
@@ -186,13 +191,34 @@ def letter_words(language: str, letter: str) -> list[str]:
 def insert(language: str, words: list[str]) -> int:
     if not words:
         return 0
-    result = api_post("/entries/batch", {
-        "entries": [
-            {"word": w, "language": language, "source": f"model:{MODEL_NAME}"}
-            for w in words
-        ]
-    })
-    return result["inserted"]
+    # API-Payload-Grenzen beachten (Wort max. 100 Zeichen)
+    words = [w for w in words if len(w) <= 100]
+    if not words:
+        return 0
+    try:
+        result = api_post("/entries/batch", {
+            "entries": [
+                {"word": w, "language": language, "source": f"model:{MODEL_NAME}"}
+                for w in words
+            ]
+        })
+        return result["inserted"]
+    except urllib.error.HTTPError as e:
+        # Einzelne ungültige Wörter nicht den ganzen Batch kosten lassen
+        print(f"Batch-Fehler {e.code} — versuche einzeln", file=sys.stderr)
+        added = 0
+        for w in words:
+            try:
+                api_post("/entries", {
+                    "word": w, "language": language,
+                    "source": f"model:{MODEL_NAME}",
+                })
+                added += 1
+            except urllib.error.HTTPError as single:
+                if single.code == 409:
+                    continue  # Duplikat
+                print(f"  übersprungen ({single.code}): {w!r}", file=sys.stderr)
+        return added
 
 
 # ---------- Strategien ----------

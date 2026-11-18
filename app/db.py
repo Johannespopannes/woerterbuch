@@ -24,6 +24,11 @@ def get_conn() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.executescript(SCHEMA)
+    # SQLites LOWER()/LIKE-Fold ist nur ASCII — für Umlaute (Ö vs. ö)
+    # eine echte Unicode-Variante aus Python registrieren.
+    conn.create_function(
+        "ULOWER", 1, lambda s: s.lower() if isinstance(s, str) else s
+    )
     return conn
 
 

@@ -50,10 +50,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         key_header = request.headers.get("x-api-key")
         keyed = bool(API_KEY) and key_header == API_KEY
         if keyed:
-            bucket, limit = f"key:{key_header}", RATE_WRITE_KEYED if is_write else RATE_READ
+            bucket = f"key:{key_header}"
+            limit = RATE_WRITE_KEYED if is_write else RATE_READ
         else:
-            bucket, limit = request.client.host if request.client else "?", \
-                RATE_WRITE if is_write else RATE_READ
+            host = request.client.host if request.client else "?"
+            bucket = f"{host}:{'w' if is_write else 'r'}"
+            limit = RATE_WRITE if is_write else RATE_READ
         now = time.monotonic()
         with self.lock:
             dq = self.hits[bucket]
@@ -198,7 +200,9 @@ def list_entries(
         sql += " AND language = ?"
         params.append(language.lower())
     if prefix:
-        sql += " AND word LIKE ?"
+        # ULOWER(): SQLite foldet nur ASCII, Umlaute (Ö vs. ö) brauchen
+        # die in db.py registrierte Unicode-Funktion.
+        sql += " AND ULOWER(word) LIKE ULOWER(?)"
         params.append(prefix + "%")
     if q:
         sql += " AND word LIKE ?"
