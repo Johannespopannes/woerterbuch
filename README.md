@@ -14,6 +14,28 @@ uvicorn app.main:app --reload          # läuft auf http://127.0.0.1:8000
 
 Die SQLite-Datei `woerterbuch.db` entsteht beim ersten Start im Projektordner.
 
+## Web-Frontend
+
+Neben der JSON-API gibt es zwei Seiten für Menschen:
+
+- `GET /` — Startseite mit Livesuche und Sprachauswahl
+- `GET /verzeichnis` — alphabetisches Stichwortverzeichnis (A–Z, Ä/Ö/Ü/ß),
+  Deeplinks per Hash, z. B. `/verzeichnis#b`
+
+## Deployment (woerterbuch.tassekaffee.com)
+
+Produktiv läuft der Dienst auf dem Pi (`raspberry5-01`):
+
+- systemd `woerterbuch.service` → uvicorn `127.0.0.1:8805`, Env aus
+  `/home/johannes/woerterbuch/.env` (`API_KEY`, nie ins Repo)
+- Caddy `:8103` (bind WireGuard + localhost) → reverse_proxy auf `:8805`
+- VPS-nginx terminiert TLS und proxyt `woerterbuch.tassekaffee.com`
+  → `http://10.77.0.2:8103`
+- Pipeline: `.forgejo/workflows/deploy.yml` — Push auf `main` ins
+  Forgejo-Repo deployed automatisch (pull, pip, restart, Health-Check
+  auf `/stats`). GitHub bleibt Mirror/Code-Host, Forgejo ist die
+  Deploy-Wahrheit.
+
 ## Endpunkte
 
 | Methode | Pfad | Zweck |

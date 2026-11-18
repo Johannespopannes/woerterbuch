@@ -1,0 +1,48 @@
+# Deploy-Pipeline: bei Push auf main wird der Stand auf den Pi gezogen,
+# Dependencies installiert und der systemd-Dienst neu gestartet.
+# Muster wie Stuecklistengenerator: EIN Job, Branch-Entscheidung im Script
+# (needs/if wurde auf forgejo-runner v12 nicht zuverlässig evaluiert).
+# Der Dienst läuft als johannes auf 127.0.0.1:8805 (uvicorn), Caddy :8103
+# bindet WG+localhost, TLS terminiert der VPS (woerterbuch.tassekaffee.com).
+name: deploy
+
+concurrency:
+  group: deploy-woerterbuch
+  cancel-in-progress: false
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: linux-arm64
+    steps:
+      - name: "Deploy auf den Pi (pull, deps, restart, health)"
+        shell: bash
+        env:
+          DEPLOY_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes -o ConnectTimeout=8 \
+              -o StrictHostKeyChecking=accept-new \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              johannes@raspberry5-01 \
+            "DEPLOY_COMMIT='$DEPLOY_COMMIT' bash -s" << 'REMOTE'
+          set -euo pipefail
+          cd /home/johannes/woerterbuch
+          git fetch origin
+          git reset --hard "${DEPLOY_COMMIT:-origin/main}"
+          .venv/bin/pip install --quiet -r requirements.txt
+          sudo -n systemctl restart woerterbuch
+          for i in 1 2 3 4 5; do
+            sleep 2
+            if curl -sf http://127.0.0.1:8805/stats > /dev/null; then
+              echo "DEPLOY-OK $(git rev-parse --short HEAD)"
+              exit 0
+            fi
+          done
+          echo "HEALTH-CHECK FAILED" >&2
+          exit 1
+          REMOTE
