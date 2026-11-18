@@ -17,6 +17,7 @@ Konfiguration per Umgebungsvariable:
     MODEL_API_KEY    API-Key (bei Ollama egal, aber muss gesetzt sein)
     MODEL_NAME       Modellname, z. B. kolibri-1, llama3.1
     DICT_API_URL     http://127.0.0.1:8000
+    DICT_API_KEY     X-API-Key für Schreibzugriffe an die Wörterbuch-API
 
 Aufruf-Beispiele:
     python3 harvester.py --seed --language de
@@ -146,16 +147,22 @@ def parse_words(raw: str) -> list[str]:
     return [str(w).strip() for w in items if isinstance(w, (str, int))]
 
 
+DICT_API_KEY = os.environ.get("DICT_API_KEY")  # für POST/DELETE an die API
+
+
 def api_get(path: str):
     with urllib.request.urlopen(f"{DICT_API_URL}{path}", timeout=30) as resp:
         return json.loads(resp.read())
 
 
 def api_post(path: str, payload: dict):
+    headers = {"Content-Type": "application/json"}
+    if DICT_API_KEY:
+        headers["X-API-Key"] = DICT_API_KEY
     req = urllib.request.Request(
         f"{DICT_API_URL}{path}",
         data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"},
+        headers=headers,
     )
     with urllib.request.urlopen(req, timeout=60) as resp:
         return json.loads(resp.read())

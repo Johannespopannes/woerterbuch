@@ -29,6 +29,33 @@ Die SQLite-Datei `woerterbuch.db` entsteht beim ersten Start im Projektordner.
 Eintrag: `{word, language, definition?, source?}` — `source` markiert die
 Herkunft, der Harvester schreibt z. B. `model:kolibri-1`.
 
+## Sicherheit & Schutz vor Missbrauch
+
+Für eine öffentlich erreichbare Demo:
+
+- **Lesen ist offen, Schreiben braucht einen Key:** POST/DELETE-Endpunkte
+  verlangen den Header `X-API-Key`, der per Umgebungsvariable `API_KEY`
+  gesetzt wird. Ist keiner gesetzt, wird beim Start ein zufälliger Key
+  generiert und einmalig ins Log geschrieben — nie unbeabsichtigt offen.
+- **Rate-Limiting** (eigene Middleware, pro IP): 60 Lesezugriffe/Minute,
+  5 Schreibzugriffe/Minute. Mit gültigem Key: 600 Schreibzugriffe/Minute —
+  so kann der Harvester ungestört arbeiten, Bots ohne Key bleiben eng.
+  Grenzen per Umgebungsvariable anpassbar: `RATE_READ_PER_MIN`,
+  `RATE_WRITE_PER_MIN`, `RATE_WRITE_KEYED_PER_MIN`. Zähler laufen
+  pro Prozess (bei mehreren Workern nicht global).
+- **Payload-Grenzen:** Wort max. 100 Zeichen, Definition max. 1000,
+  Batch max. 500 Einträge, Sprache nur Kleinbuchstaben.
+
+```bash
+API_KEY=mein-geheimer-key uvicorn app.main:app --reload
+curl -X POST http://127.0.0.1:8000/entries \
+  -H 'Content-Type: application/json' -H 'X-API-Key: mein-geheimer-key' \
+  -d '{"word":"Apfel","language":"de"}'
+```
+
+Der Harvester setzt den Key aus der Umgebungsvariable `DICT_API_KEY`
+automatisch mit.
+
 ## Harvester
 
 Baut nur auf der Python-Standardbibliothek, braucht kein openai-Paket.
@@ -40,6 +67,7 @@ export MODEL_BASE_URL=http://home-server:11434/v1   # Ollama-Beispiel
 export MODEL_API_KEY=dummy                          # bei Ollama egal
 export MODEL_NAME=kolibri-1
 export DICT_API_URL=http://127.0.0.1:8000
+export DICT_API_KEY=mein-geheimer-key
 ```
 
 ### Drei Strategien

@@ -2,22 +2,100 @@
 
 Start:  uvicorn app.main:app --reload
 Doku:   http://127.0.0.1:8000/docs  (Swagger UI)
+
+Schutz vor Missbrauch:
+  - Schreibzugriffe (POST/DELETE) brauchen den Header X-API-Key,
+    sofern die Umgebungsvariable API_KEY gesetzt ist. Ist sie nicht
+    gesetzt, wird beim Start ein zufälliger Key generiert und einmalig
+    geloggt — die API ist dann nie unbeabsichtigt offen.
+  - Rate-Limiting pro IP (in-Memory-Middleware): lesen 60/Min, schreiben
+    5/Min; bekanntgültiger Key: 600/Min (für den Harvester).
+    Grenzen per Umgebungsvariable anpassbar: RATE_READ_PER_MIN,
+    RATE_WRITE_PER_MIN, RATE_WRITE_KEYED_PER_MIN.
+    Achtung: Zähler pro Prozess — bei mehreren Workern nicht global.
+  - Payload-Grenzen: Wort max. 100 Zeichen, Batch max. 500 Einträge.
 """
-from fastapi import FastAPI, HTTPException, Query
+import os
+import secrets
+import threading
+import time
+from collections import defaultdict, deque
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel, Field
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
 from .db import get_conn, row_to_dict
 
-app = FastAPI(title="Wörterbuch API", version="0.1.0")
+API_KEY = os.environ.get("API_KEY")
+RATE_READ = int(os.environ.get("RATE_READ_PER_MIN", "60"))
+RATE_WRITE = int(os.environ.get("RATE_WRITE_PER_MIN", "5"))
+RATE_WRITE_KEYED = int(os.environ.get("RATE_WRITE_KEYED_PER_MIN", "600"))
+WINDOW = 60  # Sekunden
+
+app = FastAPI(title="Wörterbuch API", version="0.2.0")
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """Einfaches in-Memory-Fenster-Limit pro IP (bzw. pro Key, wenn gültig)."""
+
+    def __init__(self, inner):
+        super().__init__(inner)
+        self.hits: dict[str, deque] = defaultdict(deque)
+        self.lock = threading.Lock()
+
+    async def dispatch(self, request, call_next):
+        is_write = request.method in ("POST", "PUT", "PATCH", "DELETE")
+        key_header = request.headers.get("x-api-key")
+        keyed = bool(API_KEY) and key_header == API_KEY
+        if keyed:
+            bucket, limit = f"key:{key_header}", RATE_WRITE_KEYED if is_write else RATE_READ
+        else:
+            bucket, limit = request.client.host if request.client else "?", \
+                RATE_WRITE if is_write else RATE_READ
+        now = time.monotonic()
+        with self.lock:
+            dq = self.hits[bucket]
+            while dq and dq[0] <= now - WINDOW:
+                dq.popleft()
+            if len(dq) >= limit:
+                return JSONResponse(
+                    {"error": f"Rate limit exceeded: {limit} per 1 minute"},
+                    status_code=429)
+            dq.append(now)
+        return await call_next(request)
+
+
+app.add_middleware(RateLimitMiddleware)
+
+
+# ---------- Schutz für Schreibzugriffe ----------
+
+@app.on_event("startup")
+def _announce_key():
+    global API_KEY
+    if not API_KEY:
+        API_KEY = secrets.token_urlsafe(16)
+        print(f"\n[woerterbuch] Kein API_KEY gesetzt. Zufälliger Key für diese "
+              f"Sitzung: {API_KEY}\n"
+              f"[woerterbuch] Schreibzugriffe brauchen den Header "
+              f"X-API-Key: <key>\n")
+
+
+def require_api_key(x_api_key: str | None = Header(default=None)):
+    if x_api_key != API_KEY:
+        raise HTTPException(401, "Ungültiger oder fehlender X-API-Key")
 
 
 # ---------- Schemas ----------
 
 class EntryIn(BaseModel):
-    word: str = Field(min_length=1)
-    language: str = Field(min_length=2, max_length=10, description="z. B. 'de', 'en'")
-    definition: str | None = None
-    source: str = "manual"
+    word: str = Field(min_length=1, max_length=100)
+    language: str = Field(min_length=2, max_length=10, pattern=r"^[a-z]+$",
+                          description="Kleinbuchstaben, z. B. 'de', 'en'")
+    definition: str | None = Field(default=None, max_length=1000)
+    source: str = Field(default="manual", max_length=50)
 
 
 class EntryOut(BaseModel):
@@ -30,7 +108,7 @@ class EntryOut(BaseModel):
 
 
 class BatchIn(BaseModel):
-    entries: list[EntryIn]
+    entries: list[EntryIn] = Field(max_length=500)
 
 
 class BatchResult(BaseModel):
@@ -57,7 +135,7 @@ def _fetch_existing(language: str, words: list[str]) -> set[str]:
 # ---------- Endpunkte ----------
 
 @app.post("/entries", response_model=EntryOut, status_code=201)
-def create_entry(entry: EntryIn):
+def create_entry(entry: EntryIn, _=Depends(require_api_key)):
     conn = get_conn()
     try:
         cur = conn.execute(
@@ -77,7 +155,7 @@ def create_entry(entry: EntryIn):
 
 
 @app.post("/entries/batch", response_model=BatchResult)
-def create_batch(batch: BatchIn):
+def create_batch(batch: BatchIn, _=Depends(require_api_key)):
     """Viele Einträge auf einmal. Duplikate (Wort+Sprache) werden übersprungen."""
     inserted = duplicates = errors = 0
     by_lang: dict[str, list[EntryIn]] = {}
@@ -173,7 +251,7 @@ def stats():
 
 
 @app.delete("/entries/{entry_id}", status_code=204)
-def delete_entry(entry_id: int):
+def delete_entry(entry_id: int, _=Depends(require_api_key)):
     conn = get_conn()
     try:
         cur = conn.execute("DELETE FROM entries WHERE id = ?", (entry_id,))
