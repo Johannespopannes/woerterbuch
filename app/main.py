@@ -121,6 +121,10 @@ class BatchResult(BaseModel):
     errors: int
 
 
+class DefinitionIn(BaseModel):
+    definition: str = Field(min_length=1, max_length=1000)
+
+
 # ---------- Hilfsfunktionen ----------
 
 def _fetch_existing(language: str, words: list[str]) -> set[str]:
@@ -206,6 +210,8 @@ def list_entries(
     language: str | None = None,
     prefix: str | None = Query(default=None, description="Wörter, die so anfangen"),
     q: str | None = Query(default=None, description="Teilstring-Suche im Wort"),
+    undefined: bool = Query(default=False,
+                            description="nur Einträge ohne Definition"),
     limit: int = Query(default=100, le=1000),
     offset: int = 0,
 ):
@@ -221,6 +227,8 @@ def list_entries(
     if q:
         sql += " AND word LIKE ?"
         params.append(f"%{q}%")
+    if undefined:
+        sql += " AND (definition IS NULL OR definition = '')"
     sql += " ORDER BY word LIMIT ? OFFSET ?"
     params += [limit, offset]
     conn = get_conn()
@@ -264,6 +272,26 @@ def stats():
     try:
         total = conn.execute("SELECT COUNT(*) AS n FROM entries").fetchone()["n"]
         return {"total_entries": total}
+    finally:
+        conn.close()
+
+
+@app.patch("/entries/{entry_id}", response_model=EntryOut)
+def set_definition(entry_id: int, body: DefinitionIn, _=Depends(require_api_key)):
+    """Definition eines Eintrags setzen/überschreiben (z. B. Harvester define)."""
+    conn = get_conn()
+    try:
+        cur = conn.execute(
+            "UPDATE entries SET definition = ? WHERE id = ?",
+            (body.definition.strip(), entry_id),
+        )
+        conn.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        row = conn.execute(
+            "SELECT * FROM entries WHERE id = ?", (entry_id,)
+        ).fetchone()
+        return row_to_dict(row)
     finally:
         conn.close()
 

@@ -53,6 +53,7 @@
     padding: 1.5rem 2rem;
   }
   #words span { display: block; break-inside: avoid; padding: .1rem 0; font-size: 1.05rem; }
+  #words small.def { display: block; color: var(--muted); font-size: .8rem; margin: 0 0 .35rem; }
   footer { margin-top: auto; padding-top: 2.5rem; color: var(--muted); font-size: .8rem; }
   footer a { color: var(--accent); text-decoration: none; }
 </style>
@@ -97,6 +98,12 @@ async function loadWords(letter, btn) {
   for (const e of all) {
     const s = document.createElement('span');
     s.textContent = e.word;
+    if (e.definition) {
+      const d = document.createElement('small');
+      d.className = 'def';
+      d.textContent = e.definition;
+      s.appendChild(d);
+    }
     wordsBox.appendChild(s);
   }
 }

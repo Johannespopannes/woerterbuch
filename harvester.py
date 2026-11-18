@@ -72,6 +72,14 @@ PROMPT_GAP = (
     "Gemeinsprache). Antworte NUR mit einem JSON-Array von Strings."
 )
 
+PROMPT_DEFINE = (
+    "Definiere die folgenden {lang} Wörter jeweils in höchstens 15 Wörtern "
+    "(Wortart + Kernbedeutung, keine Beispielsätze, keine Ausschmückung). "
+    "Antworte NUR mit einem JSON-Objekt, das jedes Wort auf seine Definition "
+    "abbildet, keine Erklärung, kein Markdown.\n"
+    "Wörter: {words}"
+)
+
 # ---------- Startbestand (Seeds) ----------
 
 SEEDS = {
@@ -149,6 +157,27 @@ def parse_words(raw: str) -> list[str]:
     return [str(w).strip() for w in items if isinstance(w, (str, int))]
 
 
+def parse_definitions(raw: str) -> dict[str, str]:
+    """JSON-Objekt {Wort: Definition} aus der Modellantwort kratzen."""
+    raw = raw.strip()
+    raw = re.sub(r"^```(json)?|```$", "", raw, flags=re.MULTILINE).strip()
+    try:
+        obj = json.loads(raw)
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", raw, flags=re.DOTALL)
+        if not m:
+            return {}
+        try:
+            obj = json.loads(m.group(0))
+        except json.JSONDecodeError:
+            return {}
+    if not isinstance(obj, dict):
+        return {}
+    return {str(k).strip(): str(v).strip()
+            for k, v in obj.items()
+            if str(k).strip() and str(v).strip()}
+
+
 DICT_API_KEY = os.environ.get("DICT_API_KEY")  # für POST/DELETE an die API
 
 
@@ -165,6 +194,20 @@ def api_post(path: str, payload: dict):
         f"{DICT_API_URL}{path}",
         data=json.dumps(payload).encode(),
         headers=headers,
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        return json.loads(resp.read())
+
+
+def api_patch(path: str, payload: dict):
+    headers = {"Content-Type": "application/json"}
+    if DICT_API_KEY:
+        headers["X-API-Key"] = DICT_API_KEY
+    req = urllib.request.Request(
+        f"{DICT_API_URL}{path}",
+        data=json.dumps(payload).encode(),
+        headers=headers,
+        method="PATCH",
     )
     with urllib.request.urlopen(req, timeout=60) as resp:
         return json.loads(resp.read())
@@ -308,6 +351,59 @@ def harvest_gap(language, letters, max_rounds, per_round, temperature, delay, pa
                 break
 
 
+def harvest_define(language: str, batch_size: int, delay: float,
+                   temperature: float = 0.3) -> None:
+    """Definitionen für alle Einträge ohne definition nachrüsten.
+
+    Holt die undefinierten Einträge einmalig als Snapshot (seitenweise) und
+    definiert sie in Batches — ein Modellaufruf pro batch_size Wörter,
+    ein PATCH pro Wort. Bereits definierte Einträge werden nie angefasst.
+    """
+    lang = LANG_NAMES.get(language, f"{language}-Sprachige")
+    todo: list[dict] = []
+    offset = 0
+    while True:
+        page = api_get(
+            "/entries?" + urllib.parse.urlencode({
+                "language": language, "undefined": "true",
+                "limit": 1000, "offset": offset,
+            })
+        )
+        if not page:
+            break
+        todo += page
+        offset += len(page)
+    print(f"{len(todo)} Einträge ohne Definition")
+    total = 0
+    for i in range(0, len(todo), batch_size):
+        batch = todo[i:i + batch_size]
+        words = [e["word"] for e in batch]
+        try:
+            defs = parse_definitions(chat(
+                PROMPT_DEFINE.format(lang=lang, words=", ".join(words)),
+                temperature))
+        except Exception as e:
+            print(f"Batch {i // batch_size + 1}: Modell-Fehler: {e}",
+                  file=sys.stderr)
+            time.sleep(delay * 3)
+            continue
+        added = 0
+        for e in batch:
+            d = defs.get(e["word"])
+            if not d or len(d) > 1000:
+                continue
+            try:
+                api_patch(f"/entries/{e['id']}", {"definition": d})
+                added += 1
+            except Exception as e2:
+                print(f"  {e['word']!r}: PATCH-Fehler: {e2}", file=sys.stderr)
+        total += added
+        print(f"Batch {i // batch_size + 1}: +{added} Definitionen "
+              f"({total}/{len(todo)})")
+        time.sleep(delay)
+    print(f"define fertig: {total} von {len(todo)} definiert")
+
+
 def seed(language: str) -> None:
     seeds = SEEDS.get(language)
     if not seeds:
@@ -338,11 +434,13 @@ def parse_letters(spec: str) -> list[str]:
 def main() -> None:
     ap = argparse.ArgumentParser(
         description="Wörter aus einem LLM in die Wörterbuch-API harvesten")
-    ap.add_argument("--mode", choices=["free", "suggest", "gap"], default="suggest")
+    ap.add_argument("--mode", choices=["free", "suggest", "gap", "define"],
+                    default="suggest")
     ap.add_argument("--language", default="de")
     ap.add_argument("--letters", default="a-z", help="'a-z', 'a-f', 'all', 'ä,ö,ü,ß'")
     ap.add_argument("--rounds", type=int, default=3, help="Runden pro Buchstabe (gap/suggest: Abbruch bei 0 neu)")
-    ap.add_argument("--per-round", type=int, default=80)
+    ap.add_argument("--per-round", type=int, default=80,
+                    help="Wörter pro Modellaufruf (define: Batchgröße)")
     ap.add_argument("--pairs", type=int, default=4, help="Paare pro gap-Runde")
     ap.add_argument("--temperature", type=float, default=1.0)
     ap.add_argument("--delay", type=float, default=1.0)
@@ -351,6 +449,12 @@ def main() -> None:
 
     if args.seed:
         seed(args.language)
+        return
+
+    if args.mode == "define":
+        print(f"Modus: define | Modell: {MODEL_NAME} @ {MODEL_BASE_URL}")
+        harvest_define(args.language, args.per_round, args.delay)
+        print(f"\nFertig. DB-Stand: {api_get('/stats')}")
         return
 
     letters = parse_letters(args.letters)
