@@ -88,6 +88,8 @@ PROMPT_GAP = (
 PROMPT_DEFINE = (
     "Definiere die folgenden {lang} Wörter jeweils in höchstens 15 Wörtern "
     "(Wortart + Kernbedeutung, keine Beispielsätze, keine Ausschmückung). "
+    "Fremdwörter und Anglizismen: Herkunftssprache und das Originalwort in "
+    "Klammern angeben, z. B. 'Substantiv (aus englisch to bail out …): …'. "
     "Antworte NUR mit einem JSON-Objekt, das jedes Wort auf seine Definition "
     "abbildet, keine Erklärung, kein Markdown.\n"
     "Wörter: {words}"
