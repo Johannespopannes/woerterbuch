@@ -388,22 +388,31 @@ def bilder(filename: str):
 
 
 @app.get("/raten/next")
-def raten_next(language: str | None = None):
-    """Zufälliger Eintrag mit Bild für die Bewertungsseite."""
-    sql = ("SELECT id, word, language, image FROM entries "
-           "WHERE image IS NOT NULL AND image != ''")
+def raten_next(language: str | None = None, exclude: str = ""):
+    """Bild für die Bewertungsseite: wenig bewertete zuerst, dann Zufall.
+
+    exclude: kommagetrennte Eintrags-IDs, die diese Session schon gesehen
+    hat (Client-seitige Liste, kein Server-Tracking).
+    """
+    sql = ("SELECT e.id, e.word, e.language, e.image, "
+           "(SELECT COUNT(*) FROM ratings r WHERE r.entry_id = e.id) AS votes "
+           "FROM entries e WHERE e.image IS NOT NULL AND e.image != ''")
     params: list = []
     if language:
-        sql += " AND language = ?"
+        sql += " AND e.language = ?"
         params.append(language.lower())
-    sql += " ORDER BY RANDOM() LIMIT 1"
+    seen = [int(x) for x in exclude.split(",") if x.strip().isdigit()][:300]
+    if seen:
+        sql += f" AND e.id NOT IN ({','.join('?' * len(seen))})"
+        params += seen
+    sql += " ORDER BY votes ASC, RANDOM() LIMIT 1"
     conn = get_conn()
     try:
         row = conn.execute(sql, params).fetchone()
     finally:
         conn.close()
     if not row:
-        raise HTTPException(404, "Noch keine Bilder vorhanden")
+        raise HTTPException(404, "Keine neuen Bilder mehr vorhanden")
     return row_to_dict(row)
 
 
@@ -476,13 +485,20 @@ def set_image(entry_id: int, body: ImageIn, _=Depends(require_api_key)):
         raise HTTPException(413, "Bild zu groß (max. 2 MB)")
     conn = get_conn()
     try:
-        cur = conn.execute(
+        old = conn.execute(
+            "SELECT image FROM entries WHERE id = ?", (entry_id,)
+        ).fetchone()
+        if old is None:
+            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        if (old["image"] or "") != body.filename:
+            # Neue Bildversion: alte Bewertungen bezogen sich auf das
+            # vorherige Bild -> zurücksetzen, damit das neue fair bewertet wird
+            conn.execute("DELETE FROM ratings WHERE entry_id = ?", (entry_id,))
+        conn.execute(
             "UPDATE entries SET image = ? WHERE id = ?",
             (body.filename, entry_id),
         )
         conn.commit()
-        if cur.rowcount == 0:
-            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
         (IMAGES_DIR / body.filename).write_bytes(data)
         row = conn.execute(
             "SELECT * FROM entries WHERE id = ?", (entry_id,)

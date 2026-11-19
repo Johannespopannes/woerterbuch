@@ -105,6 +105,15 @@ const langsel = document.getElementById('langsel');
 const statsBox = document.getElementById('stats');
 let current = null;
 let busy = false;
+// Schon gezeigte Bilder dieser Session (nur im Browser, kein Server-Tracking)
+let seen = [];
+try { seen = JSON.parse(localStorage.getItem('bewerten-seen') || '[]'); } catch (e) {}
+
+function remember(id) {
+  seen.push(id);
+  if (seen.length > 300) seen = seen.slice(-300);
+  try { localStorage.setItem('bewerten-seen', JSON.stringify(seen)); } catch (e) {}
+}
 
 async function loadStats() {
   const s = await fetch('/raten/stats').then(r => r.json());
@@ -113,11 +122,19 @@ async function loadStats() {
     pct + ' % verstanden · ' + s.entries_with_image.toLocaleString('de-DE') + ' Bilder im Bestand';
 }
 
-async function next() {
+async function next(retried) {
   busy = false;
-  const params = langsel.value ? '?language=' + langsel.value : '';
-  const r = await fetch('/raten/next' + params);
+  const params = new URLSearchParams();
+  if (langsel.value) params.set('language', langsel.value);
+  if (seen.length) params.set('exclude', seen.join(','));
+  const r = await fetch('/raten/next?' + params);
   if (!r.ok) {
+    if (!retried && seen.length) {
+      // Alles schon gesehen -> Liste vergessen und von vorn
+      seen = [];
+      try { localStorage.removeItem('bewerten-seen'); } catch (e) {}
+      return next(true);
+    }
     wort.textContent = 'Noch keine Bilder vorhanden — die Generierung läuft gerade an.';
     bild.removeAttribute('src');
     sprache.textContent = '';
@@ -125,6 +142,7 @@ async function next() {
     return;
   }
   current = await r.json();
+  remember(current.id);
   bild.src = '/bilder/' + current.image;
   wort.textContent = current.word;
   sprache.textContent = current.language;
@@ -145,7 +163,7 @@ async function vote(understood) {
 
 document.getElementById('ja').addEventListener('click', () => vote(true));
 document.getElementById('nein').addEventListener('click', () => vote(false));
-langsel.addEventListener('change', next);
+langsel.addEventListener('change', () => next());
 document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' || e.key === 'j') vote(true);
   if (e.key === 'ArrowLeft' || e.key === 'n') vote(false);
