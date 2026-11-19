@@ -338,7 +338,7 @@ async function search() {
 q.addEventListener('input', () => {
   clearBtn.style.display = q.value ? 'block' : 'none';
   clearTimeout(timer);
-  timer = setTimeout(search, 200);
+  timer = setTimeout(search, 300);
 });
 lang.addEventListener('change', search);
 

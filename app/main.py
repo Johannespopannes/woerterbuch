@@ -33,10 +33,10 @@ from starlette.responses import JSONResponse
 from .db import get_conn, row_to_dict
 
 API_KEY = os.environ.get("API_KEY")
-RATE_READ = int(os.environ.get("RATE_READ_PER_MIN", "60"))
+RATE_READ = int(os.environ.get("RATE_READ_PER_MIN", "240"))
 RATE_WRITE = int(os.environ.get("RATE_WRITE_PER_MIN", "5"))
 RATE_WRITE_KEYED = int(os.environ.get("RATE_WRITE_KEYED_PER_MIN", "600"))
-RATE_VOTE = int(os.environ.get("RATE_VOTE_PER_MIN", "30"))
+RATE_VOTE = int(os.environ.get("RATE_VOTE_PER_MIN", "60"))
 WINDOW = 60  # Sekunden
 
 IMAGES_DIR = Path(os.environ.get(
