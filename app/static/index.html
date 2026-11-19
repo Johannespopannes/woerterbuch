@@ -281,6 +281,31 @@ async function search() {
         })
         .catch(() => {});
     }
+    // Wortfamilie? -> bekannte Formen derselben Grundform verlinken
+    fetch('/formen?' + new URLSearchParams({ word: e.word, language: lang.value }))
+      .then(r => r.ok ? r.json() : null)
+      .then(f => {
+        if (!f || !f.forms || f.forms.length < 2) return;
+        const fam = document.createElement('span');
+        fam.className = 'comp';
+        fam.appendChild(document.createTextNode('Formen von '));
+        const lm = document.createElement('a');
+        lm.textContent = f.lemma;
+        lm.href = '/?' + new URLSearchParams({ q: f.lemma, lang: lang.value });
+        fam.appendChild(lm);
+        fam.appendChild(document.createTextNode(': '));
+        f.forms.forEach((fo, idx) => {
+          if (idx) fam.appendChild(document.createTextNode(' · '));
+          const a = document.createElement('a');
+          a.textContent = fo.word;
+          a.href = '/?' + new URLSearchParams({ q: fo.word, lang: lang.value });
+          if (fo.word === e.word) a.style.fontWeight = '700';
+          fam.appendChild(a);
+          if (fo.form) fam.appendChild(document.createTextNode(' (' + fo.form + ')'));
+        });
+        li.appendChild(fam);
+      })
+      .catch(() => {});
     results.appendChild(li);
   }
 }

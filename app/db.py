@@ -38,6 +38,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
     cols = {r["name"] for r in conn.execute("PRAGMA table_info (entries)")}
     if "image" not in cols:
         conn.execute("ALTER TABLE entries ADD COLUMN image TEXT")
+    if "lemma" not in cols:
+        # Grundform + Flexionsform, damit Wortfamilien sichtbar werden
+        conn.execute("ALTER TABLE entries ADD COLUMN lemma TEXT")
+    if "form" not in cols:
+        conn.execute("ALTER TABLE entries ADD COLUMN form TEXT")
 
 
 def get_conn() -> sqlite3.Connection:

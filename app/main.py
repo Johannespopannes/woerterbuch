@@ -265,6 +265,8 @@ def list_entries(
                             description="nur Einträge ohne Definition"),
     noimage: bool = Query(default=False,
                           description="nur Einträge ohne Bild"),
+    nolemma: bool = Query(default=False,
+                          description="nur Einträge ohne Grundform"),
     limit: int = Query(default=100, le=1000),
     offset: int = 0,
 ):
@@ -285,6 +287,8 @@ def list_entries(
         sql += " AND (definition IS NULL OR definition = '')"
     if noimage:
         sql += " AND (image IS NULL OR image = '')"
+    if nolemma:
+        sql += " AND (lemma IS NULL OR lemma = '')"
     sql += " ORDER BY word LIMIT ? OFFSET ?"
     params += [limit, offset]
     conn = get_conn()
@@ -317,25 +321,28 @@ FUGENLAUTE = ("en", "er", "es", "e", "s", "n")
 def _split_compound(w: str, vocab: dict, depth: int = 0) -> list | None:
     """Kompositum gegen den Wortbestand zerlegen (längster linker Treffer).
 
-    Fugenlaute am Ende des linken Teils werden toleriert
-    (Abfahrtssignal -> Abfahrt + Signal). Konservativ: Bestandteile
-    mindestens 3 Zeichen, damit keine Scheinzerlegungen entstehen.
+    Zwei Durchgänge: erst exakte linke Treffer, dann Fugenlaut-Varianten
+    (sonst "wider-s-tand" statt "wider + stand"). Konservativ:
+    Bestandteile mindestens 3 Zeichen, damit keine Scheinzerlegungen
+    entstehen.
     """
-    for i in range(len(w), 2, -1):
-        left, rest = w[:i], w[i:]
-        cands = [left]
-        for f in FUGENLAUTE:
-            if left.endswith(f) and len(left) - len(f) >= 3:
-                cands.append(left[: -len(f)])
-        hit = next((c for c in cands if c in vocab), None)
-        if hit is None:
-            continue
-        if len(rest) >= 3 and rest in vocab:
-            return [hit, rest]
-        if depth < 2 and len(rest) >= 6:
-            sub = _split_compound(rest, vocab, depth + 1)
-            if sub and len(sub) >= 2:
-                return [hit] + sub
+    for fugen_pass in (False, True):
+        for i in range(len(w), 2, -1):
+            left, rest = w[:i], w[i:]
+            if fugen_pass:
+                cands = [left[: -len(f)] for f in FUGENLAUTE
+                         if left.endswith(f) and len(left) - len(f) >= 3]
+            else:
+                cands = [left]
+            hit = next((c for c in cands if c in vocab), None)
+            if hit is None:
+                continue
+            if len(rest) >= 3 and rest in vocab:
+                return [hit, rest]
+            if depth < 2 and len(rest) >= 6:
+                sub = _split_compound(rest, vocab, depth + 1)
+                if sub and len(sub) >= 2:
+                    return [hit] + sub
     return None
 
 
@@ -358,6 +365,66 @@ def zerlegen(word: str, language: str):
         return {"word": word, "parts": []}
     return {"word": word,
             "parts": [{"part": p, "entry": vocab[p]} for p in parts]}
+
+
+# ---------- Wortfamilien / Flexionen ----------
+
+class FormIn(BaseModel):
+    word: str = Field(min_length=1, max_length=100)
+    language: str = Field(min_length=2, max_length=10, pattern=r"^[a-z]+$")
+    lemma: str = Field(min_length=1, max_length=100)
+    form: str = Field(min_length=1, max_length=50)
+
+
+class FormBatchIn(BaseModel):
+    items: list[FormIn] = Field(max_length=500)
+
+
+@app.get("/formen")
+def formen(word: str, language: str):
+    """Alle bekannten Formen derselben Wortfamilie (gleiche Grundform)."""
+    lang = language.lower()
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT word, lemma, form FROM entries WHERE word = ? AND language = ?",
+            (word.strip(), lang),
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, f"'{word}' nicht gefunden ({lang})")
+        lemma = row["lemma"] or row["word"]
+        rows = conn.execute(
+            "SELECT word, form FROM entries "
+            "WHERE language = ? AND (lemma = ? OR word = ?) ORDER BY word",
+            (lang, lemma, lemma),
+        ).fetchall()
+        forms = [{"word": r["word"], "form": r["form"] or ""} for r in rows]
+        return {"word": row["word"], "lemma": lemma, "forms": forms}
+    finally:
+        conn.close()
+
+
+@app.post("/formen/batch")
+def formen_batch(batch: FormBatchIn, _=Depends(require_api_key)):
+    """Grundform/Flexionsform für viele Einträge setzen (für den Harvester)."""
+    updated = missing = 0
+    conn = get_conn()
+    try:
+        for it in batch.items:
+            cur = conn.execute(
+                "UPDATE entries SET lemma = ?, form = ? "
+                "WHERE word = ? AND language = ?",
+                (it.lemma.strip(), it.form.strip(),
+                 it.word.strip(), it.language.lower()),
+            )
+            if cur.rowcount:
+                updated += 1
+            else:
+                missing += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return {"updated": updated, "missing": missing}
 
 
 @app.get("/languages")
