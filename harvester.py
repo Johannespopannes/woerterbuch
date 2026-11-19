@@ -222,8 +222,15 @@ def api_patch(path: str, payload: dict):
         headers=headers,
         method="PATCH",
     )
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        return json.loads(resp.read())
+    last: Exception | None = None
+    for attempt in (1, 2, 3):
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                return json.loads(resp.read())
+        except Exception as e:
+            last = e
+            time.sleep(2 * attempt)
+    raise last
 
 
 def letter_words(language: str, letter: str) -> list[str]:
@@ -367,6 +374,41 @@ def harvest_gap(language, letters, max_rounds, per_round, temperature, delay, pa
                 break
 
 
+def _define_batch(batch: list[dict], lang: str, temperature: float,
+                  depth: int = 0) -> int:
+    """Definiert einen Batch in einem Modellaufruf.
+
+    Schlägt der Aufruf oder das JSON-Parsen fehl, wird der Batch halbiert
+    und erneut versucht (bis Tiefe 3) — große Blöcke verlieren so bei
+    einem einzelnen Fehler nicht gleich alle Wörter.
+    """
+    words = [e["word"] for e in batch]
+    try:
+        defs = parse_definitions(chat(
+            PROMPT_DEFINE.format(lang=lang, words=", ".join(words)),
+            temperature))
+    except Exception as e:
+        if len(batch) > 5 and depth < 3:
+            half = len(batch) // 2
+            print(f"  Batch mit {len(batch)} Wörtern fehlgeschlagen ({e}) — "
+                  f"teile in {half}+{len(batch) - half}", file=sys.stderr)
+            return (_define_batch(batch[:half], lang, temperature, depth + 1)
+                    + _define_batch(batch[half:], lang, temperature, depth + 1))
+        print(f"  Batch-Fehler ({len(batch)} Wörter): {e}", file=sys.stderr)
+        return 0
+    added = 0
+    for e in batch:
+        d = defs.get(e["word"])
+        if not d or len(d) > 1000:
+            continue
+        try:
+            api_patch(f"/entries/{e['id']}", {"definition": d})
+            added += 1
+        except Exception as e2:
+            print(f"  {e['word']!r}: PATCH-Fehler: {e2}", file=sys.stderr)
+    return added
+
+
 def harvest_define(language: str, batch_size: int, delay: float,
                    temperature: float = 0.3) -> None:
     """Definitionen für alle Einträge ohne definition nachrüsten.
@@ -393,26 +435,7 @@ def harvest_define(language: str, batch_size: int, delay: float,
     total = 0
     for i in range(0, len(todo), batch_size):
         batch = todo[i:i + batch_size]
-        words = [e["word"] for e in batch]
-        try:
-            defs = parse_definitions(chat(
-                PROMPT_DEFINE.format(lang=lang, words=", ".join(words)),
-                temperature))
-        except Exception as e:
-            print(f"Batch {i // batch_size + 1}: Modell-Fehler: {e}",
-                  file=sys.stderr)
-            time.sleep(delay * 3)
-            continue
-        added = 0
-        for e in batch:
-            d = defs.get(e["word"])
-            if not d or len(d) > 1000:
-                continue
-            try:
-                api_patch(f"/entries/{e['id']}", {"definition": d})
-                added += 1
-            except Exception as e2:
-                print(f"  {e['word']!r}: PATCH-Fehler: {e2}", file=sys.stderr)
+        added = _define_batch(batch, lang, temperature)
         total += added
         print(f"Batch {i // batch_size + 1}: +{added} Definitionen "
               f"({total}/{len(todo)})")
