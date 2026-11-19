@@ -427,6 +427,27 @@ def raten_vote(vote: VoteIn):
     return {"ok": True}
 
 
+@app.get("/raten/schlecht")
+def raten_schlecht(min_votes: int = 2, _=Depends(require_api_key)):
+    """Einträge, deren Bilder mehrheitlich 'nicht verstanden' votiert wurden
+    (für die Nachbesserungs-Pipeline)."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT e.id, e.word, e.language, e.definition, e.image, "
+            "SUM(CASE WHEN r.understood = 1 THEN 1 ELSE 0 END) AS ja, "
+            "SUM(CASE WHEN r.understood = 0 THEN 1 ELSE 0 END) AS nein "
+            "FROM ratings r JOIN entries e ON e.id = r.entry_id "
+            "GROUP BY r.entry_id "
+            "HAVING nein > ja AND nein >= ? "
+            "ORDER BY nein DESC",
+            (min_votes,),
+        ).fetchall()
+        return [row_to_dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
 @app.get("/raten/stats")
 def raten_stats():
     conn = get_conn()
