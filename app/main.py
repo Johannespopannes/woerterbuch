@@ -164,6 +164,23 @@ def _fetch_existing(language: str, words: list[str]) -> set[str]:
         conn.close()
 
 
+def _count_search(term: str, language: str) -> None:
+    """Suchbegriff anonym mitzählen (für 'Meistgesucht' auf der Startseite)."""
+    term = term.strip().lower()
+    if not 2 <= len(term) <= 100:
+        return
+    conn = get_conn()
+    try:
+        conn.execute(
+            "INSERT INTO search_stats (term, language, count) VALUES (?, ?, 1) "
+            "ON CONFLICT (term, language) DO UPDATE SET count = count + 1",
+            (term, language.lower()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 # ---------- Endpunkte ----------
 
 @app.get("/", include_in_schema=False)
@@ -263,6 +280,7 @@ def list_entries(
     if q:
         sql += " AND word LIKE ?"
         params.append(f"%{q}%")
+        _count_search(q, language or "")
     if undefined:
         sql += " AND (definition IS NULL OR definition = '')"
     if noimage:
@@ -279,6 +297,7 @@ def list_entries(
 @app.get("/lookup", response_model=EntryOut)
 def lookup(word: str, language: str):
     """Exaktes Nachschlagen eines Wortes in einer Sprache."""
+    _count_search(word, language)
     conn = get_conn()
     try:
         row = conn.execute(
@@ -310,6 +329,21 @@ def stats():
     try:
         total = conn.execute("SELECT COUNT(*) AS n FROM entries").fetchone()["n"]
         return {"total_entries": total}
+    finally:
+        conn.close()
+
+
+@app.get("/suchen/top")
+def suchen_top(limit: int = Query(default=10, le=50)):
+    """Die häufigsten Suchbegriffe (anonym gezählt)."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT term, language, count FROM search_stats "
+            "ORDER BY count DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [row_to_dict(r) for r in rows]
     finally:
         conn.close()
 

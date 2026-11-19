@@ -56,6 +56,20 @@
     border-radius: 999px;
     background: var(--card);
   }
+  .topsearches {
+    width: min(620px, 100%);
+    margin-top: .9rem;
+    display: flex; flex-wrap: wrap; gap: .4rem; align-items: center;
+  }
+  .topsearches .lbl { color: var(--muted); font-size: .85rem; font-style: italic; }
+  .topsearches button {
+    font: inherit; font-size: .85rem;
+    padding: .25rem .7rem;
+    border: 1px solid var(--line); border-radius: 999px;
+    background: var(--card); color: var(--ink);
+    cursor: pointer;
+  }
+  .topsearches button:hover { border-color: var(--accent); color: var(--accent); }
   #results {
     width: min(620px, 100%);
     margin-top: 1.8rem;
@@ -100,6 +114,7 @@
   <input id="q" type="search" placeholder="Wort suchen …" autofocus autocomplete="off">
   <select id="lang"></select>
 </div>
+<div class="topsearches" id="top"></div>
 
 <ul id="results"></ul>
 <div class="hint" id="hint"></div>
@@ -248,12 +263,33 @@ q.addEventListener('input', () => {
 });
 lang.addEventListener('change', search);
 
+async function loadTop() {
+  const box = document.getElementById('top');
+  const rows = await fetch('/suchen/top?limit=8').then(r => r.json());
+  if (!rows.length) return;
+  const lbl = document.createElement('span');
+  lbl.className = 'lbl';
+  lbl.textContent = 'Meistgesucht:';
+  box.appendChild(lbl);
+  for (const r of rows) {
+    const b = document.createElement('button');
+    b.textContent = r.term;
+    b.addEventListener('click', () => {
+      q.value = r.term;
+      if (r.language && [...lang.options].some(o => o.value === r.language)) lang.value = r.language;
+      search();
+    });
+    box.appendChild(b);
+  }
+}
+
 loadMeta().then(() => {
   const p = new URLSearchParams(location.search);
   if (p.get('lang') && [...lang.options].some(o => o.value === p.get('lang'))) lang.value = p.get('lang');
   if (p.get('q')) q.value = p.get('q');
   search();
 });
+loadTop();
 </script>
 </body>
 </html>

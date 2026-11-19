@@ -24,6 +24,12 @@ CREATE TABLE IF NOT EXISTS ratings (
     created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_ratings_entry ON ratings (entry_id);
+CREATE TABLE IF NOT EXISTS search_stats (
+    term        TEXT    NOT NULL,
+    language    TEXT    NOT NULL,
+    count       INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (term, language)
+);
 """
 
 
