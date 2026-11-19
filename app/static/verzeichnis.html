@@ -67,6 +67,14 @@
   }
   #words span { display: block; break-inside: avoid; padding: .1rem 0; font-size: 1.05rem; }
   #words small.def { display: block; color: var(--muted); font-size: .8rem; margin: 0 0 .35rem; }
+  .wref { cursor: pointer; border-bottom: 1px dotted var(--accent); }
+  .wref:hover { color: var(--accent); }
+  #tip {
+    display: none; position: absolute; z-index: 10; max-width: 320px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.12); padding: .5rem .7rem;
+    font-size: .85rem; color: var(--ink);
+  }
   footer { margin-top: auto; padding-top: 2.5rem; color: var(--muted); font-size: .8rem; }
   footer a { color: var(--accent); text-decoration: none; }
 </style>
@@ -115,6 +123,86 @@ const wordsBox = document.getElementById('words');
 const countBox = document.getElementById('count');
 let lang = 'de';
 
+// --- Querverweise: Wörter in Definitionen werden hover- & klickbar ---
+const STOPWORDS = Object.fromEntries(Object.entries({
+  de: 'der die das den dem des ein eine einer einem einen eines und oder aber mit für von zu in im am an auf aus bei nach über unter vor zwischen durch um als auch nicht nur sehr mehr wenig ist sind war waren wird werden hat haben hatte ich du er sie es wir ihr man sich so wie wenn dann denn noch schon zum zur vom beim ins ans',
+  en: 'the a an and or but with for from to in on at of by as is are was were be been has have had not no so if then than this that these those it its he she they we you i his her their our your my',
+  fr: 'le la les un une des de du au aux et ou mais avec pour dans sur par est sont était être a ont ce cette ces il elle ils elles on ne pas plus très son sa ses mon ma mes ton ta tes',
+  es: 'el la los las un una unos unas de del al y o pero con para por en es son era ser ha han este esta estos estas su sus mi mis tu tus no más muy se lo le les',
+  it: 'il lo la i gli le un una uno dei delle di del della al alla e o ma con per in su è sono era essere ha hanno questo questa questi queste suo sua suoi non più molto si ne ci',
+}).map(([k, v]) => [k, new Set(v.split(' '))]));
+const xrefCache = new Map();
+const tip = document.createElement('div');
+tip.id = 'tip';
+document.body.appendChild(tip);
+let tipTimer = null;
+
+function xrefCandidates(tok) {
+  const t = tok.replace(/^['’\-]+|['’\-]+$/g, '');
+  const low = t.toLowerCase();
+  const cap = low.charAt(0).toUpperCase() + low.slice(1);
+  return [...new Set([t, low, cap])];
+}
+
+async function xrefLookup(word, langCode) {
+  for (const cand of xrefCandidates(word)) {
+    const key = langCode + '|' + cand.toLowerCase();
+    if (!xrefCache.has(key)) {
+      try {
+        const r = await fetch('/lookup?' + new URLSearchParams({ word: cand, language: langCode }));
+        xrefCache.set(key, r.ok ? await r.json() : null);
+      } catch { xrefCache.set(key, null); }
+    }
+    const hit = xrefCache.get(key);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function showTip(anchor, entry) {
+  tip.innerHTML = '';
+  const w = document.createElement('b');
+  w.textContent = entry.word;
+  tip.appendChild(w);
+  tip.appendChild(document.createTextNode(' — ' + (entry.definition || '')));
+  tip.style.display = 'block';
+  const r = anchor.getBoundingClientRect();
+  const maxX = window.scrollX + document.documentElement.clientWidth - tip.offsetWidth - 8;
+  tip.style.left = Math.max(8, Math.min(r.left + window.scrollX, maxX)) + 'px';
+  tip.style.top = (r.bottom + window.scrollY + 6) + 'px';
+}
+
+function linkify(defEl, text, langCode) {
+  const stops = STOPWORDS[langCode] || new Set();
+  const re = /\p{L}[\p{L}\-'’]*/gu;
+  let last = 0;
+  for (const m of text.matchAll(re)) {
+    defEl.appendChild(document.createTextNode(text.slice(last, m.index)));
+    last = m.index + m[0].length;
+    const raw = m[0];
+    if (raw.length < 3 || stops.has(raw.toLowerCase())) {
+      defEl.appendChild(document.createTextNode(raw));
+      continue;
+    }
+    const s = document.createElement('span');
+    s.className = 'wref';
+    s.textContent = raw;
+    s.addEventListener('mouseenter', () => {
+      tipTimer = setTimeout(async () => {
+        const hit = await xrefLookup(raw, langCode);
+        if (!hit) { s.classList.remove('wref'); return; }
+        showTip(s, hit);
+      }, 200);
+    });
+    s.addEventListener('mouseleave', () => { clearTimeout(tipTimer); tip.style.display = 'none'; });
+    s.addEventListener('click', () => {
+      location.href = '/?' + new URLSearchParams({ q: raw, lang: langCode });
+    });
+    defEl.appendChild(s);
+  }
+  defEl.appendChild(document.createTextNode(text.slice(last)));
+}
+
 async function fetchPrefix(prefix) {
   const all = [];
   let offset = 0;
@@ -150,7 +238,7 @@ async function loadWords(display, prefixes, btn) {
     if (e.definition) {
       const d = document.createElement('small');
       d.className = 'def';
-      d.textContent = e.definition;
+      linkify(d, e.definition, lang);
       s.appendChild(d);
     }
     wordsBox.appendChild(s);
