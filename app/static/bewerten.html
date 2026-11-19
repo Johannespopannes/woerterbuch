@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bilder bewerten · Wörterbuch</title>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --ink: #2b2620;
+    --muted: #8a7f6f;
+    --accent: #a05c2c;
+    --card: #ffffff;
+    --line: #e8e0d4;
+    --ok: #4a7c59;
+    --no: #a0442c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 6vh 1rem 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  header { text-align: center; margin-bottom: 1.5rem; }
+  h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: normal; margin: 0 0 .3rem; }
+  h1 a { color: inherit; text-decoration: none; }
+  .sub { color: var(--muted); font-style: italic; font-size: .95rem; }
+  #langsel {
+    font: inherit; font-size: .95rem; margin-bottom: 1.4rem;
+    padding: .35rem .9rem;
+    border: 1px solid var(--line); border-radius: 999px;
+    background: var(--card); color: var(--ink);
+  }
+  .card {
+    width: min(420px, 100%);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: box-shadow .25s;
+  }
+  .card.ok { box-shadow: 0 0 0 3px var(--ok); }
+  .card.no { box-shadow: 0 0 0 3px var(--no); }
+  #bild {
+    width: 256px; height: 256px; max-width: 100%;
+    border-radius: 12px; object-fit: cover;
+    background: var(--bg); border: 1px solid var(--line);
+  }
+  #wort { font-size: 1.5rem; margin: .9rem 0 .1rem; }
+  #sprache { color: var(--muted); font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; }
+  .buttons { display: flex; gap: .8rem; justify-content: center; margin-top: 1.4rem; }
+  .buttons button {
+    font: inherit; font-size: 1.05rem;
+    padding: .7rem 1.4rem;
+    border-radius: 999px; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink);
+    cursor: pointer;
+  }
+  #ja { border-color: var(--ok); color: var(--ok); }
+  #ja:hover { background: var(--ok); color: #fff; }
+  #nein { border-color: var(--no); color: var(--no); }
+  #nein:hover { background: var(--no); color: #fff; }
+  #stats { color: var(--muted); font-size: .85rem; margin-top: 1.6rem; min-height: 1.2em; }
+  footer { margin-top: auto; padding-top: 2.5rem; color: var(--muted); font-size: .8rem; }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1><a href="/">Wörterbuch</a></h1>
+  <div class="sub">Versteht man das Bild zum Wort?</div>
+</header>
+
+<select id="langsel"><option value="">Alle Sprachen</option></select>
+
+<div class="card" id="card">
+  <img id="bild" alt="Wort-Bild">
+  <div id="wort">lade …</div>
+  <div id="sprache"></div>
+</div>
+
+<div class="buttons">
+  <button id="ja">Verstehe ich</button>
+  <button id="nein">Verstehe ich nicht</button>
+</div>
+
+<div id="stats"></div>
+
+<footer>
+  <a href="/">Zur Suche</a> · <a href="/verzeichnis">Stichwortverzeichnis</a> · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
+</footer>
+
+<script>
+const card = document.getElementById('card');
+const bild = document.getElementById('bild');
+const wort = document.getElementById('wort');
+const sprache = document.getElementById('sprache');
+const langsel = document.getElementById('langsel');
+const statsBox = document.getElementById('stats');
+let current = null;
+let busy = false;
+
+async function loadStats() {
+  const s = await fetch('/raten/stats').then(r => r.json());
+  const pct = s.votes ? Math.round(100 * s.understood / s.votes) : 0;
+  statsBox.textContent = s.votes.toLocaleString('de-DE') + ' Bewertungen · ' +
+    pct + ' % verstanden · ' + s.entries_with_image.toLocaleString('de-DE') + ' Bilder im Bestand';
+}
+
+async function next() {
+  busy = false;
+  const params = langsel.value ? '?language=' + langsel.value : '';
+  const r = await fetch('/raten/next' + params);
+  if (!r.ok) {
+    wort.textContent = 'Noch keine Bilder vorhanden — die Generierung läuft gerade an.';
+    bild.removeAttribute('src');
+    sprache.textContent = '';
+    current = null;
+    return;
+  }
+  current = await r.json();
+  bild.src = '/bilder/' + current.image;
+  wort.textContent = current.word;
+  sprache.textContent = current.language;
+}
+
+async function vote(understood) {
+  if (!current || busy) return;
+  busy = true;
+  card.classList.add(understood ? 'ok' : 'no');
+  await fetch('/raten/vote', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ entry_id: current.id, understood }),
+  });
+  setTimeout(() => { card.classList.remove('ok', 'no'); next(); }, 350);
+  loadStats();
+}
+
+document.getElementById('ja').addEventListener('click', () => vote(true));
+document.getElementById('nein').addEventListener('click', () => vote(false));
+langsel.addEventListener('change', next);
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'j') vote(true);
+  if (e.key === 'ArrowLeft' || e.key === 'n') vote(false);
+});
+
+fetch('/languages').then(r => r.json()).then(langs => {
+  const NAMES = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', es: 'Spanisch', it: 'Italienisch' };
+  for (const l of langs) {
+    const o = document.createElement('option');
+    o.value = l.language;
+    o.textContent = NAMES[l.language] || l.language;
+    langsel.appendChild(o);
+  }
+});
+
+loadStats();
+next();
+</script>
+</body>
+</html>

@@ -3,3 +3,4 @@ __pycache__/
 woerterbuch.db*
 *.log
 *.pid
+images/

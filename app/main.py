@@ -15,7 +15,9 @@ Schutz vor Missbrauch:
     Achtung: Zähler pro Prozess — bei mehreren Workern nicht global.
   - Payload-Grenzen: Wort max. 100 Zeichen, Batch max. 500 Einträge.
 """
+import base64
 import os
+import re
 import secrets
 import threading
 import time
@@ -34,7 +36,13 @@ API_KEY = os.environ.get("API_KEY")
 RATE_READ = int(os.environ.get("RATE_READ_PER_MIN", "60"))
 RATE_WRITE = int(os.environ.get("RATE_WRITE_PER_MIN", "5"))
 RATE_WRITE_KEYED = int(os.environ.get("RATE_WRITE_KEYED_PER_MIN", "600"))
+RATE_VOTE = int(os.environ.get("RATE_VOTE_PER_MIN", "30"))
 WINDOW = 60  # Sekunden
+
+IMAGES_DIR = Path(os.environ.get(
+    "IMAGES_DIR", Path(__file__).resolve().parent.parent / "images"))
+IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+IMAGE_NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,120}\.(png|webp)$")
 
 app = FastAPI(title="Wörterbuch API", version="0.2.0")
 
@@ -58,6 +66,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             host = request.client.host if request.client else "?"
             bucket = f"{host}:{'w' if is_write else 'r'}"
             limit = RATE_WRITE if is_write else RATE_READ
+            # Abstimmen auf der Bewertungsseite ist ein Write, soll aber
+            # flüssig klickbar bleiben — eigener, großzügigerer Bucket.
+            if request.url.path == "/raten/vote":
+                bucket = f"{host}:v"
+                limit = RATE_VOTE
         now = time.monotonic()
         with self.lock:
             dq = self.hits[bucket]
@@ -107,8 +120,19 @@ class EntryOut(BaseModel):
     word: str
     language: str
     definition: str | None
+    image: str | None = None
     source: str
     created_at: str
+
+
+class VoteIn(BaseModel):
+    entry_id: int
+    understood: bool
+
+
+class ImageIn(BaseModel):
+    filename: str = Field(pattern=r"^[A-Za-z0-9_-]{1,120}\.(png|webp)$")
+    data_b64: str = Field(max_length=3_000_000)
 
 
 class BatchIn(BaseModel):
@@ -222,6 +246,8 @@ def list_entries(
     q: str | None = Query(default=None, description="Teilstring-Suche im Wort"),
     undefined: bool = Query(default=False,
                             description="nur Einträge ohne Definition"),
+    noimage: bool = Query(default=False,
+                          description="nur Einträge ohne Bild"),
     limit: int = Query(default=100, le=1000),
     offset: int = 0,
 ):
@@ -239,6 +265,8 @@ def list_entries(
         params.append(f"%{q}%")
     if undefined:
         sql += " AND (definition IS NULL OR definition = '')"
+    if noimage:
+        sql += " AND (image IS NULL OR image = '')"
     sql += " ORDER BY word LIMIT ? OFFSET ?"
     params += [limit, offset]
     conn = get_conn()
@@ -298,6 +326,109 @@ def set_definition(entry_id: int, body: DefinitionIn, _=Depends(require_api_key)
         conn.commit()
         if cur.rowcount == 0:
             raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        row = conn.execute(
+            "SELECT * FROM entries WHERE id = ?", (entry_id,)
+        ).fetchone()
+        return row_to_dict(row)
+    finally:
+        conn.close()
+
+
+# ---------- Bilder & Bewertung ----------
+
+@app.get("/bewerten", include_in_schema=False)
+def bewerten():
+    """Seite zum Bewerten der Wort-Bilder."""
+    return FileResponse(Path(__file__).parent / "static" / "bewerten.html")
+
+
+@app.get("/bilder/{filename}", include_in_schema=False)
+def bilder(filename: str):
+    """Generierte Wort-Bilder ausliefern (nur simple Dateinamen)."""
+    if not IMAGE_NAME_RE.fullmatch(filename):
+        raise HTTPException(404, "Ungültiger Dateiname")
+    path = IMAGES_DIR / filename
+    if not path.is_file():
+        raise HTTPException(404, "Bild nicht gefunden")
+    return FileResponse(path)
+
+
+@app.get("/raten/next")
+def raten_next(language: str | None = None):
+    """Zufälliger Eintrag mit Bild für die Bewertungsseite."""
+    sql = ("SELECT id, word, language, image FROM entries "
+           "WHERE image IS NOT NULL AND image != ''")
+    params: list = []
+    if language:
+        sql += " AND language = ?"
+        params.append(language.lower())
+    sql += " ORDER BY RANDOM() LIMIT 1"
+    conn = get_conn()
+    try:
+        row = conn.execute(sql, params).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        raise HTTPException(404, "Noch keine Bilder vorhanden")
+    return row_to_dict(row)
+
+
+@app.post("/raten/vote", status_code=201)
+def raten_vote(vote: VoteIn):
+    """Öffentliche Bewertung: Bild verstanden oder nicht (kein Key nötig)."""
+    conn = get_conn()
+    try:
+        exists = conn.execute(
+            "SELECT 1 FROM entries WHERE id = ?", (vote.entry_id,)
+        ).fetchone()
+        if not exists:
+            raise HTTPException(404, f"Eintrag {vote.entry_id} nicht gefunden")
+        conn.execute(
+            "INSERT INTO ratings (entry_id, understood) VALUES (?, ?)",
+            (vote.entry_id, 1 if vote.understood else 0),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@app.get("/raten/stats")
+def raten_stats():
+    conn = get_conn()
+    try:
+        votes = conn.execute("SELECT COUNT(*) AS n FROM ratings").fetchone()["n"]
+        understood = conn.execute(
+            "SELECT COUNT(*) AS n FROM ratings WHERE understood = 1"
+        ).fetchone()["n"]
+        with_image = conn.execute(
+            "SELECT COUNT(*) AS n FROM entries WHERE image IS NOT NULL AND image != ''"
+        ).fetchone()["n"]
+    finally:
+        conn.close()
+    return {"votes": votes, "understood": understood,
+            "not_understood": votes - understood, "entries_with_image": with_image}
+
+
+@app.post("/entries/{entry_id}/image", response_model=EntryOut)
+def set_image(entry_id: int, body: ImageIn, _=Depends(require_api_key)):
+    """Bild (Base64) für einen Eintrag hochladen — für die Bild-Pipeline."""
+    try:
+        data = base64.b64decode(body.data_b64, validate=True)
+    except Exception:
+        raise HTTPException(400, "Ungültiges Base64")
+    if len(data) > 2_000_000:
+        raise HTTPException(413, "Bild zu groß (max. 2 MB)")
+    conn = get_conn()
+    try:
+        cur = conn.execute(
+            "UPDATE entries SET image = ? WHERE id = ?",
+            (body.filename, entry_id),
+        )
+        conn.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        (IMAGES_DIR / body.filename).write_bytes(data)
         row = conn.execute(
             "SELECT * FROM entries WHERE id = ?", (entry_id,)
         ).fetchone()

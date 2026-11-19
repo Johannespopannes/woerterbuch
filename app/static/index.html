@@ -74,6 +74,8 @@
     gap: 1rem;
   }
   #results .word { font-size: 1.15rem; }
+  #results .left { display: flex; align-items: center; gap: .7rem; }
+  #results .thumb { width: 38px; height: 38px; border-radius: 8px; object-fit: cover; border: 1px solid var(--line); }
   #results .def { color: var(--muted); font-size: .9rem; text-align: right; }
   .wref { cursor: pointer; border-bottom: 1px dotted var(--accent); }
   .wref:hover { color: var(--accent); }
@@ -103,7 +105,7 @@
 <div class="hint" id="hint"></div>
 
 <footer>
-  Maschinell geerntet · <a href="/verzeichnis">Stichwortverzeichnis</a> · <a href="/docs">API-Doku</a> · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
+  Maschinell geerntet · <a href="/verzeichnis">Stichwortverzeichnis</a> · <a href="/bewerten">Bilder bewerten</a> · <a href="/docs">API-Doku</a> · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
 </footer>
 
 <script>
@@ -218,13 +220,24 @@ async function search() {
                      rows.length === 0 ? 'Nichts gefunden.' : '';
   for (const e of rows) {
     const li = document.createElement('li');
+    const left = document.createElement('span');
+    left.className = 'left';
+    if (e.image) {
+      const img = document.createElement('img');
+      img.className = 'thumb';
+      img.src = '/bilder/' + e.image;
+      img.alt = '';
+      img.loading = 'lazy';
+      left.appendChild(img);
+    }
     const w = document.createElement('span');
     w.className = 'word';
     w.textContent = e.word;
+    left.appendChild(w);
     const d = document.createElement('span');
     d.className = 'def';
     linkify(d, e.definition || '', lang.value);
-    li.append(w, d);
+    li.append(left, d);
     results.appendChild(li);
   }
 }
