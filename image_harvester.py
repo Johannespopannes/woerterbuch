@@ -14,7 +14,8 @@ import argparse
 import base64
 import json
 import os
-import subprocess
+import re
+import shutil
 import sys
 import time
 import urllib.request
@@ -33,10 +34,13 @@ CACHE_DIR = Path(os.environ.get(
 DICT_API_URL = os.environ.get("DICT_API_URL", "http://127.0.0.1:8000")
 DICT_API_KEY = os.environ.get("DICT_API_KEY", "")
 
+# sd-server (stable-diffusion.cpp, A1111-kompatible API) mit geladenem
+# Flux.1-schnell — kein Modell-Reload pro Bild (~17 s statt ~37 s)
+SD_SERVER = os.environ.get("SD_SERVER", "http://127.0.0.1:8100")
+
 PROMPT_TEMPLATE = (
-    "flat vector pictogram of {concept}, <lora:IconsRedmond15V-Icons:0.9>, "
-    "minimal geometric icon, solid colors, centered, isolated on pure white "
-    "background, no text"
+    "flat vector pictogram of {concept}, minimal geometric icon, "
+    "solid colors, centered, isolated on pure white background"
 )
 NEGATIVE = "photo, realistic, text, watermark, blurry, complex background"
 
@@ -80,21 +84,72 @@ def translate_batch(words: list[str], lang: str) -> dict[str, str]:
 
 def render(concept: str, out_path: Path, size: int, steps: int,
            seed: int) -> bool:
-    """Ein Piktogramm rendern. True bei Erfolg."""
-    cmd = [
-        SD_CLI, "-m", SD_MODEL, "--lora-model-dir", LORA_DIR,
-        "-p", PROMPT_TEMPLATE.format(concept=concept),
-        "-n", NEGATIVE,
-        "--steps", str(steps), "--cfg-scale", "6",
-        "-W", str(size), "-H", str(size),
-        "--seed", str(seed), "-o", str(out_path),
-    ]
+    """Ein Piktogramm über den sd-server rendern (Flux bleibt geladen).
+
+    True bei Erfolg. Flux.1-schnell: cfg_scale 1, wenige Schritte,
+    kein Negativ-Prompt nötig (destilliertes Modell).
+    """
+    body = {
+        "prompt": PROMPT_TEMPLATE.format(concept=concept),
+        "steps": steps,
+        "width": size,
+        "height": size,
+        "cfg_scale": 1,
+        "seed": seed,
+    }
+    req = urllib.request.Request(
+        f"{SD_SERVER}/sdapi/v1/txt2img",
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"})
     try:
-        subprocess.run(cmd, timeout=300, capture_output=True, check=False)
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            data = json.loads(resp.read())
+        out_path.write_bytes(base64.b64decode(data["images"][0]))
     except Exception as e:
-        print(f"  sd-cli Fehler: {e}", file=sys.stderr)
+        print(f"  sd-server Fehler: {e}", file=sys.stderr)
         return False
     return out_path.is_file() and out_path.stat().st_size > 1000
+
+
+GEMMA_URL = os.environ.get("GEMMA_URL", "http://127.0.0.1:8082/v1")
+
+PICK_PROMPT = (
+    'Die folgenden {n} Bilder (Bild 1 bis Bild {n}) sollen jeweils das Wort '
+    '"{word}" als einfaches Piktogramm darstellen. Welches Bild macht "{word}" '
+    'für einen Unbeteiligten am besten erkennbar? '
+    'Antworte mit GENAU einer Zeile im Format:\nPICK: <Nummer>'
+)
+
+
+def gemma_pick(word: str, paths: list[Path]) -> int:
+    """0-basierter Index des besten Kandidaten laut Gemma-Vision, -1 bei Fehler."""
+    content = [{
+        "type": "image_url",
+        "image_url": {"url": "data:image/png;base64,"
+                      + base64.b64encode(p.read_bytes()).decode()},
+    } for p in paths]
+    content.append({"type": "text", "text": PICK_PROMPT.format(
+        n=len(paths), word=word)})
+    body = {
+        "model": "gemma-vision",
+        "messages": [{"role": "user", "content": content}],
+        "max_tokens": 800,  # Reasoning-Modell: Denkpfad braucht Budget
+        "temperature": 0.1,
+    }
+    req = urllib.request.Request(
+        f"{GEMMA_URL}/chat/completions",
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"})
+    try:
+        r = json.load(urllib.request.urlopen(req, timeout=300))
+        out = r["choices"][0]["message"].get("content") or ""
+    except Exception as e:
+        print(f"  Gemma-Pick-Fehler: {e}", file=sys.stderr)
+        return -1
+    m = re.search(r"PICK:\s*(\d+)", out)
+    if m and 1 <= int(m.group(1)) <= len(paths):
+        return int(m.group(1)) - 1
+    return -1
 
 
 def main() -> None:
@@ -103,10 +158,14 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=0,
                     help="max. Anzahl Bilder (0 = alle ohne Bild)")
     ap.add_argument("--size", type=int, default=384)
-    ap.add_argument("--steps", type=int, default=16)
+    ap.add_argument("--steps", type=int, default=4,
+                    help="Flux.1-schnell ist destilliert: 4 Schritte reichen")
     ap.add_argument("--delay", type=float, default=0.2)
     ap.add_argument("--seed-offset", type=int, default=0,
                     help="anderer Seed für Neuversuche (z. B. nach Voting)")
+    ap.add_argument("--candidates", type=int, default=2,
+                    help="Kandidaten pro Wort; Gemma-Vision wählt den besten "
+                         "(1 = ein Rendervorgang ohne Auswahl)")
     args = ap.parse_args()
 
     lang_name = LANG_NAMES.get(args.language, f"{args.language}-sprachige")
@@ -131,6 +190,12 @@ def main() -> None:
 
     done = failed = 0
     for i in range(0, len(todo), 50):
+        # Pause-Datei: andere Jobs (z. B. fix_images) können die GPU für
+        # sich reservieren, ohne diesen Langläufer abzuwürgen
+        pause = CACHE_DIR.parent / "PAUSE"
+        while pause.is_file():
+            print("  pausiert (PAUSE-Datei) …", flush=True)
+            time.sleep(20)
         chunk = todo[i:i + 50]
         concepts = translate_batch([e["word"] for e in chunk], lang_name)
         for e in chunk:
@@ -139,9 +204,29 @@ def main() -> None:
             out = CACHE_DIR / filename
             if out.is_file() and out.stat().st_size > 1000:
                 ok = True  # Cache-Treffer: nur hochladen
-            else:
+            elif args.candidates <= 1:
                 seed = (e["id"] + args.seed_offset * 1_000_003) % 2**31
                 ok = render(concept, out, args.size, args.steps, seed)
+            else:
+                # Best-of-k: k Seeds rendern, Gemma-Vision wählt den Sieger
+                cand_files = []
+                for ci in range(args.candidates):
+                    cand = CACHE_DIR / (
+                        f"{args.language}-{e['id']}-cand{ci + 1}.png")
+                    seed = (e["id"] + args.seed_offset * 1_000_003
+                            + ci * 104_729) % 2**31
+                    if (cand.is_file() and cand.stat().st_size > 1000) or \
+                            render(concept, cand, args.size, args.steps, seed):
+                        cand_files.append(cand)
+                if not cand_files:
+                    ok = False
+                else:
+                    pick = gemma_pick(e["word"], cand_files) \
+                        if len(cand_files) > 1 else 0
+                    shutil.copyfile(
+                        cand_files[pick] if pick >= 0 else cand_files[0],
+                        out)
+                    ok = True
             if ok:
                 try:
                     api_upload_image(e["id"], filename, out.read_bytes())
