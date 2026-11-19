@@ -154,6 +154,16 @@ def verzeichnis():
     return FileResponse(Path(__file__).parent / "static" / "verzeichnis.html")
 
 
+@app.get("/impressum", include_in_schema=False)
+def impressum():
+    return FileResponse(Path(__file__).parent / "static" / "impressum.html")
+
+
+@app.get("/datenschutz", include_in_schema=False)
+def datenschutz():
+    return FileResponse(Path(__file__).parent / "static" / "datenschutz.html")
+
+
 @app.post("/entries", response_model=EntryOut, status_code=201)
 def create_entry(entry: EntryIn, _=Depends(require_api_key)):
     conn = get_conn()

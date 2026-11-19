@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datenschutz · Wörterbuch</title>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --ink: #2b2620;
+    --muted: #8a7f6f;
+    --accent: #a05c2c;
+    --card: #ffffff;
+    --line: #e8e0d4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 6vh 1rem 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  main {
+    width: min(620px, 100%);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 2rem 2.2rem;
+  }
+  h1 { font-size: 1.6rem; font-weight: normal; margin: 0 0 1.2rem; }
+  h2 { font-size: 1.05rem; font-weight: normal; margin: 1.4rem 0 .4rem; color: var(--ink); }
+  p { margin: .3rem 0; line-height: 1.55; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  footer { margin-top: auto; padding-top: 2.5rem; color: var(--muted); font-size: .8rem; }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Datenschutzerklärung</h1>
+
+  <p>Diese Website verarbeitet personenbezogene Daten nur im technisch erforderlichen Umfang.</p>
+
+  <h2>Server-Logfiles (Hosting)</h2>
+  <p>
+    Beim Aufruf der Website werden durch den Hosting-Anbieter technisch notwendige Zugriffsdaten
+    (z. B. IP-Adresse, Datum/Uhrzeit, angeforderte Ressource, Statuscode, User-Agent) verarbeitet,
+    um den Betrieb, die Sicherheit und die Fehleranalyse zu ermöglichen.
+  </p>
+
+  <h2>Rate-Limiting</h2>
+  <p>
+    Zur Begrenzung der Anfragennutzlast speichert die API IP-Adressen ausschließlich flüchtig
+    im Arbeitsspeicher (für maximal 60 Sekunden je Anfragefenster). Es findet keine dauerhafte
+    Speicherung oder Auswertung statt.
+  </p>
+
+  <h2>Keine Drittanbieter</h2>
+  <p>
+    Diese Website bindet keine externen Schriftarten, Skripte, Tracking-Dienste, CDNs oder sonstige
+    Drittanbieter-Ressourcen ein. Alle Inhalte werden von eigenen Servern ausgeliefert.
+  </p>
+
+  <h2>Cookies und Web Storage</h2>
+  <p>Diese Website setzt keine Cookies und nutzt kein LocalStorage oder SessionStorage.</p>
+
+  <h2>Kontakt</h2>
+  <p>Bei Fragen zum Datenschutz: <a href="mailto:info@kw-heute.de">info@kw-heute.de</a></p>
+</main>
+
+<footer>
+  <a href="/">Startseite</a> · <a href="/verzeichnis">Stichwortverzeichnis</a> · <a href="/impressum">Impressum</a>
+</footer>
+</body>
+</html>

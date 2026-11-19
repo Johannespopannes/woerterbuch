@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Impressum · Wörterbuch</title>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --ink: #2b2620;
+    --muted: #8a7f6f;
+    --accent: #a05c2c;
+    --card: #ffffff;
+    --line: #e8e0d4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 6vh 1rem 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  main {
+    width: min(620px, 100%);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 2rem 2.2rem;
+  }
+  h1 { font-size: 1.6rem; font-weight: normal; margin: 0 0 1.2rem; }
+  h2 { font-size: 1.05rem; font-weight: normal; margin: 1.4rem 0 .4rem; color: var(--ink); }
+  p { margin: .3rem 0; line-height: 1.55; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  footer { margin-top: auto; padding-top: 2.5rem; color: var(--muted); font-size: .8rem; }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Impressum</h1>
+
+  <h2>Angaben gem. § 5 TMG</h2>
+  <p>
+    Johannes Harfst<br>
+    Obergasse 6<br>
+    35647 Waldsolms
+  </p>
+  <p>E-Mail: <a href="mailto:info@kw-heute.de">info@kw-heute.de</a></p>
+
+  <h2>Verantwortlich für journalistisch-redaktionelle Inhalte gem. § 18 Abs. 2 MStV</h2>
+  <p>
+    Johannes Harfst<br>
+    Obergasse 6<br>
+    35647 Waldsolms
+  </p>
+</main>
+
+<footer>
+  <a href="/">Startseite</a> · <a href="/verzeichnis">Stichwortverzeichnis</a> · <a href="/datenschutz">Datenschutz</a>
+</footer>
+</body>
+</html>
