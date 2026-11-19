@@ -32,6 +32,7 @@ import re
 import string
 import sys
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -48,6 +49,18 @@ LANG_NAMES = {
     "es": "spanische",
     "it": "italienische",
 }
+
+# Sprachen, in denen Akzente Diakritika auf dem Basisbuchstaben sind
+# (é → e). Im Deutschen sind ä/ö/ü eigene Buchstaben — dort NICHT falten.
+ACCENT_FOLD_LANGS = {"en", "fr", "es", "it"}
+
+
+def _first_letter(word: str, language: str) -> str:
+    """Anfangsbuchstabe für den Buchstaben-Filter, ggf. akzentgefaltet."""
+    c = word[0].lower()
+    if language in ACCENT_FOLD_LANGS:
+        c = unicodedata.normalize("NFD", c)[0]
+    return c
 
 # ---------- Prompts ----------
 
@@ -279,7 +292,9 @@ def harvest_free(language, letters, rounds, per_round, temperature, delay):
                 print(f"[{letter}] Runde {rnd}: Modell-Fehler: {e}", file=sys.stderr)
                 time.sleep(delay * 3)
                 continue
-            new = [w for w in cand if w and w[0].lower() == letter and w not in known]
+            new = [w for w in cand
+                   if w and _first_letter(w, language) == letter
+                   and w not in known]
             added = insert(language, new)
             known.update(new)
             print(f"[{letter}] Runde {rnd}: +{added} neu")
@@ -308,7 +323,8 @@ def harvest_suggest(language, letters, max_rounds, per_round, temperature, delay
                 break
             known_set = set(known)
             new = [w for w in cand
-                   if w and w[0].lower() == letter and w not in known_set]
+                   if w and _first_letter(w, language) == letter
+                   and w not in known_set]
             added = insert(language, new)
             print(f"[{letter}] Runde {rnd}: +{added} neu ({len(known)} vorher bekannt)")
             if added == 0:
