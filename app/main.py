@@ -311,6 +311,55 @@ def lookup(word: str, language: str):
     return row_to_dict(row)
 
 
+FUGENLAUTE = ("en", "er", "es", "e", "s", "n")
+
+
+def _split_compound(w: str, vocab: dict, depth: int = 0) -> list | None:
+    """Kompositum gegen den Wortbestand zerlegen (längster linker Treffer).
+
+    Fugenlaute am Ende des linken Teils werden toleriert
+    (Abfahrtssignal -> Abfahrt + Signal). Konservativ: Bestandteile
+    mindestens 3 Zeichen, damit keine Scheinzerlegungen entstehen.
+    """
+    for i in range(len(w), 2, -1):
+        left, rest = w[:i], w[i:]
+        cands = [left]
+        for f in FUGENLAUTE:
+            if left.endswith(f) and len(left) - len(f) >= 3:
+                cands.append(left[: -len(f)])
+        hit = next((c for c in cands if c in vocab), None)
+        if hit is None:
+            continue
+        if len(rest) >= 3 and rest in vocab:
+            return [hit, rest]
+        if depth < 2 and len(rest) >= 6:
+            sub = _split_compound(rest, vocab, depth + 1)
+            if sub and len(sub) >= 2:
+                return [hit] + sub
+    return None
+
+
+@app.get("/zerlegen")
+def zerlegen(word: str, language: str):
+    """Zerlegt zusammengesetzte Wörter in ihre Bestandteile im Bestand."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT word FROM entries WHERE language = ?", (language.lower(),)
+        ).fetchall()
+    finally:
+        conn.close()
+    vocab = {r["word"].lower(): r["word"] for r in rows}
+    w = word.strip().lower()
+    if w not in vocab:
+        raise HTTPException(404, f"'{word}' nicht gefunden ({language})")
+    parts = _split_compound(w, vocab)
+    if not parts or len(parts) < 2:
+        return {"word": word, "parts": []}
+    return {"word": word,
+            "parts": [{"part": p, "entry": vocab[p]} for p in parts]}
+
+
 @app.get("/languages")
 def languages():
     conn = get_conn()

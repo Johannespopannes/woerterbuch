@@ -86,7 +86,15 @@
     justify-content: space-between;
     align-items: baseline;
     gap: 1rem;
+    flex-wrap: wrap;
   }
+  #results .comp {
+    flex-basis: 100%;
+    font-size: .8rem;
+    color: var(--muted);
+  }
+  #results .comp a { color: var(--accent); text-decoration: none; }
+  #results .comp a:hover { text-decoration: underline; }
   #results .word { font-size: 1.15rem; }
   #results .left { display: flex; align-items: center; gap: .7rem; }
   #results .thumb { width: 38px; height: 38px; border-radius: 8px; object-fit: cover; border: 1px solid var(--line); }
@@ -253,6 +261,26 @@ async function search() {
     d.className = 'def';
     linkify(d, e.definition || '', lang.value);
     li.append(left, d);
+    // Kompositum? -> Bestandteile als Links unter dem Wort anzeigen
+    if (e.word.length >= 8) {
+      fetch('/zerlegen?' + new URLSearchParams({ word: e.word, language: lang.value }))
+        .then(r => r.ok ? r.json() : null)
+        .then(z => {
+          if (!z || !z.parts || z.parts.length < 2) return;
+          const comp = document.createElement('span');
+          comp.className = 'comp';
+          comp.appendChild(document.createTextNode('= '));
+          z.parts.forEach((p, idx) => {
+            if (idx) comp.appendChild(document.createTextNode(' + '));
+            const a = document.createElement('a');
+            a.textContent = p.entry;
+            a.href = '/?' + new URLSearchParams({ q: p.entry, lang: lang.value });
+            comp.appendChild(a);
+          });
+          li.appendChild(comp);
+        })
+        .catch(() => {});
+    }
     results.appendChild(li);
   }
 }
