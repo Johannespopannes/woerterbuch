@@ -38,11 +38,21 @@
     display: flex;
     gap: .5rem;
   }
+  .qwrap { position: relative; flex: 1; display: flex; }
+  #clear {
+    position: absolute; right: .55rem; top: 50%;
+    transform: translateY(-50%);
+    width: 1.7rem; height: 1.7rem; border-radius: 50%;
+    border: none; background: var(--line); color: var(--ink);
+    font-size: 1rem; line-height: 1; cursor: pointer; display: none;
+  }
+  #clear:hover { background: var(--accent); color: #fff; }
+  header h1 { cursor: pointer; }
   #q {
     flex: 1;
     font: inherit;
     font-size: 1.2rem;
-    padding: .7rem 1rem;
+    padding: .7rem 2.5rem .7rem 1rem;
     border: 1px solid var(--line);
     border-radius: 999px;
     background: var(--card);
@@ -114,12 +124,15 @@
 </head>
 <body>
 <header>
-  <h1>Wörterbuch</h1>
+  <h1 id="home" title="Zurück zur Startseite">Wörterbuch</h1>
   <div class="stats" id="stats">…</div>
 </header>
 
 <div class="search">
-  <input id="q" type="search" placeholder="Wort suchen …" autofocus autocomplete="off">
+  <div class="qwrap">
+    <input id="q" type="search" placeholder="Wort suchen …" autofocus autocomplete="off">
+    <button id="clear" title="Suche leeren" aria-label="Suche leeren">✕</button>
+  </div>
   <select id="lang"></select>
 </div>
 <div class="topsearches" id="top"></div>
@@ -136,7 +149,19 @@ const q = document.getElementById('q');
 const lang = document.getElementById('lang');
 const results = document.getElementById('results');
 const hint = document.getElementById('hint');
+const clearBtn = document.getElementById('clear');
 let timer = null;
+
+function resetSearch() {
+  q.value = '';
+  results.innerHTML = '';
+  hint.textContent = '';
+  clearBtn.style.display = 'none';
+  history.replaceState(null, '', '/');
+  q.focus();
+}
+clearBtn.addEventListener('click', resetSearch);
+document.getElementById('home').addEventListener('click', resetSearch);
 
 async function loadMeta() {
   const [stats, langs] = await Promise.all([
@@ -311,6 +336,7 @@ async function search() {
 }
 
 q.addEventListener('input', () => {
+  clearBtn.style.display = q.value ? 'block' : 'none';
   clearTimeout(timer);
   timer = setTimeout(search, 200);
 });
