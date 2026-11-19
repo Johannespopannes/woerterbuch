@@ -24,10 +24,24 @@
     flex-direction: column;
     align-items: center;
   }
-  header { text-align: center; margin-bottom: 2rem; }
+  header { text-align: center; margin-bottom: 1.5rem; }
   h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: normal; margin: 0 0 .3rem; }
   h1 a { color: inherit; text-decoration: none; }
   .sub { color: var(--muted); font-style: italic; font-size: .95rem; }
+  .langs {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: .4rem; margin-bottom: 1.4rem;
+  }
+  .langs button {
+    font: inherit; font-size: .95rem;
+    padding: .35rem .9rem;
+    border: 1px solid var(--line); border-radius: 999px;
+    background: var(--card); color: var(--ink);
+    cursor: pointer;
+  }
+  .langs button:hover { border-color: var(--accent); color: var(--accent); }
+  .langs button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .langs button small { opacity: .75; font-size: .8em; margin-left: .25rem; }
   .letters {
     display: flex; flex-wrap: wrap; justify-content: center;
     gap: .35rem; margin-bottom: 2rem; max-width: 700px;
@@ -41,7 +55,6 @@
   }
   .letters button:hover { border-color: var(--accent); color: var(--accent); }
   .letters button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .letters button:disabled { opacity: .3; cursor: default; }
   #count { color: var(--muted); font-size: .9rem; margin-bottom: 1rem; min-height: 1.2em; }
   #words {
     width: min(900px, 100%);
@@ -64,8 +77,9 @@
   <div class="sub">Stichwortverzeichnis</div>
 </header>
 
+<nav class="langs" id="langs"></nav>
 <nav class="letters" id="letters"></nav>
-<div id="count">Buchstabe wählen …</div>
+<div id="count">Sprache wählen …</div>
 <div id="words"></div>
 
 <footer>
@@ -73,28 +87,63 @@
 </footer>
 
 <script>
-const LETTERS = [..."abcdefghijklmnopqrstuvwxyz", "ä", "ö", "ü", "ß"];
+const LANG_NAMES = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', es: 'Spanisch', it: 'Italienisch' };
+const LOCALES = { de: 'de-DE', en: 'en-GB', fr: 'fr-FR', es: 'es-ES', it: 'it-IT' };
+
+// Akzente, die auf den Basisbuchstaben gefaltet werden (API-Prefix ist
+// Unicode-genau, darum werden die Varianten einzeln abgefragt und gemischt).
+const FOLDED = {
+  fr: { a: 'àâä', c: 'ç', e: 'éèêë', i: 'îï', o: 'ôö', u: 'ùûü', y: 'ÿ' },
+  es: { a: 'á', e: 'é', i: 'í', o: 'ó', u: 'úü' },
+  it: { a: 'à', e: 'èé', i: 'ìí', o: 'òó', u: 'ù' },
+};
+// Eigene Buchstaben (Reihenfolge im Alphabet): de hat ä ö ü ß, es hat ñ nach n.
+const OWN_LETTERS = { de: ['ä', 'ö', 'ü', 'ß'], es: ['ñ'] };
+
+function letterGroups(lang) {
+  const base = [..."abcdefghijklmnopqrstuvwxyz"];
+  const fold = FOLDED[lang] || {};
+  const groups = base.map(l => [l, [l, ...(fold[l] || '')]]);
+  if (lang === 'es') groups.splice(base.indexOf('n') + 1, 0, ['ñ', ['ñ']]);
+  if (lang === 'de') for (const l of OWN_LETTERS.de) groups.push([l, [l]]);
+  return groups;
+}
+
+const langsNav = document.getElementById('langs');
 const lettersNav = document.getElementById('letters');
 const wordsBox = document.getElementById('words');
 const countBox = document.getElementById('count');
 let lang = 'de';
 
-async function loadWords(letter, btn) {
-  document.querySelectorAll('.letters button').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  wordsBox.innerHTML = '';
-  countBox.textContent = 'lade …';
+async function fetchPrefix(prefix) {
   const all = [];
   let offset = 0;
   while (true) {
-    const params = new URLSearchParams({ language: lang, prefix: letter, limit: 1000, offset });
+    const params = new URLSearchParams({ language: lang, prefix, limit: 1000, offset });
     const page = await fetch('/entries?' + params).then(r => r.json());
     all.push(...page);
     if (page.length < 1000) break;
     offset += page.length;
   }
+  return all;
+}
+
+async function loadWords(display, prefixes, btn) {
+  document.querySelectorAll('.letters button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  wordsBox.innerHTML = '';
+  countBox.textContent = 'lade …';
+  const seen = new Set();
+  const all = [];
+  for (const p of prefixes) {
+    for (const e of await fetchPrefix(p)) {
+      if (!seen.has(e.id)) { seen.add(e.id); all.push(e); }
+    }
+  }
+  const coll = new Intl.Collator(LOCALES[lang] || 'de-DE', { sensitivity: 'base' });
+  all.sort((a, b) => coll.compare(a.word, b.word));
   countBox.textContent = all.length.toLocaleString('de-DE') +
-    (all.length === 1 ? ' Wort' : ' Wörter') + ' unter „' + letter.toUpperCase() + '“';
+    (all.length === 1 ? ' Wort' : ' Wörter') + ' unter „' + display.toUpperCase() + '“';
   for (const e of all) {
     const s = document.createElement('span');
     s.textContent = e.word;
@@ -108,18 +157,42 @@ async function loadWords(letter, btn) {
   }
 }
 
-async function init() {
-  const langs = await fetch('/languages').then(r => r.json());
-  if (langs.length) lang = langs[0].language;
-  for (const l of LETTERS) {
+function buildLetters(prefer) {
+  lettersNav.innerHTML = '';
+  for (const [display, prefixes] of letterGroups(lang)) {
     const b = document.createElement('button');
-    b.textContent = l;
-    b.addEventListener('click', () => loadWords(l, b));
+    b.textContent = display;
+    b.addEventListener('click', () => loadWords(display, prefixes, b));
     lettersNav.appendChild(b);
   }
-  const start = location.hash.slice(1).toLowerCase();
-  const btn = [...lettersNav.children].find(b => b.textContent === start) || lettersNav.children[0];
-  btn.click();
+  const btn = [...lettersNav.children].find(b => b.textContent === prefer) || lettersNav.children[0];
+  if (btn) btn.click();
+}
+
+async function init() {
+  const langs = await fetch('/languages').then(r => r.json());
+  for (const l of langs) {
+    const b = document.createElement('button');
+    b.innerHTML = '';
+    b.textContent = LANG_NAMES[l.language] || l.language.toUpperCase();
+    const small = document.createElement('small');
+    small.textContent = l.count.toLocaleString('de-DE');
+    b.appendChild(small);
+    b.addEventListener('click', () => {
+      lang = l.language;
+      document.querySelectorAll('.langs button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      buildLetters();
+    });
+    langsNav.appendChild(b);
+  }
+  if (langs.length) {
+    const de = langs.find(l => l.language === 'de');
+    lang = de ? 'de' : langs[0].language;
+    const idx = langs.findIndex(l => l.language === lang);
+    langsNav.children[idx].classList.add('active');
+  }
+  buildLetters(location.hash.slice(1).toLowerCase());
 }
 
 init();
