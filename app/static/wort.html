@@ -211,8 +211,10 @@ async function load() {
       g.appendChild(fig);
     }
     const iv = ev.image_votes || { ja: 0, nein: 0 };
+    const un = ev.unknown_votes || 0;
     document.getElementById('bildvotes').textContent =
-      `Gesamt: ${iv.ja}× verstanden · ${iv.nein}× nicht verstanden`;
+      `Gesamt: ${iv.ja}× verstanden · ${iv.nein}× nicht verstanden` +
+      (un ? ` · ${un}× Wort unbekannt` : '');
   }
 
   // Wortfamilie

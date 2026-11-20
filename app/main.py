@@ -1091,6 +1091,10 @@ def get_evidence(entry_id: int):
             "       SUM(CASE WHEN fits=0 THEN 1 ELSE 0 END) passt_nicht "
             "FROM word_ratings WHERE entry_id = ?", (entry_id,),
         ).fetchone()
+        unbekannt = conn.execute(
+            "SELECT COUNT(*) AS n FROM ratings "
+            "WHERE entry_id = ? AND kind = 'unknown'", (entry_id,),
+        ).fetchone()["n"]
         # Stimmen pro Bilddatei (NULL/'' = Hauptbild)
         per_img = {}
         for r in conn.execute(
@@ -1115,6 +1119,9 @@ def get_evidence(entry_id: int):
     out["image_votes"] = {"ja": img["ja"] or 0, "nein": img["nein"] or 0}
     out["word_votes"] = {"passt": wr["passt"] or 0,
                          "passt_nicht": wr["passt_nicht"] or 0}
+    # "Wort unbekannt"-Stimmen der Bewertungsseite — eigenes Signal:
+    # verstehen Menschen den Begriff, unabhaengig vom Bild?
+    out["unknown_votes"] = unbekannt
     # Bilder des Eintrags: Hauptbild zuerst, dann Galerie — jeweils mit
     # ihren eigenen Stimmen (Kombination beschreibt den Begriff).
     bilder = []
