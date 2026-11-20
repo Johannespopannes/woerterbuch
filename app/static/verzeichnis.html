@@ -67,7 +67,9 @@
   }
   #words > a { display: block; break-inside: avoid; padding: .1rem 0;
                font-size: 1.05rem; color: inherit; text-decoration: none; }
-  #words > a:hover { color: var(--accent); }
+  /* gepunktete Unterstreichung = klickbar, konsistent mit Def-Verweisen */
+  #words > a > .w { border-bottom: 1px dotted var(--accent); }
+  #words > a:hover > .w { color: var(--accent); border-bottom-style: solid; }
   #words small.def { display: block; color: var(--muted); font-size: .8rem; margin: 0 0 .35rem; }
   .wref { cursor: pointer; border-bottom: 1px dotted var(--accent); }
   .wref:hover { color: var(--accent); }
@@ -239,7 +241,10 @@ async function loadWords(display, prefixes, btn) {
   for (const e of all) {
     const s = document.createElement('a');
     s.href = '/worteintrag?' + new URLSearchParams({ word: e.word, lang });
-    s.textContent = e.word;
+    const w = document.createElement('span');
+    w.className = 'w';
+    w.textContent = e.word;
+    s.appendChild(w);
     if (e.definition) {
       const d = document.createElement('small');
       d.className = 'def';
