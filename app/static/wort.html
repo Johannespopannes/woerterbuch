@@ -102,6 +102,19 @@
   .bildstimmen { margin: .3rem 0 .6rem; }
   .bildstimmen div { margin-bottom: .2rem; }
 
+  .gramzeile { font-size: .92rem; }
+  .gramzeile a { color: var(--accent); text-decoration: none;
+                 border-bottom: 1px dotted var(--accent); }
+  .gramflex { margin-top: .5rem; }
+  .gramflex summary { cursor: pointer; color: var(--muted); font-size: .82rem; }
+  .gramflex summary:hover { color: var(--accent); }
+  .gramflex table { border-collapse: collapse; margin-top: .5rem; font-size: .85rem; }
+  .gramflex caption { text-align: left; color: var(--muted); font-size: .8rem;
+                      padding-bottom: .25rem; }
+  .gramflex th, .gramflex td { border: 1px solid var(--line); padding: .28rem .6rem;
+                                text-align: left; }
+  .gramflex th { background: var(--bg); font-weight: normal; color: var(--muted); }
+
   footer { margin-top: 2.5rem; color: var(--muted); font-size: .8rem; }
   footer a { color: var(--accent); text-decoration: none; }
 </style>
@@ -133,6 +146,15 @@
       <div id="defcard" style="display:none">
         <h2 class="sec">Bedeutung</h2>
         <div class="def" id="def"></div>
+      </div>
+
+      <div class="neben" id="gramcard" style="display:none">
+        <h2 class="sec">Grammatik</h2>
+        <div class="gramzeile" id="gramzeile"></div>
+        <details class="gramflex" id="gramflexwrap" style="display:none">
+          <summary id="gramflexsum">Flexion anzeigen</summary>
+          <div id="gramflex"></div>
+        </details>
       </div>
 
       <div class="sprachcheck">
@@ -203,20 +225,99 @@ function linkify(el, text) {
 
 function show(el, on) { el.style.display = on ? '' : 'none'; }
 
+// Flexion generisch rendern: {"cases": {"Singular": {"Nominativ": "der Kanton", ...}}}
+// oder {"tenses": {...}} / {"comparison": {...}} — eine Tabelle pro oberem Schluessel.
+function renderFlexion(flexion) {
+  const wrap = document.getElementById('gramflexwrap');
+  const box = document.getElementById('gramflex');
+  box.innerHTML = '';
+  if (!flexion || typeof flexion !== 'object') { show(wrap, false); return; }
+  const bloecke = Object.entries(flexion).filter(([, v]) => v && typeof v === 'object');
+  if (!bloecke.length) { show(wrap, false); return; }
+  for (const [titel, zeilen] of bloecke) {
+    const tab = document.createElement('table');
+    const cap = document.createElement('caption');
+    cap.textContent = titel;
+    tab.appendChild(cap);
+    const vals = Object.values(zeilen);
+    const istMatrix = vals.some(v => v && typeof v === 'object');
+    if (istMatrix) {
+      const spalten = [...new Set(vals.filter(v => v && typeof v === 'object')
+        .flatMap(v => Object.keys(v)))];
+      const trh = document.createElement('tr');
+      trh.appendChild(document.createElement('th'));
+      for (const s of spalten) {
+        const th = document.createElement('th');
+        th.textContent = s;
+        trh.appendChild(th);
+      }
+      tab.appendChild(trh);
+      for (const [zeile, zv] of Object.entries(zeilen)) {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        th.textContent = zeile;
+        tr.appendChild(th);
+        for (const s of spalten) {
+          const td = document.createElement('td');
+          td.textContent = (zv && zv[s]) || '—';
+          tr.appendChild(td);
+        }
+        tab.appendChild(tr);
+      }
+    } else {
+      for (const [k, v] of Object.entries(zeilen)) {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        th.textContent = k;
+        const td = document.createElement('td');
+        td.textContent = v;
+        tr.append(th, td);
+        tab.appendChild(tr);
+      }
+    }
+    box.appendChild(tab);
+  }
+  show(wrap, true);
+}
+
 async function load() {
   const lu = await fetch('/lookup?' + new URLSearchParams({ word, language: lang }));
   if (!lu.ok) { document.getElementById('wort').textContent = word + ' — nicht gefunden'; return; }
   const e = await lu.json();
   const ev = await fetch(`/entries/${e.id}/evidence`).then(r => r.json());
 
-  // Kopf: Sprache (+ Wortart aus dem Definitionseinstieg, z. B. "Substantiv: …")
+  // Kopf: Sprache (+ Wortart aus Grammatik-Ebene, Fallback Definitionseinstieg)
   let wortart = '';
-  const mArt = (ev.definition || '').match(/^\s*([\p{L}]+)\s*:/u);
-  if (mArt) wortart = ' · ' + mArt[1];
+  if (ev.grammar && ev.grammar.word_class) wortart = ' · ' + ev.grammar.word_class;
+  else {
+    const mArt = (ev.definition || '').match(/^\s*([\p{L}]+)\s*:/u);
+    if (mArt) wortart = ' · ' + mArt[1];
+  }
   document.getElementById('wsub').textContent =
     (SPRACHEN[lang] || lang) + wortart;
   document.getElementById('sprachfrage').textContent =
     'Gehört „' + word + '” zum ' + (SPRACHEN[lang] || lang) + '?';
+
+  // Grammatik-Karte: Wortart · Artikel/Genus · Grundform, Flexion aufklappbar
+  if (ev.grammar) {
+    const g = ev.grammar;
+    const teile = [];
+    if (g.article) teile.push(g.article);
+    if (g.gender) teile.push({ m: 'maskulin', f: 'feminin', n: 'neutrum' }[g.gender] || g.gender);
+    if (g.word_class) teile.push(g.word_class);
+    const zeile = document.getElementById('gramzeile');
+    zeile.textContent = teile.join(' · ');
+    if (g.lemma && g.lemma !== word) {
+      if (teile.length) zeile.appendChild(document.createTextNode(' · Grundform: '));
+      else zeile.appendChild(document.createTextNode('Grundform: '));
+      const a = document.createElement('a');
+      a.href = '/worteintrag?' + new URLSearchParams({ word: g.lemma, lang });
+      a.textContent = g.lemma;
+      zeile.appendChild(a);
+    }
+    show(document.getElementById('gramcard'), true);
+    renderFlexion(g.flexion);
+  }
 
   // Konfidenz als klarer Textstatus statt Fortschrittsbalken
   const cs = document.getElementById('confstand');

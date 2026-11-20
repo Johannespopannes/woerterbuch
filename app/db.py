@@ -151,6 +151,26 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "INSERT OR IGNORE INTO entry_images (entry_id, filename) "
         "SELECT id, image FROM entries "
         "WHERE image IS NOT NULL AND image != ''")
+    # Grammatik-Ebene: pro Lemma (Sprache + Grundform) eine Zeile.
+    # Eintraege verweisen ueber ihr bestehendes lemma-Feld darauf.
+    # flexion = JSON, z. B. {"cases": {"Singular": {"Nominativ": "der Kanton", ...}}}
+    # oder {"tenses": {...}} / {"comparison": {...}} — wird generisch gerendert.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS grammar ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " language TEXT NOT NULL,"
+        " lemma TEXT NOT NULL,"
+        " word_class TEXT,"
+        " gender TEXT,"
+        " article TEXT,"
+        " flexion TEXT,"
+        " source TEXT NOT NULL DEFAULT 'model',"
+        " created_at TEXT NOT NULL DEFAULT (datetime('now')),"
+        " UNIQUE (language, lemma)"
+        ")")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_grammar_lemma "
+        "ON grammar (language, lemma)")
 
 
 def get_conn() -> sqlite3.Connection:

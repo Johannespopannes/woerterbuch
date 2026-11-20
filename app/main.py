@@ -537,6 +537,91 @@ def formen_batch(batch: FormBatchIn, _=Depends(require_api_key)):
     return {"updated": updated, "missing": missing}
 
 
+# ---------- Grammatik (Wortart, Genus, Flexion) ----------
+
+class GrammarIn(BaseModel):
+    language: str = Field(min_length=2, max_length=10, pattern=r"^[a-z]+$")
+    lemma: str = Field(min_length=1, max_length=100)
+    word_class: str | None = Field(default=None, max_length=50)
+    gender: str | None = Field(default=None, max_length=20)
+    article: str | None = Field(default=None, max_length=10)
+    flexion: dict | None = None
+
+
+class GrammarBatchIn(BaseModel):
+    items: list[GrammarIn] = Field(max_length=500)
+
+
+def _grammar_row_to_dict(r) -> dict:
+    flex = None
+    try:
+        flex = json.loads(r["flexion"]) if r["flexion"] else None
+    except Exception:
+        flex = None
+    return {"language": r["language"], "lemma": r["lemma"],
+            "word_class": r["word_class"], "gender": r["gender"],
+            "article": r["article"], "flexion": flex}
+
+
+@app.get("/grammatik")
+def grammatik(word: str, language: str):
+    """Grammatik-Informationen des Lemmas eines Wortes.
+
+    Aufloesung: lemma-Spalte des Wortes, Fallback das Wort selbst —
+    so sehen Flexionsformen (Kantone) dieselbe Grammatik wie die
+    Grundform (Kanton).
+    """
+    lang = language.lower()
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT lemma FROM entries WHERE word = ? AND language = ?",
+            (word.strip(), lang),
+        ).fetchone()
+        lemma = (row["lemma"] or word.strip()) if row else word.strip()
+        g = conn.execute(
+            "SELECT * FROM grammar WHERE language = ? AND lemma = ?",
+            (lang, lemma),
+        ).fetchone()
+    finally:
+        conn.close()
+    if not g:
+        raise HTTPException(404, f"Keine Grammatik für '{word}' ({lang})")
+    return _grammar_row_to_dict(g)
+
+
+@app.post("/grammatik/batch")
+def grammatik_batch(batch: GrammarBatchIn, _=Depends(require_api_key)):
+    """Grammatik fuer viele Lemmata setzen (Harvest-Pipeline)."""
+    conn = get_conn()
+    updated = new = 0
+    try:
+        for it in batch.items:
+            flex = (json.dumps(it.flexion, ensure_ascii=False)
+                    if it.flexion is not None else None)
+            cur = conn.execute(
+                "UPDATE grammar SET word_class = ?, gender = ?, article = ?,"
+                " flexion = ?, source = 'model' "
+                "WHERE language = ? AND lemma = ?",
+                (it.word_class, it.gender, it.article, flex,
+                 it.language.lower(), it.lemma.strip()),
+            )
+            if cur.rowcount:
+                updated += 1
+            else:
+                conn.execute(
+                    "INSERT INTO grammar (language, lemma, word_class,"
+                    " gender, article, flexion) VALUES (?,?,?,?,?,?)",
+                    (it.language.lower(), it.lemma.strip(), it.word_class,
+                     it.gender, it.article, flex),
+                )
+                new += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return {"updated": updated, "new": new}
+
+
 @app.get("/languages")
 def languages():
     conn = get_conn()
@@ -1132,6 +1217,16 @@ def get_evidence(entry_id: int):
             "SELECT filename FROM entry_images WHERE entry_id = ? "
             "AND filename != ? ORDER BY id",
             (entry_id, row["image"] or "")).fetchall()]
+        # Grammatik des Lemmas (Wortart, Genus, Flexion) — einmal pro
+        # Wortfamilie, die Einzelworte verweisen darauf.
+        er = conn.execute("SELECT lemma FROM entries WHERE id = ?",
+                          (entry_id,)).fetchone()
+        lemma_for_grammar = (er["lemma"] or row["word"]) if er else row["word"]
+        g = conn.execute(
+            "SELECT word_class, gender, article, flexion "
+            "FROM grammar WHERE language = ? AND lemma = ?",
+            (row["language"], lemma_for_grammar),
+        ).fetchone()
     finally:
         conn.close()
     out = row_to_dict(row)
@@ -1146,6 +1241,19 @@ def get_evidence(entry_id: int):
     # "Wort unbekannt"-Stimmen der Bewertungsseite — eigenes Signal:
     # verstehen Menschen den Begriff, unabhaengig vom Bild?
     out["unknown_votes"] = unbekannt
+    # Grammatik der Wortfamilie (NULL, wenn das Lemma noch nicht erntet wurde)
+    if g:
+        flex = None
+        try:
+            flex = json.loads(g["flexion"]) if g["flexion"] else None
+        except Exception:
+            flex = None
+        out["grammar"] = {"word_class": g["word_class"],
+                          "gender": g["gender"],
+                          "article": g["article"],
+                          "flexion": flex}
+    else:
+        out["grammar"] = None
     # Bilder des Eintrags: Hauptbild zuerst, dann Galerie — jeweils mit
     # ihren eigenen Stimmen (Kombination beschreibt den Begriff).
     bilder = []
