@@ -123,6 +123,8 @@ class EntryOut(BaseModel):
     image: str | None = None
     source: str
     created_at: str
+    ja: int | None = None
+    nein: int | None = None
 
 
 class VoteIn(BaseModel):
