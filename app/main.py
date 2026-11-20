@@ -176,7 +176,10 @@ class ResolveIn(BaseModel):
 
 class WordVoteIn(BaseModel):
     entry_id: int
-    fits: bool
+    # Drei Faelle: Gebrauchswort / falsche Sprache / unsicher.
+    # fits (bool) bleibt aus Kompatibilitaet erhalten: True -> dazu.
+    kind: str | None = Field(default=None, pattern=r"^(dazu|nicht|unsicher)$")
+    fits: bool | None = None
 
 
 class EvidenceIn(BaseModel):
@@ -714,7 +717,7 @@ def raten_next(request: Request, response: Response,
     Legt anonyme Sitzung an (Cookie) und liefert einen Einmal-Nonce,
     der zum Abstimmen noetig ist.
     """
-    sql = ("SELECT e.id, e.word, e.language, e.image, "
+    sql = ("SELECT e.id, e.word, e.language, e.definition, e.image, "
            "(SELECT COUNT(*) FROM ratings r WHERE r.entry_id = e.id "
            " AND r.kind = 'image') AS votes "
            "FROM entries e WHERE e.image IS NOT NULL AND e.image != ''")
@@ -1065,9 +1068,13 @@ def raten_stats():
 def wort_vote(vote: WordVoteIn):
     """Öffentliche Kuratier-Stimme: Gehört das Wort zur Sprache?
 
-    Unabhängig vom Bild-Voting — ein Wort kann ein gutes Bild haben
-    und trotzdem fehl am Platz sein (und umgekehrt).
+    Drei Faelle: 'dazu' (Gebrauchswort), 'nicht' (falsche Sprache),
+    'unsicher'. Unabhängig vom Bild-Voting — ein Wort kann ein gutes
+    Bild haben und trotzdem fehl am Platz sein (und umgekehrt).
     """
+    kind = vote.kind
+    if kind is None:
+        kind = "dazu" if vote.fits else "nicht"
     conn = get_conn()
     try:
         exists = conn.execute(
@@ -1076,8 +1083,8 @@ def wort_vote(vote: WordVoteIn):
         if not exists:
             raise HTTPException(404, f"Eintrag {vote.entry_id} nicht gefunden")
         conn.execute(
-            "INSERT INTO word_ratings (entry_id, fits) VALUES (?, ?)",
-            (vote.entry_id, 1 if vote.fits else 0),
+            "INSERT INTO word_ratings (entry_id, fits, kind) VALUES (?, ?, ?)",
+            (vote.entry_id, 1 if kind == "dazu" else 0, kind),
         )
         conn.commit()
     finally:
@@ -1102,11 +1109,11 @@ def get_evidence(entry_id: int):
             "       SUM(CASE WHEN understood=0 THEN 1 ELSE 0 END) nein "
             "FROM ratings WHERE entry_id = ? AND kind = 'image'", (entry_id,),
         ).fetchone()
-        wr = conn.execute(
-            "SELECT SUM(CASE WHEN fits=1 THEN 1 ELSE 0 END) passt,"
-            "       SUM(CASE WHEN fits=0 THEN 1 ELSE 0 END) passt_nicht "
-            "FROM word_ratings WHERE entry_id = ?", (entry_id,),
-        ).fetchone()
+        wr_rows = conn.execute(
+            "SELECT kind, COUNT(*) AS n FROM word_ratings "
+            "WHERE entry_id = ? GROUP BY kind", (entry_id,),
+        ).fetchall()
+        wr_counts = {r["kind"]: r["n"] for r in wr_rows}
         unbekannt = conn.execute(
             "SELECT COUNT(*) AS n FROM ratings "
             "WHERE entry_id = ? AND kind = 'unknown'", (entry_id,),
@@ -1133,8 +1140,9 @@ def get_evidence(entry_id: int):
     except Exception:
         out["evidence"] = {}
     out["image_votes"] = {"ja": img["ja"] or 0, "nein": img["nein"] or 0}
-    out["word_votes"] = {"passt": wr["passt"] or 0,
-                         "passt_nicht": wr["passt_nicht"] or 0}
+    out["word_votes"] = {"dazu": wr_counts.get("dazu", 0),
+                         "nicht": wr_counts.get("nicht", 0),
+                         "unsicher": wr_counts.get("unsicher", 0)}
     # "Wort unbekannt"-Stimmen der Bewertungsseite — eigenes Signal:
     # verstehen Menschen den Begriff, unabhaengig vom Bild?
     out["unknown_votes"] = unbekannt

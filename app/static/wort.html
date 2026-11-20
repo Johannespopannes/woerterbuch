@@ -6,134 +6,170 @@
 <title>Wort · Wörterbuch</title>
 <style>
   :root {
-    --bg: #faf7f2; --ink: #2b2620; --muted: #8a7f6f;
-    --accent: #a05c2c; --card: #fff; --line: #e8e0d4;
+    --bg: #faf7f2; --ink: #292521; --muted: #8a7f6f;
+    --accent: #a75a31; --card: #ffffff; --line: #e6ded2;
     --ok: #4a7c59; --no: #a0442c;
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Georgia, 'Times New Roman', serif;
          background: var(--bg); color: var(--ink);
-         padding: 4vh 1rem 3rem; display: flex; flex-direction: column;
+         padding: 3vh 1rem 3rem; display: flex; flex-direction: column;
          align-items: center; }
-  main { width: min(680px, 100%); }
-  header { text-align: center; margin-bottom: 1.2rem; }
-  h1 { font-size: clamp(2rem, 5vw, 2.8rem); font-weight: normal; margin: 0; }
-  h1 a { color: inherit; text-decoration: none; }
-  .lang { color: var(--muted); letter-spacing: .1em; font-size: .85rem; }
-  .card { background: var(--card); border: 1px solid var(--line);
-          border-radius: 14px; padding: 1.2rem 1.4rem; margin-bottom: 1rem; }
-  .card h2 { font-size: .95rem; margin: 0 0 .7rem; color: var(--muted);
-             text-transform: uppercase; letter-spacing: .06em; font-weight: normal; }
-  /* Konfidenzbalken rot -> gruen */
-  .conf-wrap { margin: 1rem 0 .3rem; }
-  .conf-bar { height: 14px; border-radius: 999px; background: var(--line);
-              overflow: hidden; }
-  .conf-fill { height: 100%; border-radius: 999px;
-               background: linear-gradient(90deg, #c0392b, #e67e22, #27ae60);
-               transition: width .6s; }
-  .conf-label { display: flex; justify-content: space-between;
-                font-size: .8rem; color: var(--muted); margin-top: .25rem; }
+  main { width: min(760px, 100%); }
+  /* kleiner fester Markenbereich statt riesiger Ueberschrift */
+  .brand { width: 100%; display: flex; justify-content: space-between;
+           align-items: baseline; margin-bottom: 1.2rem; }
+  .brand a { color: var(--accent); text-decoration: none; font-size: .95rem; }
+  .brand a:hover { text-decoration: underline; }
+  .brand .meta { color: var(--muted); font-size: .8rem; }
+
+  .wortkopf { margin-bottom: 1rem; }
+  .wortkopf h1 { font-size: clamp(1.9rem, 5vw, 2.6rem); font-weight: normal;
+                 margin: 0 0 .2rem; }
+  .wsub { color: var(--muted); letter-spacing: .06em; font-size: .85rem; }
+  #ton { font: inherit; font-size: .85rem; margin-top: .5rem;
+         padding: .3rem .9rem; border-radius: 999px; cursor: pointer;
+         border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  #ton:hover { border-color: var(--accent); color: var(--accent); }
+
   .warn { background: #fdf0ec; border: 1px solid #e6b8a8; color: #8a3a22;
           border-radius: 10px; padding: .6rem .9rem; margin-bottom: 1rem;
           font-size: .9rem; }
-  .votebtns { display: flex; gap: .5rem; margin: .6rem 0; flex-wrap: wrap; }
+
+  /* Bild und Bedeutung nebeneinander, auf dem Smartphone untereinander */
+  .inhalt { display: grid; grid-template-columns: 240px 1fr; gap: 1.4rem;
+            align-items: start; }
+  @media (max-width: 620px) {
+    .inhalt { grid-template-columns: 1fr; }
+  }
+  .bildbox { text-align: center; }
+  img.wbild { width: 220px; max-width: 100%; border-radius: 12px;
+              border: 1px solid var(--line); background: var(--card); }
+  #galerie { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .5rem;
+             justify-content: center; }
+  #galerie img { width: 64px; height: 64px; object-fit: cover;
+                 border-radius: 8px; border: 1px solid var(--line);
+                 cursor: pointer; background: var(--card); }
+  #galerie img:hover { border-color: var(--accent); }
+
+  .def { font-size: 1.05rem; line-height: 1.55; }
+  h2.sec { font-size: .85rem; margin: 0 0 .5rem; color: var(--muted);
+           text-transform: uppercase; letter-spacing: .06em; font-weight: normal; }
+
+  /* Sprachpruefung: kleine Aktion statt dominierendem Kasten */
+  .sprachcheck { margin-top: 1.1rem; border-top: 1px solid var(--line);
+                 padding-top: .8rem; }
+  .sprachcheck .frage { font-size: .95rem; margin-bottom: .5rem; }
+  .votebtns { display: flex; gap: .45rem; flex-wrap: wrap; align-items: center; }
   .votebtns button { font: inherit; font-size: .85rem;
-                     padding: .3rem .8rem;
+                     padding: .35rem .85rem;
                      border-radius: 999px; cursor: pointer;
                      border: 1px solid var(--line); background: var(--card); }
-  #passt { border-color: var(--ok); color: var(--ok); }
-  #passt:hover { background: var(--ok); color: #fff; }
-  #passtnicht { border-color: var(--no); color: var(--no); }
-  #passtnicht:hover { background: var(--no); color: #fff; }
-  .def { font-size: 1.05rem; line-height: 1.55; }
-  .wref { cursor: pointer; border-bottom: 1px dotted var(--accent); }
-  .wref:hover { color: var(--accent); }
-  ul.fam { list-style: none; padding: 0; margin: 0;
+  #dazu { border-color: var(--ok); color: var(--ok); }
+  #dazu:hover { background: var(--ok); color: #fff; }
+  #nicht { border-color: var(--no); color: var(--no); }
+  #nicht:hover { background: var(--no); color: #fff; }
+  #unsicher { border-color: var(--muted); color: var(--muted); }
+  #unsicher:hover { background: var(--muted); color: #fff; }
+  .meta { color: var(--muted); font-size: .8rem; }
+
+  ul.fam { list-style: none; padding: 0; margin: .4rem 0 0;
            display: flex; flex-wrap: wrap; gap: .4rem .9rem; }
   ul.fam li { font-size: .95rem; }
   ul.fam .form { color: var(--muted); font-size: .8rem; }
-  img.wbild { max-width: 220px; border-radius: 12px;
-              border: 1px solid var(--line); }
-  /* Galerie: Kombination mehrerer Bilder beschreibt den Begriff */
-  #galerie { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-start; }
-  #galerie figure { margin: 0; }
-  #galerie img { width: 110px; height: 110px; object-fit: cover;
-                 border-radius: 10px; border: 1px solid var(--line); }
-  #galerie img.mainb { width: 220px; height: 220px; }
-  #galerie figcaption { font-size: .75rem; color: var(--muted); margin-top: .25rem; }
-  #galerie .haupt { font-size: .72rem; color: var(--accent); letter-spacing: .05em; }
-  ul.evi { margin: 0; padding-left: 1.1rem; }
-  ul.evi li { margin-bottom: .45rem; font-size: .92rem; line-height: 1.45; }
+  .neben { margin-top: 1.1rem; border-top: 1px solid var(--line);
+           padding-top: .8rem; }
+
+  .wref { color: var(--accent); text-decoration: none;
+          border-bottom: 1px dotted var(--accent); cursor: pointer; }
+  .wref:hover { border-bottom-style: solid; }
+  a.ext { color: var(--accent); text-decoration: none;
+          border-bottom: 1px dotted var(--accent); }
+  a.ext:hover { border-bottom-style: solid; }
+
+  /* aufklappbar: Bildwertungen, Quellen, technische Nachweise */
+  details.pruef { margin-top: 1.4rem; border: 1px solid var(--line);
+                  border-radius: 12px; background: var(--card);
+                  padding: .7rem 1rem; }
+  details.pruef summary { cursor: pointer; font-size: .9rem;
+                          color: var(--muted); }
+  details.pruef summary:hover { color: var(--accent); }
+  .pruef-inhalt { margin-top: .7rem; font-size: .92rem; }
+  ul.evi { margin: .3rem 0; padding-left: 1.1rem; }
+  ul.evi li { margin-bottom: .4rem; line-height: 1.45; }
   ul.evi .src { color: var(--muted); font-size: .8rem; }
   .satze { font-style: italic; }
-  .satze li { margin-bottom: .6rem; }
-  .meta { color: var(--muted); font-size: .8rem; }
-  footer { margin-top: 2rem; color: var(--muted); font-size: .8rem; }
+  .bildstimmen { margin: .3rem 0 .6rem; }
+  .bildstimmen div { margin-bottom: .2rem; }
+
+  footer { margin-top: 2.5rem; color: var(--muted); font-size: .8rem; }
   footer a { color: var(--accent); text-decoration: none; }
-  a.ext { color: var(--accent); }
 </style>
 </head>
 <body>
-<header>
-  <h1><a href="/">Wörterbuch</a></h1>
-</header>
+<div class="brand">
+  <a href="/">‹ Wörterbuch</a>
+  <span class="meta" id="confstand"></span>
+</div>
 <main>
-  <div style="text-align:center" id="kopf">
+  <div class="wortkopf">
     <h1 id="wort">…</h1>
-    <div class="lang" id="lang"></div>
-    <button id="ton" title="Wort anhören" style="font:inherit;font-size:1rem;
-      margin-top:.5rem;padding:.4rem 1.1rem;border-radius:999px;cursor:pointer;
-      border:1px solid var(--line);background:var(--card);color:var(--ink);">🔊 Anhören</button>
+    <div class="wsub" id="wsub"></div>
+    <button id="ton" title="Wort anhören">🔊 Anhören</button>
   </div>
 
   <div class="warn" id="warn" style="display:none">
     Dieses Wort ist <strong>beanstandet</strong> — die Sprachzugehörigkeit ist
-    unsicher. Unten steht die Evidenz; deine Stimme zählt.
+    unsicher. Deine Stimme hilft bei der Klärung.
   </div>
 
-  <div class="card">
-    <div class="conf-wrap">
-      <div class="conf-bar"><div class="conf-fill" id="conffill" style="width:0%"></div></div>
-      <div class="conf-label"><span>Sprach-Konfidenz</span><span id="confpct">ungeprüft</span></div>
+  <div class="inhalt">
+    <div class="bildbox" id="bildcard" style="display:none">
+      <img id="hauptbild" class="wbild" alt="Bild zum Wort">
+      <div id="galerie"></div>
     </div>
-    <div class="votebtns">
-      <button id="passt">Passt ✅</button>
-      <button id="passtnicht">Falsche Sprache ❌</button>
-      <span class="meta" id="votestand"></span>
+
+    <div>
+      <div id="defcard" style="display:none">
+        <h2 class="sec">Bedeutung</h2>
+        <div class="def" id="def"></div>
+      </div>
+
+      <div class="sprachcheck">
+        <div class="frage" id="sprachfrage">Gehört dieses Wort zur Sprache?</div>
+        <div class="votebtns">
+          <button id="dazu" title="Gebräuchliches Wort dieser Sprache">Gehört dazu</button>
+          <button id="nicht" title="Falsche Sprache oder kein Wort">Gehört nicht dazu</button>
+          <button id="unsicher">Unsicher</button>
+          <span class="meta" id="votestand"></span>
+        </div>
+      </div>
+
+      <div class="neben" id="famcard" style="display:none">
+        <h2 class="sec">Wortfamilie</h2>
+        <ul class="fam" id="fam"></ul>
+      </div>
+
+      <div class="neben" id="compcard" style="display:none">
+        <h2 class="sec">Zusammensetzung</h2>
+        <div id="comp"></div>
+      </div>
     </div>
   </div>
 
-  <div class="card" id="defcard" style="display:none">
-    <h2>Bedeutung</h2>
-    <div class="def" id="def"></div>
-  </div>
-
-  <div class="card" id="bildcard" style="display:none">
-    <h2 id="bildhead">Bilder</h2>
-    <div id="galerie"></div>
-    <div class="meta" id="bildvotes"></div>
-  </div>
-
-  <div class="card" id="famcard" style="display:none">
-    <h2>Wortfamilie</h2>
-    <ul class="fam" id="fam"></ul>
-  </div>
-
-  <div class="card" id="compcard" style="display:none">
-    <h2>Zusammensetzung</h2>
-    <div id="comp"></div>
-  </div>
-
-  <div class="card" id="evicard" style="display:none">
-    <h2>Evidenz</h2>
-    <ul class="evi" id="evi"></ul>
-    <div class="meta" id="quelle" style="margin-top:.6rem"></div>
-  </div>
-
-  <div class="card" id="satzeCard" style="display:none">
-    <h2>Beispielsätze</h2>
-    <ul class="evi satze" id="satze"></ul>
-  </div>
+  <details class="pruef" id="pruefcard">
+    <summary>Bild bewerten · Weitere Bilder · Quellen · Prüfdetails</summary>
+    <div class="pruef-inhalt">
+      <div class="bildstimmen" id="bildstimmen"></div>
+      <div class="meta" id="bildvotes"></div>
+      <ul class="evi" id="evi"></ul>
+      <div class="meta" id="quelle" style="margin-top:.6rem"></div>
+      <div id="satzeCard" style="display:none; margin-top:.6rem">
+        <h2 class="sec">Beispielsätze</h2>
+        <ul class="evi satze" id="satze"></ul>
+      </div>
+    </div>
+  </details>
 </main>
 <footer>
   <a href="/">Zur Suche</a> · <a href="/verzeichnis">Stichwortverzeichnis</a> · <a href="/bewerten">Bilder bewerten</a> · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
@@ -143,11 +179,12 @@
 const p = new URLSearchParams(location.search);
 const word = p.get('word') || '';
 const lang = p.get('lang') || 'de';
+const SPRACHEN = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch',
+                   es: 'Spanisch', it: 'Italienisch' };
 document.getElementById('wort').textContent = word;
-document.getElementById('lang').textContent = lang.toUpperCase();
+
 const STOP = new Set(('der die das den dem des ein eine und oder aber mit von zu in im an auf aus bei nach über als auch nicht ich du er sie es wir ihr man sich so wie wenn dann noch schon zum zur vom').split(' '));
 
-function esc(s) { return s; }
 function linkify(el, text) {
   el.innerHTML = '';
   for (const tok of text.split(/(\s+)/)) {
@@ -172,50 +209,66 @@ async function load() {
   const e = await lu.json();
   const ev = await fetch(`/entries/${e.id}/evidence`).then(r => r.json());
 
-  if (ev.sprache_unsicher) show(document.getElementById('warn'), true);
+  // Kopf: Sprache (+ Wortart aus dem Definitionseinstieg, z. B. "Substantiv: …")
+  let wortart = '';
+  const mArt = (ev.definition || '').match(/^\s*([\p{L}]+)\s*:/u);
+  if (mArt) wortart = ' · ' + mArt[1];
+  document.getElementById('wsub').textContent =
+    (SPRACHEN[lang] || lang) + wortart;
+  document.getElementById('sprachfrage').textContent =
+    'Gehört „' + word + '” zum ' + (SPRACHEN[lang] || lang) + '?';
 
+  // Konfidenz als klarer Textstatus statt Fortschrittsbalken
+  const cs = document.getElementById('confstand');
   if (ev.confidence != null) {
     const pct = Math.round(ev.confidence * 1000) / 10;
-    document.getElementById('conffill').style.width = pct + '%';
-    document.getElementById('confpct').textContent = pct.toLocaleString('de-DE') + ' % ' +
-      (ev.confidence >= 0.8 ? '— gut belegt' : ev.confidence >= 0.5 ? '— wahrscheinlich' : '— unsicher');
+    cs.textContent = 'Sprach-Konfidenz: ' + pct.toLocaleString('de-DE') + ' %' +
+      (ev.confidence >= 0.8 ? ' — gut belegt'
+        : ev.confidence >= 0.5 ? ' — wahrscheinlich' : ' — unsicher');
+  } else {
+    cs.textContent = ev.sprache_unsicher ? 'Sprachzugehörigkeit beanstandet'
+                                         : 'ungeprüft';
   }
 
-  if (ev.definition) {
-    show(document.getElementById('defcard'), true);
-    linkify(document.getElementById('def'), ev.definition);
-  }
+  if (ev.sprache_unsicher) show(document.getElementById('warn'), true);
+
+  // Bild + Galerie-Thumbs (Kombination beschreibt den Begriff)
   const bilder = ev.bilder || [];
   if (bilder.length) {
     show(document.getElementById('bildcard'), true);
-    document.getElementById('bildhead').textContent =
-      bilder.length > 1 ? `Bilder (${bilder.length}) — gemeinsam beschreiben sie den Begriff` : 'Bild';
+    const main = bilder.find(b => b.main) || bilder[0];
+    const hb = document.getElementById('hauptbild');
+    hb.src = '/bilder/' + main.filename;
     const g = document.getElementById('galerie');
     g.innerHTML = '';
+    const zeilen = [];
     for (const b of bilder) {
-      const fig = document.createElement('figure');
+      if (b.main) continue;
       const img = document.createElement('img');
       img.src = '/bilder/' + b.filename;
-      img.alt = b.main ? 'Hauptbild' : 'Galeriebild';
-      if (b.main) img.className = 'mainb';
-      fig.appendChild(img);
-      const cap = document.createElement('figcaption');
-      cap.textContent = (b.main ? 'Hauptbild · ' : '') +
-        `verstanden: ${b.ja} · nicht: ${b.nein}`;
-      fig.appendChild(cap);
-      if (b.main) {
-        const tag = document.createElement('div');
-        tag.className = 'haupt';
-        tag.textContent = 'HAUPTBILD';
-        fig.appendChild(tag);
-      }
-      g.appendChild(fig);
+      img.title = b.filename + ' — antippen zum Vergrößern';
+      img.addEventListener('click', () => { hb.src = img.src; });
+      g.appendChild(img);
+    }
+    // Stimmen pro Bilddatei in die Prüfdetails
+    for (const b of bilder) {
+      const d = document.createElement('div');
+      d.textContent = (b.main ? 'Hauptbild ' : b.filename + ' ') +
+        `— verstanden: ${b.ja} · nicht: ${b.nein}`;
+      document.getElementById('bildstimmen').appendChild(d);
     }
     const iv = ev.image_votes || { ja: 0, nein: 0 };
     const un = ev.unknown_votes || 0;
     document.getElementById('bildvotes').textContent =
       `Gesamt: ${iv.ja}× verstanden · ${iv.nein}× nicht verstanden` +
       (un ? ` · ${un}× Wort unbekannt` : '');
+  }
+
+  if (ev.definition) {
+    // Wortart-Präfix nicht wiederholen — reiner Text folgt dem Doppelpunkt
+    const m = ev.definition.match(/^\s*[\p{L}]+\s*:\s*(.*)$/us);
+    show(document.getElementById('defcard'), true);
+    linkify(document.getElementById('def'), m ? m[1] : ev.definition);
   }
 
   // Wortfamilie
@@ -259,7 +312,7 @@ async function load() {
     }
   } catch (_) {}
 
-  // Evidenz
+  // Evidenz, Quellen, Beispielsätze — nachrangig in den Prüfdetails
   const E = ev.evidence || {};
   const evi = document.getElementById('evi');
   const eintraege = [];
@@ -278,15 +331,13 @@ async function load() {
     const m = E.modell;
     eintraege.push(`<strong>Modellprüfung</strong> (${Math.round((m.score || 0) * 100)} %): ${m.begruendung || ''}`);
   }
-  const wv = ev.word_votes || { passt: 0, passt_nicht: 0 };
-  eintraege.push(`<strong>Nutzer-Stimmen</strong>: ${wv.passt}× passt · ${wv.passt_nicht}× falsche Sprache`);
-  if (eintraege.length) {
-    show(document.getElementById('evicard'), true);
-    for (const s of eintraege) {
-      const li = document.createElement('li');
-      li.innerHTML = s;
-      evi.appendChild(li);
-    }
+  const wv = ev.word_votes || { dazu: 0, nicht: 0, unsicher: 0 };
+  eintraege.push(`<strong>Nutzer-Stimmen</strong>: ${wv.dazu}× gehört dazu · ` +
+    `${wv.nicht}× gehört nicht dazu · ${wv.unsicher}× unsicher`);
+  for (const s of eintraege) {
+    const li = document.createElement('li');
+    li.innerHTML = s;
+    evi.appendChild(li);
   }
   document.getElementById('quelle').textContent =
     'Eintrag von: ' + (ev.source || '?') + ' · angelegt ' + (ev.created_at || '');
@@ -303,9 +354,10 @@ async function load() {
 
   function voteStand() {
     document.getElementById('votestand').textContent =
-      `Stimmen: ${wv.passt}× passt · ${wv.passt_nicht}× nicht`;
+      `Stimmen: ${wv.dazu}× dazu · ${wv.nicht}× nicht dazu · ${wv.unsicher}× unsicher`;
   }
   voteStand();
+
   // Wort anhören (Piper); Audio wird auf dem Server gecacht
   document.getElementById('ton').addEventListener('click', () => {
     const btn = document.getElementById('ton');
@@ -321,16 +373,18 @@ async function load() {
       btn.disabled = false; btn.textContent = '🔊 (nicht verfügbar)';
     });
   });
-  async function wvote(fits) {
+
+  async function wvote(kind) {
     await fetch('/wort/vote', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entry_id: e.id, fits }),
+      body: JSON.stringify({ entry_id: e.id, kind }),
     });
-    if (fits) wv.passt++; else wv.passt_nicht++;
+    wv[kind]++;
     voteStand();
   }
-  document.getElementById('passt').addEventListener('click', () => wvote(true));
-  document.getElementById('passtnicht').addEventListener('click', () => wvote(false));
+  document.getElementById('dazu').addEventListener('click', () => wvote('dazu'));
+  document.getElementById('nicht').addEventListener('click', () => wvote('nicht'));
+  document.getElementById('unsicher').addEventListener('click', () => wvote('unsicher'));
 }
 load();
 </script>

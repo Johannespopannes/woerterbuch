@@ -65,6 +65,15 @@ def _migrate(conn: sqlite3.Connection) -> None:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_word_ratings_entry "
         "ON word_ratings (entry_id)")
+    # Drei-Faelle-Abstimmung statt bloss ja/nein:
+    # 'dazu' (Gebrauchswort), 'nicht' (falsche Sprache), 'unsicher'.
+    wcols = {r["name"] for r in conn.execute(
+        "PRAGMA table_info (word_ratings)")}
+    if "kind" not in wcols:
+        conn.execute("ALTER TABLE word_ratings ADD COLUMN kind "
+                     "TEXT NOT NULL DEFAULT 'dazu'")
+        conn.execute("UPDATE word_ratings SET kind = 'dazu' WHERE fits = 1")
+        conn.execute("UPDATE word_ratings SET kind = 'nicht' WHERE fits = 0")
     # Galerie: mehrere Bilder beschreiben ein Wort gemeinsam.
     # Das Hauptbild bleibt in entries.image und ist hier ebenfalls
     # verzeichnet (UNIQUE verhindert Doppelungen).

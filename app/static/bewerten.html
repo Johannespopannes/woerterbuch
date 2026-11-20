@@ -7,11 +7,11 @@
 <style>
   :root {
     --bg: #faf7f2;
-    --ink: #2b2620;
+    --ink: #292521;
     --muted: #8a7f6f;
-    --accent: #a05c2c;
+    --accent: #a75a31;
     --card: #ffffff;
-    --line: #e8e0d4;
+    --line: #e6ded2;
     --ok: #4a7c59;
     --no: #a0442c;
   }
@@ -74,6 +74,13 @@
   #unknown, #skip, #movebtn { font-size: .8rem; padding: .35rem .7rem;
                               color: var(--muted); }
   #stats { color: var(--muted); font-size: .85rem; margin-top: 1.6rem; min-height: 1.2em; }
+  .defbtn { margin-top: .6rem; font: inherit; font-size: .8rem;
+            padding: .3rem .7rem; border: none; background: none;
+            color: var(--muted); cursor: pointer; border-bottom: 1px dotted var(--muted); }
+  .defbtn:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .defbox { margin-top: .5rem; padding: .6rem .8rem; background: var(--bg);
+            border: 1px solid var(--line); border-radius: 10px;
+            font-size: .88rem; text-align: left; color: var(--ink); }
   #kandis { display: flex; gap: .5rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
   #kandis figure { margin: 0; width: 72px; }
   #kandis img {
@@ -107,6 +114,8 @@
     <button id="movebtn" title="Das Bild passt besser zu einem anderen Wort">Anderes Wort…</button>
   </div>
   <div id="hinweis" class="sub" style="margin-top:.5rem"></div>
+  <button id="defbtn" type="button" class="defbtn" hidden>Bedeutung anzeigen</button>
+  <div id="defbox" class="defbox" hidden></div>
 </div>
 
 <div id="stats"></div>
@@ -169,6 +178,8 @@ async function next(retried) {
     bild.removeAttribute('src');
     sprache.textContent = '';
     kandis.innerHTML = '';
+    document.getElementById('defbtn').hidden = true;
+    document.getElementById('defbox').hidden = true;
     current = null;
     currentFile = null;
     currentNonce = null;
@@ -181,6 +192,13 @@ async function next(retried) {
   bild.src = '/bilder/' + current.image;
   wort.textContent = current.word;
   sprache.textContent = current.language;
+  // Bedeutung erst auf Wunsch einblenden (mehrdeutige Begriffe)
+  const defbtn = document.getElementById('defbtn');
+  const defbox = document.getElementById('defbox');
+  defbox.hidden = true;
+  defbtn.hidden = !current.definition;
+  defbtn.textContent = 'Bedeutung anzeigen';
+  defbox.textContent = current.definition || '';
   document.getElementById('hinweis').textContent =
     'Bewertung gilt für: ' + current.image;
   renderStrip();
@@ -304,6 +322,12 @@ document.getElementById('skip').addEventListener('click', () => {
   if (!busy) next();
 });
 document.getElementById('movebtn').addEventListener('click', move);
+document.getElementById('defbtn').addEventListener('click', () => {
+  const defbox = document.getElementById('defbox');
+  const defbtn = document.getElementById('defbtn');
+  defbox.hidden = !defbox.hidden;
+  defbtn.textContent = defbox.hidden ? 'Bedeutung anzeigen' : 'Bedeutung ausblenden';
+});
 langsel.addEventListener('change', () => next());
 document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' || e.key === 'j') vote(true);
