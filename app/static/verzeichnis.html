@@ -65,7 +65,9 @@
     border-radius: 12px;
     padding: 1.5rem 2rem;
   }
-  #words > span { display: block; break-inside: avoid; padding: .1rem 0; font-size: 1.05rem; }
+  #words > a { display: block; break-inside: avoid; padding: .1rem 0;
+               font-size: 1.05rem; color: inherit; text-decoration: none; }
+  #words > a:hover { color: var(--accent); }
   #words small.def { display: block; color: var(--muted); font-size: .8rem; margin: 0 0 .35rem; }
   .wref { cursor: pointer; border-bottom: 1px dotted var(--accent); }
   .wref:hover { color: var(--accent); }
@@ -195,7 +197,9 @@ function linkify(defEl, text, langCode) {
       }, 200);
     });
     s.addEventListener('mouseleave', () => { clearTimeout(tipTimer); tip.style.display = 'none'; });
-    s.addEventListener('click', () => {
+    s.addEventListener('click', (ev) => {
+      ev.preventDefault();   // sonst gewinnt die umgebende Wort-Verlinkung
+      ev.stopPropagation();
       location.href = '/?' + new URLSearchParams({ q: raw, lang: langCode });
     });
     defEl.appendChild(s);
@@ -233,7 +237,8 @@ async function loadWords(display, prefixes, btn) {
   countBox.textContent = all.length.toLocaleString('de-DE') +
     (all.length === 1 ? ' Wort' : ' Wörter') + ' unter „' + display.toUpperCase() + '“';
   for (const e of all) {
-    const s = document.createElement('span');
+    const s = document.createElement('a');
+    s.href = '/worteintrag?' + new URLSearchParams({ word: e.word, lang });
     s.textContent = e.word;
     if (e.definition) {
       const d = document.createElement('small');
