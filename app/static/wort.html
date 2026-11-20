@@ -158,7 +158,7 @@
       </div>
 
       <div class="sprachcheck">
-        <div class="frage" id="sprachfrage">Gehört dieses Wort zur Sprache?</div>
+        <div class="frage" id="sprachfrage">Ist dies ein Wort dieser Sprache?</div>
         <div class="votebtns">
           <button id="dazu" title="Gebräuchliches Wort dieser Sprache">Gehört dazu</button>
           <button id="nicht" title="Falsche Sprache oder kein Wort">Gehört nicht dazu</button>
@@ -203,6 +203,8 @@ const word = p.get('word') || '';
 const lang = p.get('lang') || 'de';
 const SPRACHEN = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch',
                    es: 'Spanisch', it: 'Italienisch' };
+const SPRACHADJ = { de: 'deutsches', en: 'englisches', fr: 'französisches',
+                    es: 'spanisches', it: 'italienisches' };
 document.getElementById('wort').textContent = word;
 
 const STOP = new Set(('der die das den dem des ein eine und oder aber mit von zu in im an auf aus bei nach über als auch nicht ich du er sie es wir ihr man sich so wie wenn dann noch schon zum zur vom').split(' '));
@@ -296,7 +298,7 @@ async function load() {
   document.getElementById('wsub').textContent =
     (SPRACHEN[lang] || lang) + wortart;
   document.getElementById('sprachfrage').textContent =
-    'Gehört „' + word + '” zum ' + (SPRACHEN[lang] || lang) + '?';
+    'Ist „' + word + '“ ein ' + (SPRACHADJ[lang] || lang) + ' Wort?';
 
   // Grammatik-Karte: Wortart · Artikel/Genus · Grundform, Flexion aufklappbar
   if (ev.grammar) {
