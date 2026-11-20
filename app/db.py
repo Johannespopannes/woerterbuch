@@ -83,6 +83,43 @@ def _migrate(conn: sqlite3.Connection) -> None:
     rcols = {r["name"] for r in conn.execute("PRAGMA table_info (ratings)")}
     if "image" not in rcols:
         conn.execute("ALTER TABLE ratings ADD COLUMN image TEXT")
+    if "kind" not in rcols:
+        # 'image' = Bildpasst-Stimme, 'unknown' = "Wort unbekannt".
+        # Unbekannt-Stimmen zaehlen NICHT als schlechtes Bild.
+        conn.execute("ALTER TABLE ratings ADD COLUMN kind "
+                     "TEXT NOT NULL DEFAULT 'image'")
+    if "session_id" not in rcols:
+        # anonyme Sitzungskennung (Cookie, keine IP) — haelt Doppelstimmen
+        # derselben Sitzung fest und macht sie noetigenfalls ruecknehmbar
+        conn.execute("ALTER TABLE ratings ADD COLUMN session_id TEXT")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_ratings_session "
+        "ON ratings (session_id)")
+    # Anonyme Bewertungssitzungen (nur Kennung + Zeitstempel, kein Merkmal).
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS rating_sessions ("
+        " id TEXT PRIMARY KEY,"
+        " created_at TEXT NOT NULL DEFAULT (datetime('now')),"
+        " last_seen TEXT NOT NULL DEFAULT (datetime('now'))"
+        ")")
+    # Einmal-Nonces: pro gezogenem Wort genau eine gueltige Bewertung.
+    # Verbraucht = Zeile weg (atomar via DELETE).
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS rating_nonces ("
+        " nonce TEXT PRIMARY KEY,"
+        " session_id TEXT NOT NULL,"
+        " entry_id INTEGER NOT NULL REFERENCES entries (id),"
+        " created_at TEXT NOT NULL DEFAULT (datetime('now')),"
+        " expires_at TEXT NOT NULL"
+        ")")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_rating_nonces_session "
+        "ON rating_nonces (session_id)")
+    conn.execute(
+        "DELETE FROM rating_nonces WHERE expires_at < datetime('now')")
+    conn.execute(
+        "DELETE FROM rating_sessions WHERE last_seen < "
+        "datetime('now', '-12 hours')")
     # Umzugs-Wuenssche: "Bild passt besser zu einem anderen Wort".
     # Die Pipeline prueft sie (Gemma-Vision) und loest sie auf.
     conn.execute(

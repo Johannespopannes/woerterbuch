@@ -54,18 +54,22 @@
   }
   #wort { font-size: 1.5rem; margin: .9rem 0 .1rem; }
   #sprache { color: var(--muted); font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; }
-  .buttons { display: flex; gap: .8rem; justify-content: center; margin-top: 1.4rem; }
+  .buttons { display: flex; gap: .5rem; justify-content: center;
+             margin-top: 1.2rem; flex-wrap: wrap; }
   .buttons button {
-    font: inherit; font-size: 1.05rem;
-    padding: .7rem 1.4rem;
+    font: inherit; font-size: .95rem;
+    padding: .55rem 1rem;
     border-radius: 999px; border: 1px solid var(--line);
     background: var(--card); color: var(--ink);
     cursor: pointer;
   }
+  .buttons button:disabled { opacity: .45; cursor: default; }
   #ja { border-color: var(--ok); color: var(--ok); }
-  #ja:hover { background: var(--ok); color: #fff; }
+  #ja:hover:not(:disabled) { background: var(--ok); color: #fff; }
   #nein { border-color: var(--no); color: var(--no); }
-  #nein:hover { background: var(--no); color: #fff; }
+  #nein:hover:not(:disabled) { background: var(--no); color: #fff; }
+  #unknown { border-color: var(--muted); color: var(--muted); }
+  #unknown:hover:not(:disabled) { background: var(--muted); color: #fff; }
   #stats { color: var(--muted); font-size: .85rem; margin-top: 1.6rem; min-height: 1.2em; }
   #kandis { display: flex; gap: .5rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
   #kandis figure { margin: 0; width: 72px; }
@@ -95,10 +99,11 @@
 </div>
 
 <div class="buttons">
-  <button id="ja">Verstehe ich</button>
-  <button id="nein">Verstehe ich nicht</button>
-  <button id="skip" title="Ohne Bewertung weiter (s)">Überspringen</button>
-  <button id="movebtn" title="Das Bild passt besser zu einem anderen Wort">Zu anderem Wort…</button>
+  <button id="ja" title="Pfeil rechts / J">Passt</button>
+  <button id="nein" title="Pfeil links / N">Passt nicht</button>
+  <button id="unknown" title="Das Wort ist mir unbekannt (U)">Wort unbekannt</button>
+  <button id="skip" title="Ohne Bewertung weiter (S)">Überspringen</button>
+  <button id="movebtn" title="Das Bild passt besser zu einem anderen Wort">Anderes Wort…</button>
 </div>
 <div id="hinweis" class="sub" style="margin-top:.6rem"></div>
 
@@ -118,7 +123,13 @@ const langsel = document.getElementById('langsel');
 const statsBox = document.getElementById('stats');
 let current = null;
 let currentFile = null;   // gerade angezeigte Bilddatei (null = Hauptbild)
+let currentNonce = null;  // Einmal-Nonce fuer genau dieses Wort
 let busy = false;
+
+function setButtonsDisabled(dis) {
+  for (const id of ['ja', 'nein', 'unknown', 'skip', 'movebtn'])
+    document.getElementById(id).disabled = dis;
+}
 // Schon gezeigte Bilder dieser Session (nur im Browser, kein Server-Tracking)
 let seen = [];
 try { seen = JSON.parse(localStorage.getItem('bewerten-seen') || '[]'); } catch (e) {}
@@ -133,11 +144,14 @@ async function loadStats() {
   const s = await fetch('/raten/stats').then(r => r.json());
   const pct = s.votes ? Math.round(100 * s.understood / s.votes) : 0;
   statsBox.textContent = s.votes.toLocaleString('de-DE') + ' Bewertungen · ' +
-    pct + ' % verstanden · ' + s.entries_with_image.toLocaleString('de-DE') + ' Bilder im Bestand';
+    pct + ' % verstanden' +
+    (s.unknown ? ' · ' + s.unknown.toLocaleString('de-DE') + '× Wort unbekannt' : '') +
+    ' · ' + s.entries_with_image.toLocaleString('de-DE') + ' Bilder im Bestand';
 }
 
 async function next(retried) {
   busy = false;
+  setButtonsDisabled(false);
   const params = new URLSearchParams();
   if (langsel.value) params.set('language', langsel.value);
   if (seen.length) params.set('exclude', seen.join(','));
@@ -155,11 +169,13 @@ async function next(retried) {
     kandis.innerHTML = '';
     current = null;
     currentFile = null;
+    currentNonce = null;
     return;
   }
   current = await r.json();
   remember(current.id);
   currentFile = current.image || null;
+  currentNonce = current.nonce || null;
   bild.src = '/bilder/' + current.image;
   wort.textContent = current.word;
   sprache.textContent = current.language;
@@ -237,16 +253,20 @@ async function pick(filename, imgEl) {
   busy = false;
 }
 
-async function vote(understood) {
+async function vote(understood, kind) {
   if (!current || busy) return;
   busy = true;
+  setButtonsDisabled(true);   // kein Doppelklick, kein zweiter Vote
   card.classList.add(understood ? 'ok' : 'no');
-  await fetch('/raten/vote', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ entry_id: current.id, understood,
-                           image: currentFile }),
-  });
+  try {
+    await fetch('/raten/vote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry_id: current.id, understood,
+                             image: currentFile, kind: kind || 'image',
+                             nonce: currentNonce }),
+    });
+  } catch (e) { /* offline o. a. — trotzdem weiter */ }
   setTimeout(() => { card.classList.remove('ok', 'no'); next(); }, 350);
   loadStats();
 }
@@ -273,6 +293,7 @@ async function move() {
 
 document.getElementById('ja').addEventListener('click', () => vote(true));
 document.getElementById('nein').addEventListener('click', () => vote(false));
+document.getElementById('unknown').addEventListener('click', () => vote(false, 'unknown'));
 document.getElementById('skip').addEventListener('click', () => {
   if (!busy) next();
 });
@@ -281,6 +302,7 @@ langsel.addEventListener('change', () => next());
 document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' || e.key === 'j') vote(true);
   if (e.key === 'ArrowLeft' || e.key === 'n') vote(false);
+  if (e.key === 'u') vote(false, 'unknown');
   if (e.key === 's' || e.key === 'ArrowDown') { if (!busy) next(); }
 });
 

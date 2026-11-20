@@ -26,7 +26,8 @@ import time
 from collections import defaultdict, deque
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import (Depends, FastAPI, Header, HTTPException, Query, Request,
+                     Response)
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -156,6 +157,10 @@ class VoteIn(BaseModel):
     # Bewertetes Bild (Galerie/Dateiname); None = Hauptbild
     image: str | None = Field(
         default=None, pattern=r"^[A-Za-z0-9_-]{1,120}\.(png|webp)$")
+    # 'image' = Passt-nicht-Stimme, 'unknown' = "Wort unbekannt"
+    kind: str = Field(default="image", pattern=r"^(image|unknown)$")
+    # Einmal-Nonce aus /raten/next (oeffentliche Stimmen ohne API-Key)
+    nonce: str | None = Field(default=None, max_length=64)
 
 
 class MoveIn(BaseModel):
@@ -387,7 +392,8 @@ def list_entries(
                 f"SELECT entry_id, "
                 f"SUM(CASE WHEN understood=1 THEN 1 ELSE 0 END) ja, "
                 f"SUM(CASE WHEN understood=0 THEN 1 ELSE 0 END) nein "
-                f"FROM ratings WHERE entry_id IN ({marks}) GROUP BY entry_id",
+                f"FROM ratings WHERE entry_id IN ({marks}) "
+                f"AND kind = 'image' GROUP BY entry_id",
                 [e["id"] for e in out],
             ).fetchall() if out else []
             vmap = {v["entry_id"]: (v["ja"] or 0, v["nein"] or 0)
@@ -645,15 +651,72 @@ def bilder(filename: str):
     return FileResponse(path)
 
 
+# ---------- Anonyme Bewertungssitzungen (Cookie + Nonce, keine IP) ----------
+
+SESSION_COOKIE = "wb_session"
+SESSION_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
+SESSION_IDLE_H = 12          # Sitzung verfaellt nach 12 h Inaktivitaet
+NONCE_TTL_MIN = 30           # Einmal-Nonce pro gezogenem Wort
+SESSION_VOTE_PER_MIN = 30    # grosszuegiges Tempolimit pro Sitzung
+
+_session_votes: dict[str, deque] = defaultdict(deque)
+_session_votes_lock = threading.Lock()
+
+
+def _session_vote_throttle(sid: str) -> None:
+    """Max SESSION_VOTE_PER_MIN Stimmen pro Sitzung und Minute."""
+    now = time.monotonic()
+    with _session_votes_lock:
+        dq = _session_votes[sid]
+        while dq and dq[0] <= now - WINDOW:
+            dq.popleft()
+        if len(dq) >= SESSION_VOTE_PER_MIN:
+            raise HTTPException(429, "Zu schnell — kurz pausieren.")
+        dq.append(now)
+
+
+def _get_session(request: Request, response: Response) -> str:
+    """Vorhandene gueltige Sitzung uebernehmen oder neue anlegen.
+
+    Nur eine zufaellige Kennung im HttpOnly-Cookie — es wird kein
+    Merkmal gespeichert, das einen Nutzer dauerhaft identifiziert.
+    """
+    sid = request.cookies.get(SESSION_COOKIE) or ""
+    conn = get_conn()
+    try:
+        row = None
+        if SESSION_RE.fullmatch(sid):
+            row = conn.execute(
+                "SELECT id FROM rating_sessions WHERE id = ? AND "
+                "last_seen > datetime('now', ?)", (sid, f"-{SESSION_IDLE_H} hours"),
+            ).fetchone()
+        if row:
+            conn.execute("UPDATE rating_sessions SET last_seen = datetime('now') "
+                         "WHERE id = ?", (sid,))
+            conn.commit()
+            return sid
+        sid = secrets.token_urlsafe(24)
+        conn.execute("INSERT INTO rating_sessions (id) VALUES (?)", (sid,))
+        conn.commit()
+    finally:
+        conn.close()
+    response.set_cookie(
+        SESSION_COOKIE, sid, max_age=SESSION_IDLE_H * 3600, httponly=True,
+        samesite="lax", secure=request.url.scheme == "https")
+    return sid
+
+
 @app.get("/raten/next")
-def raten_next(language: str | None = None, exclude: str = ""):
+def raten_next(request: Request, response: Response,
+               language: str | None = None, exclude: str = ""):
     """Bild für die Bewertungsseite: wenig bewertete zuerst, dann Zufall.
 
-    exclude: kommagetrennte Eintrags-IDs, die diese Session schon gesehen
-    hat (Client-seitige Liste, kein Server-Tracking).
+    Legt anonyme Sitzung an (Cookie) und liefert einen Einmal-Nonce,
+    der zum Abstimmen noetig ist.
     """
     sql = ("SELECT e.id, e.word, e.language, e.image, "
-           "(SELECT COUNT(*) FROM ratings r WHERE r.entry_id = e.id) AS votes "
+           "(SELECT COUNT(*) FROM ratings r WHERE r.entry_id = e.id "
+           " AND r.kind = 'image') AS votes "
            "FROM entries e WHERE e.image IS NOT NULL AND e.image != ''")
     params: list = []
     if language:
@@ -672,6 +735,21 @@ def raten_next(language: str | None = None, exclude: str = ""):
     if not row:
         raise HTTPException(404, "Keine neuen Bilder mehr vorhanden")
     out = row_to_dict(row)
+    # Sitzung + Einmal-Nonce (an Sitzung und Eintrag gebunden)
+    sid = _get_session(request, response)
+    nonce = secrets.token_urlsafe(16)
+    conn_n = get_conn()
+    try:
+        conn_n.execute(
+            "DELETE FROM rating_nonces WHERE expires_at < datetime('now')")
+        conn_n.execute(
+            "INSERT INTO rating_nonces (nonce, session_id, entry_id, "
+            "expires_at) VALUES (?, ?, ?, datetime('now', ?))",
+            (nonce, sid, out["id"], f"+{NONCE_TTL_MIN} minutes"))
+        conn_n.commit()
+    finally:
+        conn_n.close()
+    out["nonce"] = nonce
     # Galerie: weitere Bilder, die den Begriff mitbeschreiben
     conn2 = get_conn()
     try:
@@ -757,12 +835,21 @@ def bilder_upload(body: ImageIn, _=Depends(require_api_key)):
 
 
 @app.post("/raten/vote", status_code=201)
-def raten_vote(vote: VoteIn):
-    """Öffentliche Bewertung: Bild verstanden oder nicht (kein Key nötig).
+def raten_vote(vote: VoteIn, request: Request):
+    """Öffentliche Bewertung (kein Key nötig): 'Passt'/'Passt nicht' oder
+    'Wort unbekannt' — letzteres zaehlt nicht gegen das Bild.
 
-    Optional pro Bilddatei (image=...) — sonst gilt die Stimme dem
-    Hauptbild des Eintrags.
+    Oeffentliche Stimmen brauchen Sitzungs-Cookie + Einmal-Nonce aus
+    /raten/next: Der Nonce wird atomar verbraucht, pro Sitzung und Bild
+    zaehlt nur die erste Stimme. Mit API-Key (Pipeline) entfaellt das —
+    dann zaehlt weiter jede Stimme.
     """
+    keyed = bool(API_KEY) and request.headers.get("x-api-key") == API_KEY
+    sid = request.cookies.get(SESSION_COOKIE) or ""
+    if not keyed:
+        if not SESSION_RE.fullmatch(sid):
+            raise HTTPException(403, "Sitzung fehlt — Seite neu laden.")
+        _session_vote_throttle(sid)
     conn = get_conn()
     try:
         exists = conn.execute(
@@ -770,9 +857,26 @@ def raten_vote(vote: VoteIn):
         ).fetchone()
         if not exists:
             raise HTTPException(404, f"Eintrag {vote.entry_id} nicht gefunden")
+        if not keyed:
+            # Nonce atomar verbrauchen (gebunden an Sitzung + Eintrag)
+            cur = conn.execute(
+                "DELETE FROM rating_nonces WHERE nonce = ? AND session_id = ? "
+                "AND entry_id = ? AND expires_at > datetime('now')",
+                (vote.nonce or "", sid, vote.entry_id))
+            if cur.rowcount != 1:
+                raise HTTPException(403, "Ungültiger oder verbrauchter Nonce.")
+            # Dasselbe Bild in derselben Sitzung nur einmal
+            dup = conn.execute(
+                "SELECT 1 FROM ratings WHERE session_id = ? AND entry_id = ? "
+                "AND COALESCE(image, '') = COALESCE(?, '')",
+                (sid, vote.entry_id, vote.image)).fetchone()
+            if dup:
+                raise HTTPException(409, "Bereits bewertet.")
         conn.execute(
-            "INSERT INTO ratings (entry_id, understood, image) VALUES (?, ?, ?)",
-            (vote.entry_id, 1 if vote.understood else 0, vote.image),
+            "INSERT INTO ratings (entry_id, understood, image, kind, "
+            "session_id) VALUES (?, ?, ?, ?, ?)",
+            (vote.entry_id, 1 if vote.understood else 0, vote.image,
+             vote.kind, sid or None),
         )
         conn.commit()
     finally:
@@ -904,6 +1008,7 @@ def raten_schlecht(min_votes: int = 2, _=Depends(require_api_key)):
             "SUM(CASE WHEN r.understood = 1 THEN 1 ELSE 0 END) AS ja, "
             "SUM(CASE WHEN r.understood = 0 THEN 1 ELSE 0 END) AS nein "
             "FROM ratings r JOIN entries e ON e.id = r.entry_id "
+            "WHERE r.kind = 'image' "
             "GROUP BY r.entry_id "
             "HAVING nein > ja AND nein >= ? "
             "ORDER BY nein DESC",
@@ -918,9 +1023,15 @@ def raten_schlecht(min_votes: int = 2, _=Depends(require_api_key)):
 def raten_stats():
     conn = get_conn()
     try:
-        votes = conn.execute("SELECT COUNT(*) AS n FROM ratings").fetchone()["n"]
+        votes = conn.execute(
+            "SELECT COUNT(*) AS n FROM ratings WHERE kind = 'image'"
+        ).fetchone()["n"]
         understood = conn.execute(
-            "SELECT COUNT(*) AS n FROM ratings WHERE understood = 1"
+            "SELECT COUNT(*) AS n FROM ratings WHERE understood = 1 "
+            "AND kind = 'image'"
+        ).fetchone()["n"]
+        unknown = conn.execute(
+            "SELECT COUNT(*) AS n FROM ratings WHERE kind = 'unknown'"
         ).fetchone()["n"]
         with_image = conn.execute(
             "SELECT COUNT(*) AS n FROM entries WHERE image IS NOT NULL AND image != ''"
@@ -928,7 +1039,8 @@ def raten_stats():
     finally:
         conn.close()
     return {"votes": votes, "understood": understood,
-            "not_understood": votes - understood, "entries_with_image": with_image}
+            "not_understood": votes - understood, "unknown": unknown,
+            "entries_with_image": with_image}
 
 
 # ---------- Wort-Konfidenz & Evidenz ----------
@@ -972,7 +1084,7 @@ def get_evidence(entry_id: int):
         img = conn.execute(
             "SELECT SUM(CASE WHEN understood=1 THEN 1 ELSE 0 END) ja,"
             "       SUM(CASE WHEN understood=0 THEN 1 ELSE 0 END) nein "
-            "FROM ratings WHERE entry_id = ?", (entry_id,),
+            "FROM ratings WHERE entry_id = ? AND kind = 'image'", (entry_id,),
         ).fetchone()
         wr = conn.execute(
             "SELECT SUM(CASE WHEN fits=1 THEN 1 ELSE 0 END) passt,"
@@ -985,7 +1097,8 @@ def get_evidence(entry_id: int):
                 "SELECT COALESCE(image, '') AS img,"
                 " SUM(CASE WHEN understood=1 THEN 1 ELSE 0 END) ja,"
                 " SUM(CASE WHEN understood=0 THEN 1 ELSE 0 END) nein "
-                "FROM ratings WHERE entry_id = ? GROUP BY img",
+                "FROM ratings WHERE entry_id = ? AND kind = 'image' "
+                "GROUP BY img",
                 (entry_id,)).fetchall():
             per_img[r["img"]] = {"ja": r["ja"] or 0, "nein": r["nein"] or 0}
         gallery = [g["filename"] for g in conn.execute(
