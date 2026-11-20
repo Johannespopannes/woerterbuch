@@ -46,7 +46,8 @@ NEGATIVE = "photo, realistic, text, watermark, blurry, complex background"
 
 TRANSLATE_PROMPT = (
     "Gib für jedes der folgenden {lang} Wörter ein kurzes, konkretes "
-    "englisches Bildmotiv für ein Piktogramm an (1-3 englische Wörter, "
+    "englisches Bildmotiv für ein Piktogramm an (AUSSCHLIESSLICH "
+    "englisch, 1-3 englische Wörter, "
     "z. B. Haus -> house, laufen -> person running, Freiheit -> bird flying "
     "free). Abstrakte Wörter auf ein sichtbares Symbol bringen. "
     "Antworte NUR mit einem JSON-Objekt Wort->Motiv, kein Markdown.\n"
@@ -93,15 +94,67 @@ def api_store_image(filename: str, data: bytes) -> None:
         print(f"  Kandidaten-Upload {filename}: {e}", file=sys.stderr)
 
 
+def _englisch_genug(motiv: str) -> bool:
+    """Flux versteht fast nur Englisch — Motive ohne lateinische
+    Buchstaben dominieren wuerden schlecht rendern (z. B. deutsche
+    Woerter, die Mistral trotz Anweisung liefert)."""
+    if not motiv:
+        return False
+    letters = [c for c in motiv if c.isalpha()]
+    if not letters:
+        return False
+    latein = sum(1 for c in letters if c.isascii())
+    return latein / len(letters) >= 0.95
+
+
 def translate_batch(words: list[str], lang: str) -> dict[str, str]:
-    """Wörter -> englische Bildmotive (ein LLM-Aufruf pro Liste)."""
+    """Wörter -> englische Bildmotive (ein LLM-Aufruf pro Liste).
+
+    Motive, die nicht englisch_genug sind, werden verworfen — lieber
+    fehlen (und werden einzeln nachgeholt) als auf Deutsch rendern.
+    """
     try:
         out = parse_definitions(chat(
-            TRANSLATE_PROMPT.format(lang=lang, words=", ".join(words)), 0.3))
-        return {w: str(out.get(w, "")).strip() for w in words if out.get(w)}
+            TRANSLATE_PROMPT.format(lang=lang, words=", ".join(words)), 0.2))
+        ok = {}
+        for w in words:
+            m = str(out.get(w, "")).strip()
+            if _englisch_genug(m):
+                ok[w] = m
+            elif m:
+                print(f"  {w!r}: Motiv nicht englisch ({m!r}) — verworfen",
+                      file=sys.stderr)
+        return ok
     except Exception as e:
         print(f"  Übersetzungs-Batch fehlgeschlagen: {e}", file=sys.stderr)
         return {}
+
+
+def translate_one(word: str, lang: str) -> str | None:
+    """Einzelwort-Nachholung, wenn der Batch es nicht geliefert hat.
+    Versuch 1: JSON-Stil. Versuch 2: bloße englische Phrase."""
+    try:
+        out = parse_definitions(chat(
+            TRANSLATE_PROMPT.format(lang=lang, words=word), 0.2))
+        m = str(out.get(word, "")).strip()
+        if _englisch_genug(m):
+            return m
+    except Exception as e:
+        print(f"  {word!r}: Einzel-Übersetzung fehlgeschlagen: {e}",
+              file=sys.stderr)
+    try:
+        raw = chat(
+            "Translate the following word into a short, concrete English "
+            "phrase for a pictogram icon (1-3 English words, visible "
+            "object only, no style words). Reply with ONLY the English "
+            f"phrase.\nWord: {word}", 0.2)
+        m = raw.strip().strip('"').split("\n")[0][:80]
+        if _englisch_genug(m):
+            return m
+    except Exception as e:
+        print(f"  {word!r}: Einzel-Übersetzung fehlgeschlagen: {e}",
+              file=sys.stderr)
+    return None
 
 
 def render(concept: str, out_path: Path, size: int, steps: int,
@@ -222,7 +275,18 @@ def main() -> None:
         concepts = translate_batch([e["word"] for e in chunk], lang_name)
         for e in chunk:
             try:
-                concept = concepts.get(e["word"]) or e["word"]
+                concept = concepts.get(e["word"])
+                if not concept:
+                    # Kein deutsches Motiv an Flux — lieber einzeln
+                    # nachholen und in diesem Durchlauf auslassen.
+                    concept = translate_one(e["word"], lang_name)
+                    if not concept:
+                        print(f"  {e['word']!r}: kein englisches Motiv — "
+                              f"übersprungen (kommt im nächsten Lauf dran)",
+                              file=sys.stderr)
+                        failed += 1
+                        time.sleep(args.delay)
+                        continue
                 filename = f"{args.language}-{e['id']}.png"
                 out = CACHE_DIR / filename
                 cand_paths: list[Path] = []
