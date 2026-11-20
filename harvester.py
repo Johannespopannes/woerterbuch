@@ -67,7 +67,11 @@ def _first_letter(word: str, language: str) -> str:
 PROMPT_FREE = (
     "Liste genau {n} {lang} Wörter (Grundformen, Gemeinsprache, keine "
     "Eigennamen, keine Abkürzungen), die mit dem Buchstaben \"{letter}\" "
-    "beginnen. Antworte NUR mit einem JSON-Array von Strings, keine "
+    "beginnen. NUR Wörter, die in dieser Sprache tatsächlich gebräuchlich "
+    "sind — reine Fremdsprachenwörter (z. B. englische Wörter ohne "
+    "Duden-Eintrag) und falsch geschriebene Wörter strikt ausschließen. "
+    "Substantive orthografisch korrekt (im Deutschen großgeschrieben). "
+    "Antworte NUR mit einem JSON-Array von Strings, keine "
     "Erklärung, kein Markdown."
 )
 
@@ -75,14 +79,17 @@ PROMPT_SUGGEST = (
     "Hier sind bekannte {lang} Wörter, die mit \"{letter}\" beginnen:\n"
     "{known}\n"
     "Nenne genau {n} weitere {lang} Wörter mit \"{letter}\", die NICHT in "
-    "der Liste stehen (Grundformen, Gemeinsprache, keine Eigennamen). "
+    "der Liste stehen (Grundformen, Gemeinsprache, keine Eigennamen, nur "
+    "tatsächlich in dieser Sprache gebräuchliche Wörter — keine reinen "
+    "Fremdsprachenwörter, korrekte Rechtschreibung). "
     "Antworte NUR mit einem JSON-Array von Strings."
 )
 
 PROMPT_GAP = (
     "Welche {lang} Wörter liegen im Wörterbuch-alphabetisch SORTIERT "
     "zwischen \"{a}\" und \"{b}\"? Nenne genau {n} Treffer (Grundformen, "
-    "Gemeinsprache). Antworte NUR mit einem JSON-Array von Strings."
+    "Gemeinsprache, nur tatsächlich gebräuchliche Wörter dieser Sprache, "
+    "korrekte Rechtschreibung). Antworte NUR mit einem JSON-Array von Strings."
 )
 
 PROMPT_DEFINE = (
