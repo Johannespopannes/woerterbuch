@@ -198,8 +198,10 @@ function renderStrip() {
     strip.appendChild(stripFig(fn, 'Galerie — antippen, dann bewerten',
       () => showFile(fn), fn === currentFile));
   }
-  // Kandidaten: anklicken macht sie zum Hauptbild
+  // Kandidaten: anklicken macht sie zum Hauptbild (Galerie nicht doppelt)
+  const gset = new Set(current.gallery || []);
   for (const c of (current.candidates || [])) {
+    if (gset.has(c)) continue;
     strip.appendChild(stripFig(c, 'Alternative — zum Hauptbild machen',
       el => pick(c, el), c === currentFile));
   }
@@ -250,6 +252,8 @@ async function pick(filename, imgEl) {
       current.gallery.unshift(current.image);
     }
     current.image = filename;
+    // Gewaehlte Datei ist kein Kandidat mehr — sonst taucht sie doppelt auf
+    current.candidates = (current.candidates || []).filter(c => c !== filename);
     showFile(filename);
   }
   busy = false;
