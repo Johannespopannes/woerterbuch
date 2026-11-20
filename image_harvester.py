@@ -71,6 +71,28 @@ def api_upload_image(entry_id: int, filename: str, data: bytes) -> None:
         resp.read()
 
 
+def api_store_image(filename: str, data: bytes) -> None:
+    """Kandidaten-Entwurf speichern, OHNE entries.image zu ändern —
+    damit die Voting-Seite Alternativen anbieten kann."""
+    headers = {"Content-Type": "application/json"}
+    if DICT_API_KEY:
+        headers["X-API-Key"] = DICT_API_KEY
+    req = urllib.request.Request(
+        f"{DICT_API_URL}/bilder/upload",
+        data=json.dumps({
+            "filename": filename,
+            "data_b64": base64.b64encode(data).decode(),
+        }).encode(),
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            resp.read()
+    except Exception as e:
+        print(f"  Kandidaten-Upload {filename}: {e}", file=sys.stderr)
+
+
 def translate_batch(words: list[str], lang: str) -> dict[str, str]:
     """Wörter -> englische Bildmotive (ein LLM-Aufruf pro Liste)."""
     try:
@@ -199,44 +221,57 @@ def main() -> None:
         chunk = todo[i:i + 50]
         concepts = translate_batch([e["word"] for e in chunk], lang_name)
         for e in chunk:
-            concept = concepts.get(e["word"]) or e["word"]
-            filename = f"{args.language}-{e['id']}.png"
-            out = CACHE_DIR / filename
-            if out.is_file() and out.stat().st_size > 1000:
-                ok = True  # Cache-Treffer: nur hochladen
-            elif args.candidates <= 1:
-                seed = (e["id"] + args.seed_offset * 1_000_003) % 2**31
-                ok = render(concept, out, args.size, args.steps, seed)
-            else:
-                # Best-of-k: k Seeds rendern, Gemma-Vision wählt den Sieger
-                cand_files = []
-                for ci in range(args.candidates):
-                    cand = CACHE_DIR / (
-                        f"{args.language}-{e['id']}-cand{ci + 1}.png")
-                    seed = (e["id"] + args.seed_offset * 1_000_003
-                            + ci * 104_729) % 2**31
-                    if (cand.is_file() and cand.stat().st_size > 1000) or \
-                            render(concept, cand, args.size, args.steps, seed):
-                        cand_files.append(cand)
-                if not cand_files:
-                    ok = False
+            try:
+                concept = concepts.get(e["word"]) or e["word"]
+                filename = f"{args.language}-{e['id']}.png"
+                out = CACHE_DIR / filename
+                cand_paths: list[Path] = []
+                if out.is_file() and out.stat().st_size > 1000:
+                    ok = True  # Cache-Treffer: nur hochladen
+                elif args.candidates <= 1:
+                    seed = (e["id"] + args.seed_offset * 1_000_003) % 2**31
+                    ok = render(concept, out, args.size, args.steps, seed)
                 else:
-                    pick = gemma_pick(e["word"], cand_files) \
-                        if len(cand_files) > 1 else 0
-                    shutil.copyfile(
-                        cand_files[pick] if pick >= 0 else cand_files[0],
-                        out)
-                    ok = True
-            if ok:
-                try:
-                    api_upload_image(e["id"], filename, out.read_bytes())
-                    done += 1
-                except Exception as e2:
-                    print(f"  {e['word']!r}: Upload-Fehler: {e2}",
+                    # Best-of-k: k Seeds rendern, Gemma-Vision wählt den Sieger
+                    cand_files = []
+                    for ci in range(args.candidates):
+                        cand = CACHE_DIR / (
+                            f"{args.language}-{e['id']}-cand{ci + 1}.png")
+                        seed = (e["id"] + args.seed_offset * 1_000_003
+                                + ci * 104_729) % 2**31
+                        if (cand.is_file() and cand.stat().st_size > 1000) or \
+                                render(concept, cand, args.size, args.steps,
+                                       seed):
+                            cand_files.append(cand)
+                    cand_paths = cand_files
+                    if not cand_files:
+                        ok = False
+                    else:
+                        pick = gemma_pick(e["word"], cand_files) \
+                            if len(cand_files) > 1 else 0
+                        shutil.copyfile(
+                            cand_files[pick] if pick >= 0 else cand_files[0],
+                            out)
+                        ok = True
+                if ok:
+                    try:
+                        api_upload_image(e["id"], filename, out.read_bytes())
+                        done += 1
+                        # Kandidaten-Entwürfe ebenfalls hochladen, damit
+                        # die Voting-Seite Alternativen zum Anklicken hat
+                        for cand in cand_paths:
+                            api_store_image(cand.name, cand.read_bytes())
+                    except Exception as e2:
+                        print(f"  {e['word']!r}: Upload-Fehler: {e2}",
+                              file=sys.stderr)
+                        failed += 1
+                else:
+                    print(f"  {e['word']!r} ({concept}): Render-Fehler",
                           file=sys.stderr)
                     failed += 1
-            else:
-                print(f"  {e['word']!r} ({concept}): Render-Fehler",
+            except Exception as e3:
+                # Ein einzelnes Wort darf den Langläufer nie killen
+                print(f"  {e['word']!r}: unerwarteter Fehler: {e3}",
                       file=sys.stderr)
                 failed += 1
             time.sleep(args.delay)
@@ -244,6 +279,10 @@ def main() -> None:
               f"bearbeitet — {done} hochgeladen, {failed} Fehler")
 
     print(f"fertig: {done} Bilder hochgeladen, {failed} Fehler")
+    # Fehler (z. B. 502er Uploads) ueber Nacht nicht aufgeben: Rueckgabe-
+    # code != 0 -> die Nacht-Pipeline startet die Sprache erneut.
+    if failed and not args.limit:
+        sys.exit(2)
 
 
 if __name__ == "__main__":

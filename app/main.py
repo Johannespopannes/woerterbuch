@@ -66,9 +66,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             host = request.client.host if request.client else "?"
             bucket = f"{host}:{'w' if is_write else 'r'}"
             limit = RATE_WRITE if is_write else RATE_READ
-            # Abstimmen auf der Bewertungsseite ist ein Write, soll aber
-            # flüssig klickbar bleiben — eigener, großzügigerer Bucket.
-            if request.url.path == "/raten/vote":
+            # Abstimmen und Kandidaten-Wahl auf der Bewertungsseite sind
+            # Writes, sollen aber flüssig klickbar bleiben — eigener Bucket.
+            if request.url.path in ("/raten/vote", "/raten/pick"):
                 bucket = f"{host}:v"
                 limit = RATE_VOTE
         now = time.monotonic()
@@ -135,6 +135,11 @@ class VoteIn(BaseModel):
 class ImageIn(BaseModel):
     filename: str = Field(pattern=r"^[A-Za-z0-9_-]{1,120}\.(png|webp)$")
     data_b64: str = Field(max_length=3_000_000)
+
+
+class PickIn(BaseModel):
+    entry_id: int
+    filename: str = Field(pattern=r"^[A-Za-z0-9_-]{1,120}\.(png|webp)$")
 
 
 class BatchIn(BaseModel):
@@ -548,7 +553,66 @@ def raten_next(language: str | None = None, exclude: str = ""):
         conn.close()
     if not row:
         raise HTTPException(404, "Keine neuen Bilder mehr vorhanden")
-    return row_to_dict(row)
+    out = row_to_dict(row)
+    # Alternative Kandidaten desselben Wortes (rendern liefert immer
+    # mehrere Entwürfe; Gewinner steht in entries.image) — direkt vom
+    # Dateisystem, keine DB-Spalte noetig.
+    out["candidates"] = []
+    if IMAGE_NAME_RE.fullmatch(out["image"] or ""):
+        stem = out["image"].rsplit(".", 1)[0]
+        for n in range(1, 6):
+            cand = f"{stem}-cand{n}.png"
+            if (IMAGES_DIR / cand).is_file() and cand != out["image"]:
+                out["candidates"].append(cand)
+    return out
+
+
+@app.post("/raten/pick")
+def raten_pick(pick: PickIn):
+    """Kandidaten-Bild zum offiziellen Bild machen (Voting-Eingriff).
+
+    Erlaubt nur Dateien, die zum Eintrag gehoeren: <lang>-<id>-cand<N>.png
+    oder <lang>-<id>-v<N>.png, und die auf der Platte existieren.
+    """
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT id, language, image FROM entries WHERE id = ?",
+            (pick.entry_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, f"Eintrag {pick.entry_id} nicht gefunden")
+        prefix = f"{row['language']}-{row['id']}-"
+        if not pick.filename.startswith(prefix):
+            raise HTTPException(400, "Datei gehört nicht zu diesem Eintrag")
+        if not (IMAGES_DIR / pick.filename).is_file():
+            raise HTTPException(404, "Bilddatei nicht vorhanden")
+        if (row["image"] or "") != pick.filename:
+            conn.execute("DELETE FROM ratings WHERE entry_id = ?",
+                         (pick.entry_id,))
+            conn.execute("UPDATE entries SET image = ? WHERE id = ?",
+                         (pick.filename, pick.entry_id))
+            conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True, "image": pick.filename}
+
+
+@app.post("/bilder/upload", status_code=201)
+def bilder_upload(body: ImageIn, _=Depends(require_api_key)):
+    """Bilddatei nur speichern (ohne entries.image zu ändern) — für
+    Kandidaten-Entwürfe der Bild-Pipeline."""
+    try:
+        data = base64.b64decode(body.data_b64, validate=True)
+    except Exception:
+        raise HTTPException(400, "Ungültiges Base64")
+    if len(data) > 2_000_000:
+        raise HTTPException(413, "Bild zu groß (max. 2 MB)")
+    path = IMAGES_DIR / body.filename
+    if path.is_file() and path.stat().st_size == len(data):
+        return {"ok": True, "filename": body.filename, "cached": True}
+    path.write_bytes(data)
+    return {"ok": True, "filename": body.filename}
 
 
 @app.post("/raten/vote", status_code=201)

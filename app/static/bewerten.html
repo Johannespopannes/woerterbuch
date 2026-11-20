@@ -67,6 +67,14 @@
   #nein { border-color: var(--no); color: var(--no); }
   #nein:hover { background: var(--no); color: #fff; }
   #stats { color: var(--muted); font-size: .85rem; margin-top: 1.6rem; min-height: 1.2em; }
+  #kandis { display: flex; gap: .5rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
+  #kandis figure { margin: 0; width: 72px; }
+  #kandis img {
+    width: 72px; height: 72px; border-radius: 10px; object-fit: cover;
+    border: 2px solid var(--line); cursor: pointer; background: var(--bg);
+  }
+  #kandis img:hover { border-color: var(--accent); }
+  #kandis figcaption { font-size: .7rem; color: var(--muted); margin-top: .2rem; }
   footer { margin-top: auto; padding-top: 2.5rem; color: var(--muted); font-size: .8rem; }
   footer a { color: var(--accent); text-decoration: none; }
 </style>
@@ -83,6 +91,7 @@
   <img id="bild" alt="Wort-Bild">
   <div id="wort">lade …</div>
   <div id="sprache"></div>
+  <div id="kandis"></div>
 </div>
 
 <div class="buttons">
@@ -101,6 +110,7 @@ const card = document.getElementById('card');
 const bild = document.getElementById('bild');
 const wort = document.getElementById('wort');
 const sprache = document.getElementById('sprache');
+const kandis = document.getElementById('kandis');
 const langsel = document.getElementById('langsel');
 const statsBox = document.getElementById('stats');
 let current = null;
@@ -146,6 +156,34 @@ async function next(retried) {
   bild.src = '/bilder/' + current.image;
   wort.textContent = current.word;
   sprache.textContent = current.language;
+  // Alternative Kandidaten anzeigen — Anklicken macht sie zum Hauptbild
+  kandis.innerHTML = '';
+  for (const c of (current.candidates || [])) {
+    const fig = document.createElement('figure');
+    const img = document.createElement('img');
+    img.src = '/bilder/' + c;
+    img.alt = 'Alternative';
+    img.title = 'Dieses Bild ist besser — zum Hauptbild machen';
+    img.addEventListener('click', () => pick(c, img));
+    fig.appendChild(img);
+    const cap = document.createElement('figcaption');
+    cap.textContent = 'Alternative';
+    fig.appendChild(cap);
+    kandis.appendChild(fig);
+  }
+}
+
+async function pick(filename, imgEl) {
+  if (!current || busy) return;
+  busy = true;
+  await fetch('/raten/pick', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ entry_id: current.id, filename }),
+  });
+  imgEl.style.borderColor = 'var(--ok)';
+  bild.src = '/bilder/' + filename;
+  setTimeout(() => { busy = false; }, 300);
 }
 
 async function vote(understood) {
