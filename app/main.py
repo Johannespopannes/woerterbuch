@@ -707,6 +707,34 @@ def set_image(entry_id: int, body: ImageIn, _=Depends(require_api_key)):
         conn.close()
 
 
+@app.post("/entries/{entry_id}/image-ref", response_model=EntryOut)
+def set_image_ref(entry_id: int, body: ImageIn, _=Depends(require_api_key)):
+    """Bildfeld auf eine BEREITS auf dem Server liegende Datei zeigen —
+    zum Zurückholen von Einträgen ohne erneuten Upload."""
+    if not (IMAGES_DIR / body.filename).is_file():
+        raise HTTPException(404, "Bilddatei nicht auf dem Server")
+    conn = get_conn()
+    try:
+        old = conn.execute(
+            "SELECT image FROM entries WHERE id = ?", (entry_id,)
+        ).fetchone()
+        if old is None:
+            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        if (old["image"] or "") != body.filename:
+            conn.execute("DELETE FROM ratings WHERE entry_id = ?", (entry_id,))
+            conn.execute(
+                "UPDATE entries SET image = ? WHERE id = ?",
+                (body.filename, entry_id),
+            )
+            conn.commit()
+        row = conn.execute(
+            "SELECT * FROM entries WHERE id = ?", (entry_id,)
+        ).fetchone()
+        return row_to_dict(row)
+    finally:
+        conn.close()
+
+
 @app.delete("/entries/{entry_id}", status_code=204)
 def delete_entry(entry_id: int, _=Depends(require_api_key)):
     conn = get_conn()
