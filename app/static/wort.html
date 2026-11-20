@@ -53,6 +53,14 @@
   ul.fam .form { color: var(--muted); font-size: .8rem; }
   img.wbild { max-width: 220px; border-radius: 12px;
               border: 1px solid var(--line); }
+  /* Galerie: Kombination mehrerer Bilder beschreibt den Begriff */
+  #galerie { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-start; }
+  #galerie figure { margin: 0; }
+  #galerie img { width: 110px; height: 110px; object-fit: cover;
+                 border-radius: 10px; border: 1px solid var(--line); }
+  #galerie img.mainb { width: 220px; height: 220px; }
+  #galerie figcaption { font-size: .75rem; color: var(--muted); margin-top: .25rem; }
+  #galerie .haupt { font-size: .72rem; color: var(--accent); letter-spacing: .05em; }
   ul.evi { margin: 0; padding-left: 1.1rem; }
   ul.evi li { margin-bottom: .45rem; font-size: .92rem; line-height: 1.45; }
   ul.evi .src { color: var(--muted); font-size: .8rem; }
@@ -97,8 +105,8 @@
   </div>
 
   <div class="card" id="bildcard" style="display:none">
-    <h2>Bild</h2>
-    <img class="wbild" id="bild" alt="">
+    <h2 id="bildhead">Bilder</h2>
+    <div id="galerie"></div>
     <div class="meta" id="bildvotes"></div>
   </div>
 
@@ -173,12 +181,35 @@ async function load() {
     show(document.getElementById('defcard'), true);
     linkify(document.getElementById('def'), ev.definition);
   }
-  if (ev.image) {
+  const bilder = ev.bilder || [];
+  if (bilder.length) {
     show(document.getElementById('bildcard'), true);
-    document.getElementById('bild').src = '/bilder/' + ev.image;
+    document.getElementById('bildhead').textContent =
+      bilder.length > 1 ? `Bilder (${bilder.length}) — gemeinsam beschreiben sie den Begriff` : 'Bild';
+    const g = document.getElementById('galerie');
+    g.innerHTML = '';
+    for (const b of bilder) {
+      const fig = document.createElement('figure');
+      const img = document.createElement('img');
+      img.src = '/bilder/' + b.filename;
+      img.alt = b.main ? 'Hauptbild' : 'Galeriebild';
+      if (b.main) img.className = 'mainb';
+      fig.appendChild(img);
+      const cap = document.createElement('figcaption');
+      cap.textContent = (b.main ? 'Hauptbild · ' : '') +
+        `verstanden: ${b.ja} · nicht: ${b.nein}`;
+      fig.appendChild(cap);
+      if (b.main) {
+        const tag = document.createElement('div');
+        tag.className = 'haupt';
+        tag.textContent = 'HAUPTBILD';
+        fig.appendChild(tag);
+      }
+      g.appendChild(fig);
+    }
     const iv = ev.image_votes || { ja: 0, nein: 0 };
     document.getElementById('bildvotes').textContent =
-      `Bild verstanden: ${iv.ja} · nicht verstanden: ${iv.nein}`;
+      `Gesamt: ${iv.ja}× verstanden · ${iv.nein}× nicht verstanden`;
   }
 
   // Wortfamilie

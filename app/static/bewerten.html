@@ -97,7 +97,9 @@
 <div class="buttons">
   <button id="ja">Verstehe ich</button>
   <button id="nein">Verstehe ich nicht</button>
+  <button id="movebtn" title="Das Bild passt besser zu einem anderen Wort">Zu anderem Wort…</button>
 </div>
+<div id="hinweis" class="sub" style="margin-top:.6rem"></div>
 
 <div id="stats"></div>
 
@@ -114,6 +116,7 @@ const kandis = document.getElementById('kandis');
 const langsel = document.getElementById('langsel');
 const statsBox = document.getElementById('stats');
 let current = null;
+let currentFile = null;   // gerade angezeigte Bilddatei (null = Hauptbild)
 let busy = false;
 // Schon gezeigte Bilder dieser Session (nur im Browser, kein Server-Tracking)
 let seen = [];
@@ -148,42 +151,89 @@ async function next(retried) {
     wort.textContent = 'Noch keine Bilder vorhanden — die Generierung läuft gerade an.';
     bild.removeAttribute('src');
     sprache.textContent = '';
+    kandis.innerHTML = '';
     current = null;
+    currentFile = null;
     return;
   }
   current = await r.json();
   remember(current.id);
+  currentFile = current.image || null;
   bild.src = '/bilder/' + current.image;
   wort.textContent = current.word;
   sprache.textContent = current.language;
-  // Alternative Kandidaten anzeigen — Anklicken macht sie zum Hauptbild
+  document.getElementById('hinweis').textContent =
+    'Bewertung gilt für: ' + current.image;
+  renderStrip();
+}
+
+function renderStrip() {
   kandis.innerHTML = '';
-  for (const c of (current.candidates || [])) {
-    const fig = document.createElement('figure');
-    const img = document.createElement('img');
-    img.src = '/bilder/' + c;
-    img.alt = 'Alternative';
-    img.title = 'Dieses Bild ist besser — zum Hauptbild machen';
-    img.addEventListener('click', () => pick(c, img));
-    fig.appendChild(img);
-    const cap = document.createElement('figcaption');
-    cap.textContent = 'Alternative';
-    fig.appendChild(cap);
-    kandis.appendChild(fig);
+  const strip = document.createElement('div');
+  strip.style.display = 'flex';
+  strip.style.gap = '.5rem';
+  strip.style.justifyContent = 'center';
+  strip.style.flexWrap = 'wrap';
+  // Galerie: anklicken zeigt das Bild gross (dann darauf voten)
+  for (const fn of (current.gallery || [])) {
+    strip.appendChild(stripFig(fn, 'Galerie — antippen, dann bewerten',
+      () => showFile(fn), fn === currentFile));
   }
+  // Kandidaten: anklicken macht sie zum Hauptbild
+  for (const c of (current.candidates || [])) {
+    strip.appendChild(stripFig(c, 'Alternative — zum Hauptbild machen',
+      el => pick(c, el), c === currentFile));
+  }
+  kandis.appendChild(strip);
+}
+
+function stripFig(fn, title, onpick, active) {
+  const fig = document.createElement('figure');
+  fig.style.margin = '0';
+  fig.style.width = '72px';
+  const img = document.createElement('img');
+  img.src = '/bilder/' + fn;
+  img.alt = '';
+  img.title = title;
+  img.style.cssText = 'width:72px;height:72px;border-radius:10px;' +
+    'object-fit:cover;border:2px solid ' +
+    (active ? 'var(--accent)' : 'var(--line)') + ';cursor:pointer;';
+  img.addEventListener('click', () => onpick(img));
+  fig.appendChild(img);
+  const cap = document.createElement('figcaption');
+  cap.textContent = title.startsWith('Galerie') ? 'Galerie' : 'Alternative';
+  cap.style.cssText = 'font-size:.7rem;color:var(--muted);margin-top:.2rem;';
+  fig.appendChild(cap);
+  return fig;
+}
+
+function showFile(fn) {
+  currentFile = fn;
+  bild.src = '/bilder/' + fn;
+  document.getElementById('hinweis').textContent =
+    'Bewertung gilt für: ' + fn;
+  renderStrip();
 }
 
 async function pick(filename, imgEl) {
   if (!current || busy) return;
   busy = true;
-  await fetch('/raten/pick', {
+  const r = await fetch('/raten/pick', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ entry_id: current.id, filename }),
   });
-  imgEl.style.borderColor = 'var(--ok)';
-  bild.src = '/bilder/' + filename;
-  setTimeout(() => { busy = false; }, 300);
+  if (r.ok) {
+    // Altes Hauptbild bleibt in der Galerie erhalten
+    if (current.image && current.image !== filename &&
+        !(current.gallery || []).includes(current.image)) {
+      current.gallery = current.gallery || [];
+      current.gallery.unshift(current.image);
+    }
+    current.image = filename;
+    showFile(filename);
+  }
+  busy = false;
 }
 
 async function vote(understood) {
@@ -193,14 +243,36 @@ async function vote(understood) {
   await fetch('/raten/vote', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ entry_id: current.id, understood }),
+    body: JSON.stringify({ entry_id: current.id, understood,
+                           image: currentFile }),
   });
   setTimeout(() => { card.classList.remove('ok', 'no'); next(); }, 350);
   loadStats();
 }
 
+async function move() {
+  if (!current || !currentFile || busy) return;
+  const target = prompt(
+    'Zu welchem ' + (current.language === 'de' ? 'deutschen' : current.language) +
+    ' Wort passt das Bild "' + currentFile + '" besser?');
+  if (!target || !target.trim()) return;
+  busy = true;
+  const r = await fetch('/raten/move', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ entry_id: current.id, filename: currentFile,
+                           target_word: target.trim() }),
+  });
+  const msg = r.ok
+    ? 'Umzugswunsch notiert — ein Modell prüft ihn.'
+    : 'Konnte nicht notiert werden (' + r.status + ')';
+  statsBox.textContent = msg;
+  setTimeout(() => { busy = false; loadStats(); }, 400);
+}
+
 document.getElementById('ja').addEventListener('click', () => vote(true));
 document.getElementById('nein').addEventListener('click', () => vote(false));
+document.getElementById('movebtn').addEventListener('click', move);
 langsel.addEventListener('change', () => next());
 document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' || e.key === 'j') vote(true);

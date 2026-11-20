@@ -65,6 +65,46 @@ def _migrate(conn: sqlite3.Connection) -> None:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_word_ratings_entry "
         "ON word_ratings (entry_id)")
+    # Galerie: mehrere Bilder beschreiben ein Wort gemeinsam.
+    # Das Hauptbild bleibt in entries.image und ist hier ebenfalls
+    # verzeichnet (UNIQUE verhindert Doppelungen).
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS entry_images ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " entry_id INTEGER NOT NULL REFERENCES entries (id),"
+        " filename TEXT NOT NULL,"
+        " created_at TEXT NOT NULL DEFAULT (datetime('now')),"
+        " UNIQUE (entry_id, filename)"
+        ")")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_entry_images_entry "
+        "ON entry_images (entry_id)")
+    # Bild-Votes pro Datei: NULL (bzw. leer) = Stimme fuer das Hauptbild.
+    rcols = {r["name"] for r in conn.execute("PRAGMA table_info (ratings)")}
+    if "image" not in rcols:
+        conn.execute("ALTER TABLE ratings ADD COLUMN image TEXT")
+    # Umzugs-Wuenssche: "Bild passt besser zu einem anderen Wort".
+    # Die Pipeline prueft sie (Gemma-Vision) und loest sie auf.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS image_moves ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " filename TEXT NOT NULL,"
+        " from_entry_id INTEGER NOT NULL REFERENCES entries (id),"
+        " target_word TEXT NOT NULL,"
+        " language TEXT NOT NULL,"
+        " status TEXT NOT NULL DEFAULT 'offen',"
+        " note TEXT,"
+        " created_at TEXT NOT NULL DEFAULT (datetime('now')),"
+        " decided_at TEXT"
+        ")")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_image_moves_status "
+        "ON image_moves (status)")
+    # Bestand uebernehmen: vorhandene Hauptbilder in die Galerie eintragen
+    conn.execute(
+        "INSERT OR IGNORE INTO entry_images (entry_id, filename) "
+        "SELECT id, image FROM entries "
+        "WHERE image IS NOT NULL AND image != ''")
 
 
 def get_conn() -> sqlite3.Connection:

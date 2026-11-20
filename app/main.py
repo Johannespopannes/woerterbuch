@@ -70,7 +70,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             # Abstimmen und Kandidaten-Wahl auf der Bewertungsseite sind
             # Writes, sollen aber flüssig klickbar bleiben — eigener Bucket.
             if request.url.path in ("/raten/vote", "/raten/pick",
-                                    "/wort/vote"):
+                                    "/wort/vote", "/raten/move"):
                 bucket = f"{host}:v"
                 limit = RATE_VOTE
         now = time.monotonic()
@@ -136,6 +136,20 @@ class EntryOut(BaseModel):
 class VoteIn(BaseModel):
     entry_id: int
     understood: bool
+    # Bewertetes Bild (Galerie/Dateiname); None = Hauptbild
+    image: str | None = Field(
+        default=None, pattern=r"^[A-Za-z0-9_-]{1,120}\.(png|webp)$")
+
+
+class MoveIn(BaseModel):
+    entry_id: int
+    filename: str = Field(pattern=r"^[A-Za-z0-9_-]{1,120}\.(png|webp)$")
+    target_word: str = Field(min_length=1, max_length=100)
+
+
+class ResolveIn(BaseModel):
+    accept: bool
+    note: str | None = Field(default=None, max_length=500)
 
 
 class WordVoteIn(BaseModel):
@@ -571,6 +585,15 @@ def raten_next(language: str | None = None, exclude: str = ""):
     if not row:
         raise HTTPException(404, "Keine neuen Bilder mehr vorhanden")
     out = row_to_dict(row)
+    # Galerie: weitere Bilder, die den Begriff mitbeschreiben
+    conn2 = get_conn()
+    try:
+        out["gallery"] = [r["filename"] for r in conn2.execute(
+            "SELECT filename FROM entry_images "
+            "WHERE entry_id = ? AND filename != ? ORDER BY id",
+            (out["id"], out["image"] or "")).fetchall()]
+    finally:
+        conn2.close()
     # Alternative Kandidaten desselben Wortes (rendern liefert immer
     # mehrere Entwürfe; Gewinner steht in entries.image) — direkt vom
     # Dateisystem, keine DB-Spalte noetig.
@@ -579,7 +602,8 @@ def raten_next(language: str | None = None, exclude: str = ""):
         stem = out["image"].rsplit(".", 1)[0]
         for n in range(1, 6):
             cand = f"{stem}-cand{n}.png"
-            if (IMAGES_DIR / cand).is_file() and cand != out["image"]:
+            if (IMAGES_DIR / cand).is_file() and cand != out["image"] \
+                    and cand not in out["gallery"]:
                 out["candidates"].append(cand)
     return out
 
@@ -590,6 +614,10 @@ def raten_pick(pick: PickIn):
 
     Erlaubt nur Dateien, die zum Eintrag gehoeren: <lang>-<id>-cand<N>.png
     oder <lang>-<id>-v<N>.png, und die auf der Platte existieren.
+    Das bisherige Hauptbild bleibt als Galerie-Bild erhalten — die
+    Kombination mehrerer Bilder beschreibt den Begriff. Stimmen werden
+    pro Datei gezaehlt: alte Hauptbild-Stimmen (image IS NULL) werden auf
+    den Dateinamen des alten Hauptbilds umgebogen.
     """
     conn = get_conn()
     try:
@@ -604,9 +632,18 @@ def raten_pick(pick: PickIn):
             raise HTTPException(400, "Datei gehört nicht zu diesem Eintrag")
         if not (IMAGES_DIR / pick.filename).is_file():
             raise HTTPException(404, "Bilddatei nicht vorhanden")
-        if (row["image"] or "") != pick.filename:
-            conn.execute("DELETE FROM ratings WHERE entry_id = ?",
-                         (pick.entry_id,))
+        old = row["image"] or ""
+        if old != pick.filename:
+            if old:
+                conn.execute(
+                    "INSERT OR IGNORE INTO entry_images (entry_id, filename) "
+                    "VALUES (?, ?)", (pick.entry_id, old))
+                conn.execute(
+                    "UPDATE ratings SET image = ? WHERE entry_id = ? "
+                    "AND image IS NULL", (old, pick.entry_id))
+            conn.execute(
+                "INSERT OR IGNORE INTO entry_images (entry_id, filename) "
+                "VALUES (?, ?)", (pick.entry_id, pick.filename))
             conn.execute("UPDATE entries SET image = ? WHERE id = ?",
                          (pick.filename, pick.entry_id))
             conn.commit()
@@ -634,7 +671,11 @@ def bilder_upload(body: ImageIn, _=Depends(require_api_key)):
 
 @app.post("/raten/vote", status_code=201)
 def raten_vote(vote: VoteIn):
-    """Öffentliche Bewertung: Bild verstanden oder nicht (kein Key nötig)."""
+    """Öffentliche Bewertung: Bild verstanden oder nicht (kein Key nötig).
+
+    Optional pro Bilddatei (image=...) — sonst gilt die Stimme dem
+    Hauptbild des Eintrags.
+    """
     conn = get_conn()
     try:
         exists = conn.execute(
@@ -643,13 +684,126 @@ def raten_vote(vote: VoteIn):
         if not exists:
             raise HTTPException(404, f"Eintrag {vote.entry_id} nicht gefunden")
         conn.execute(
-            "INSERT INTO ratings (entry_id, understood) VALUES (?, ?)",
-            (vote.entry_id, 1 if vote.understood else 0),
+            "INSERT INTO ratings (entry_id, understood, image) VALUES (?, ?, ?)",
+            (vote.entry_id, 1 if vote.understood else 0, vote.image),
         )
         conn.commit()
     finally:
         conn.close()
     return {"ok": True}
+
+
+# ---------- Bild-Umzug: "passt besser zu einem anderen Wort" ----------
+
+@app.post("/raten/move", status_code=201)
+def raten_move(move: MoveIn):
+    """Öffentlicher Umzugswunsch. Die Pipeline prueft ihn und fuehrt ihn
+    ggf. aus (letzte Entscheidung durchs Modell, nicht durch den Button)."""
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT id, language, image FROM entries WHERE id = ?",
+            (move.entry_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, f"Eintrag {move.entry_id} nicht gefunden")
+        mine = {r["filename"] for r in conn.execute(
+            "SELECT filename FROM entry_images WHERE entry_id = ?",
+            (move.entry_id,)).fetchall()}
+        if row["image"]:
+            mine.add(row["image"])
+        if move.filename not in mine:
+            raise HTTPException(400,
+                                "Datei gehört nicht zu diesem Eintrag")
+        target = conn.execute(
+            "SELECT id FROM entries WHERE word = ? AND language = ?",
+            (move.target_word.strip(), row["language"]),
+        ).fetchone()
+        if not target:
+            raise HTTPException(404,
+                                f"'{move.target_word}' gibt es im "
+                                f"{row['language']}-Bestand nicht")
+        conn.execute(
+            "INSERT INTO image_moves (filename, from_entry_id, target_word,"
+            " language) VALUES (?, ?, ?, ?)",
+            (move.filename, move.entry_id,
+             move.target_word.strip(), row["language"]))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@app.get("/raten/moves")
+def raten_moves(status: str = "offen", _=Depends(require_api_key)):
+    """Offene/abgeschlossene Umzugswuensche (für die Pruef-Pipeline)."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT m.*, e.word AS from_word FROM image_moves m "
+            "JOIN entries e ON e.id = m.from_entry_id "
+            "WHERE m.status = ? ORDER BY m.id",
+            (status,),
+        ).fetchall()
+        return [row_to_dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+@app.post("/raten/moves/{move_id}/resolve")
+def raten_resolve(move_id: int, body: ResolveIn,
+                  _=Depends(require_api_key)):
+    """Umzug ausfuehren (accept) oder ablehnen — nach Modellprüfung."""
+    conn = get_conn()
+    try:
+        m = conn.execute(
+            "SELECT * FROM image_moves WHERE id = ?", (move_id,),
+        ).fetchone()
+        if not m:
+            raise HTTPException(404, f"Umzug {move_id} nicht gefunden")
+        if m["status"] != "offen":
+            raise HTTPException(409, "Umzug ist schon entschieden")
+        note = body.note
+        if body.accept:
+            src = conn.execute(
+                "SELECT image FROM entries WHERE id = ?",
+                (m["from_entry_id"],)).fetchone()
+            is_main = bool(src and src["image"] == m["filename"])
+            if is_main:
+                nxt = conn.execute(
+                    "SELECT filename FROM entry_images "
+                    "WHERE entry_id = ? AND filename != ? ORDER BY id LIMIT 1",
+                    (m["from_entry_id"], m["filename"])).fetchone()
+                conn.execute(
+                    "UPDATE entries SET image = ? WHERE id = ?",
+                    (nxt["filename"] if nxt else None, m["from_entry_id"]))
+            conn.execute(
+                "DELETE FROM entry_images WHERE entry_id = ? AND filename = ?",
+                (m["from_entry_id"], m["filename"]))
+            # Stimmen im alten Kontext verwirren nur
+            conn.execute(
+                "DELETE FROM ratings WHERE entry_id = ? AND image = ?",
+                (m["from_entry_id"], m["filename"]))
+            tgt = conn.execute(
+                "SELECT id, image FROM entries WHERE word = ? AND language = ?",
+                (m["target_word"], m["language"])).fetchone()
+            if not tgt:
+                raise HTTPException(404, "Zieleintrag nicht gefunden")
+            conn.execute(
+                "INSERT OR IGNORE INTO entry_images (entry_id, filename) "
+                "VALUES (?, ?)", (tgt["id"], m["filename"]))
+            if not tgt["image"]:
+                conn.execute(
+                    "UPDATE entries SET image = ? WHERE id = ?",
+                    (m["filename"], tgt["id"]))
+        conn.execute(
+            "UPDATE image_moves SET status = ?, note = ?, "
+            "decided_at = datetime('now') WHERE id = ?",
+            ("angenommen" if body.accept else "abgelehnt", note, move_id))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True, "accepted": body.accept}
 
 
 @app.get("/raten/schlecht")
@@ -738,6 +892,19 @@ def get_evidence(entry_id: int):
             "       SUM(CASE WHEN fits=0 THEN 1 ELSE 0 END) passt_nicht "
             "FROM word_ratings WHERE entry_id = ?", (entry_id,),
         ).fetchone()
+        # Stimmen pro Bilddatei (NULL/'' = Hauptbild)
+        per_img = {}
+        for r in conn.execute(
+                "SELECT COALESCE(image, '') AS img,"
+                " SUM(CASE WHEN understood=1 THEN 1 ELSE 0 END) ja,"
+                " SUM(CASE WHEN understood=0 THEN 1 ELSE 0 END) nein "
+                "FROM ratings WHERE entry_id = ? GROUP BY img",
+                (entry_id,)).fetchall():
+            per_img[r["img"]] = {"ja": r["ja"] or 0, "nein": r["nein"] or 0}
+        gallery = [g["filename"] for g in conn.execute(
+            "SELECT filename FROM entry_images WHERE entry_id = ? "
+            "AND filename != ? ORDER BY id",
+            (entry_id, row["image"] or "")).fetchall()]
     finally:
         conn.close()
     out = row_to_dict(row)
@@ -748,6 +915,16 @@ def get_evidence(entry_id: int):
     out["image_votes"] = {"ja": img["ja"] or 0, "nein": img["nein"] or 0}
     out["word_votes"] = {"passt": wr["passt"] or 0,
                          "passt_nicht": wr["passt_nicht"] or 0}
+    # Bilder des Eintrags: Hauptbild zuerst, dann Galerie — jeweils mit
+    # ihren eigenen Stimmen (Kombination beschreibt den Begriff).
+    bilder = []
+    if row["image"]:
+        v = per_img.get(row["image"], per_img.get("", {"ja": 0, "nein": 0}))
+        bilder.append({"filename": row["image"], "main": True, **v})
+    for fn in gallery:
+        v = per_img.get(fn, {"ja": 0, "nein": 0})
+        bilder.append({"filename": fn, "main": False, **v})
+    out["bilder"] = bilder
     return out
 
 
