@@ -267,6 +267,8 @@ def list_entries(
                           description="nur Einträge ohne Bild"),
     nolemma: bool = Query(default=False,
                           description="nur Einträge ohne Grundform"),
+    with_votes: bool = Query(default=False,
+                             description="Ja/Nein-Bewertungen mit ausgeben"),
     limit: int = Query(default=100, le=1000),
     offset: int = 0,
 ):
@@ -293,7 +295,22 @@ def list_entries(
     params += [limit, offset]
     conn = get_conn()
     try:
-        return [row_to_dict(r) for r in conn.execute(sql, params).fetchall()]
+        rows = conn.execute(sql, params).fetchall()
+        out = [row_to_dict(r) for r in rows]
+        if with_votes:
+            marks = ",".join("?" for _ in out) or "NULL"
+            votes = conn.execute(
+                f"SELECT entry_id, "
+                f"SUM(CASE WHEN understood=1 THEN 1 ELSE 0 END) ja, "
+                f"SUM(CASE WHEN understood=0 THEN 1 ELSE 0 END) nein "
+                f"FROM ratings WHERE entry_id IN ({marks}) GROUP BY entry_id",
+                [e["id"] for e in out],
+            ).fetchall() if out else []
+            vmap = {v["entry_id"]: (v["ja"] or 0, v["nein"] or 0)
+                    for v in votes}
+            for e in out:
+                e["ja"], e["nein"] = vmap.get(e["id"], (0, 0))
+        return out
     finally:
         conn.close()
 
