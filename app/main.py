@@ -220,6 +220,19 @@ def _count_search(term: str, language: str) -> None:
         conn.close()
 
 
+def _entry(row):
+    """Eintrag als Dict; evidence-JSON-Text als Dict aufbereiten,
+    damit EntryOut.evidence (dict) validiert."""
+    d = row_to_dict(row)
+    ev = d.get("evidence")
+    if isinstance(ev, str):
+        try:
+            d["evidence"] = json.loads(ev or "null")
+        except Exception:
+            d["evidence"] = None
+    return d
+
+
 # ---------- Endpunkte ----------
 
 @app.get("/", include_in_schema=False)
@@ -256,7 +269,7 @@ def create_entry(entry: EntryIn, _=Depends(require_api_key)):
         row = conn.execute(
             "SELECT * FROM entries WHERE id = ?", (cur.lastrowid,)
         ).fetchone()
-        return row_to_dict(row)
+        return _entry(row)
     except Exception:
         conn.rollback()
         raise HTTPException(409, f"'{entry.word}' existiert bereits ({entry.language})")
@@ -379,7 +392,7 @@ def lookup(word: str, language: str):
         conn.close()
     if not row:
         raise HTTPException(404, f"'{word}' nicht gefunden ({language})")
-    return row_to_dict(row)
+    return _entry(row)
 
 
 FUGENLAUTE = ("en", "er", "es", "e", "s", "n")
@@ -546,7 +559,7 @@ def set_definition(entry_id: int, body: DefinitionIn, _=Depends(require_api_key)
         row = conn.execute(
             "SELECT * FROM entries WHERE id = ?", (entry_id,)
         ).fetchone()
-        return row_to_dict(row)
+        return _entry(row)
     finally:
         conn.close()
 
@@ -958,7 +971,7 @@ def set_evidence(entry_id: int, body: EvidenceIn,
         row = conn.execute(
             "SELECT * FROM entries WHERE id = ?", (entry_id,)
         ).fetchone()
-        return row_to_dict(row)
+        return _entry(row)
     finally:
         conn.close()
 
@@ -998,7 +1011,7 @@ def set_image(entry_id: int, body: ImageIn, _=Depends(require_api_key)):
         row = conn.execute(
             "SELECT * FROM entries WHERE id = ?", (entry_id,)
         ).fetchone()
-        return row_to_dict(row)
+        return _entry(row)
     finally:
         conn.close()
 
@@ -1026,7 +1039,7 @@ def set_image_ref(entry_id: int, body: ImageIn, _=Depends(require_api_key)):
         row = conn.execute(
             "SELECT * FROM entries WHERE id = ?", (entry_id,)
         ).fetchone()
-        return row_to_dict(row)
+        return _entry(row)
     finally:
         conn.close()
 
