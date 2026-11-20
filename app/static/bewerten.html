@@ -97,6 +97,7 @@
 <div class="buttons">
   <button id="ja">Verstehe ich</button>
   <button id="nein">Verstehe ich nicht</button>
+  <button id="skip" title="Ohne Bewertung weiter (s)">Überspringen</button>
   <button id="movebtn" title="Das Bild passt besser zu einem anderen Wort">Zu anderem Wort…</button>
 </div>
 <div id="hinweis" class="sub" style="margin-top:.6rem"></div>
@@ -272,11 +273,15 @@ async function move() {
 
 document.getElementById('ja').addEventListener('click', () => vote(true));
 document.getElementById('nein').addEventListener('click', () => vote(false));
+document.getElementById('skip').addEventListener('click', () => {
+  if (!busy) next();
+});
 document.getElementById('movebtn').addEventListener('click', move);
 langsel.addEventListener('change', () => next());
 document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' || e.key === 'j') vote(true);
   if (e.key === 'ArrowLeft' || e.key === 'n') vote(false);
+  if (e.key === 's' || e.key === 'ArrowDown') { if (!busy) next(); }
 });
 
 fetch('/languages').then(r => r.json()).then(langs => {
