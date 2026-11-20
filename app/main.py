@@ -131,6 +131,7 @@ class EntryOut(BaseModel):
     sprache_unsicher: int = 0
     ja: int | None = None
     nein: int | None = None
+    evidence: dict | None = None
 
 
 class VoteIn(BaseModel):
@@ -307,6 +308,8 @@ def list_entries(
                           description="nur Einträge ohne Grundform"),
     with_votes: bool = Query(default=False,
                              description="Ja/Nein-Bewertungen mit ausgeben"),
+    with_evidence: bool = Query(default=False,
+                                description="Evidenz-JSON mit ausgeben"),
     limit: int = Query(default=100, le=1000),
     offset: int = 0,
 ):
@@ -335,6 +338,15 @@ def list_entries(
     try:
         rows = conn.execute(sql, params).fetchall()
         out = [row_to_dict(r) for r in rows]
+        if with_evidence:
+            for e in out:
+                try:
+                    e["evidence"] = json.loads(e.get("evidence") or "{}")
+                except Exception:
+                    e["evidence"] = {}
+        else:
+            for e in out:
+                e.pop("evidence", None)
         if with_votes:
             marks = ",".join("?" for _ in out) or "NULL"
             votes = conn.execute(
