@@ -188,6 +188,11 @@ class DefinitionIn(BaseModel):
     definition: str = Field(min_length=1, max_length=1000)
 
 
+class WordIn(BaseModel):
+    """Wort eines Eintrags korrigieren (Tippfehler, Kodier-Müll)."""
+    word: str = Field(min_length=1, max_length=100)
+
+
 # ---------- Hilfsfunktionen ----------
 
 def _fetch_existing(language: str, words: list[str]) -> set[str]:
@@ -560,6 +565,47 @@ def set_definition(entry_id: int, body: DefinitionIn, _=Depends(require_api_key)
             "SELECT * FROM entries WHERE id = ?", (entry_id,)
         ).fetchone()
         return _entry(row)
+    finally:
+        conn.close()
+
+
+@app.patch("/entries/{entry_id}/word", response_model=EntryOut)
+def set_word(entry_id: int, body: WordIn, _=Depends(require_api_key)):
+    """Wort eines Eintrags korrigieren (Tippfehler, Kodier-Müll).
+
+    Eintrag behaelt ID, Bild, Votes und Evidenz — nur die Schreibweise
+    aendert sich. Existiert das Zielwort schon, gibt es 409 (dann
+    manuell zusammenfuehren, nicht ueberschreiben).
+    """
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT language FROM entries WHERE id = ?", (entry_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        dup = conn.execute(
+            "SELECT 1 FROM entries WHERE word = ? AND language = ?",
+            (body.word.strip(), row["language"]),
+        ).fetchone()
+        if dup:
+            raise HTTPException(
+                409, f"'{body.word.strip()}' existiert bereits "
+                     f"({row['language']}) — Zusammenfuehrung noetig")
+        conn.execute(
+            "UPDATE entries SET word = ? WHERE id = ?",
+            (body.word.strip(), entry_id),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM entries WHERE id = ?", (entry_id,)
+        ).fetchone()
+        return _entry(row)
+    except HTTPException:
+        raise
+    except Exception:
+        conn.rollback()
+        raise HTTPException(409, f"'{body.word.strip()}' existiert bereits")
     finally:
         conn.close()
 
