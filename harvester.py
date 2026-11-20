@@ -148,14 +148,14 @@ def chat(prompt: str, temperature: float) -> str:
             "model": MODEL_NAME,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": temperature,
-            "max_tokens": 2000,
+            "max_tokens": 4000,
         }).encode(),
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {MODEL_API_KEY}",
         },
     )
-    with urllib.request.urlopen(req, timeout=120) as resp:
+    with urllib.request.urlopen(req, timeout=300) as resp:
         data = json.loads(resp.read())
     return data["choices"][0]["message"]["content"]
 
