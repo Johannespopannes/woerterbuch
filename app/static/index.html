@@ -126,6 +126,32 @@
     font-size: .85rem; color: var(--ink);
   }
   .hint { color: var(--muted); margin-top: 1.5rem; font-size: .9rem; }
+  /* Entdecken-Karte: ein Wort zum Stöbern, direkt auf seiner Seite landen */
+  .discover { width: min(680px, 100%); margin-top: 1.6rem; }
+  .dcard { display: flex; gap: 1rem; align-items: center;
+           background: var(--card); border: 1px solid var(--line);
+           border-radius: 12px; padding: .9rem 1.1rem;
+           text-decoration: none; color: inherit; }
+  .dcard:hover { border-color: var(--accent); }
+  .dcard img { width: 72px; height: 72px; border-radius: 10px;
+               object-fit: cover; border: 1px solid var(--line);
+               background: var(--bg); flex-shrink: 0; }
+  .dmain { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+  .dlabel { color: var(--muted); font-size: .78rem;
+            text-transform: uppercase; letter-spacing: .08em; }
+  .dword { font-size: 1.3rem; }
+  .ddef { color: var(--muted); font-size: .9rem; }
+  .dactions { display: flex; gap: .8rem; align-items: center;
+              margin-top: .6rem; flex-wrap: wrap; }
+  .dactions button, .dcta {
+    font: inherit; font-size: .9rem; padding: .4rem .9rem;
+    border-radius: 999px; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink);
+    cursor: pointer; text-decoration: none;
+  }
+  .dactions button:hover, .dcta:hover {
+    border-color: var(--accent); color: var(--accent);
+  }
   footer { margin-top: auto; padding-top: 3rem; color: var(--muted); font-size: .8rem; }
   footer a { color: var(--accent); text-decoration: none; }
 </style>
@@ -144,6 +170,21 @@
   <select id="lang"></select>
 </div>
 <div class="topsearches" id="top"></div>
+
+<div id="discover" class="discover">
+  <a id="dlink" class="dcard">
+    <img id="dimg" alt="">
+    <span class="dmain">
+      <span class="dlabel">Zufällig entdecken</span>
+      <span class="dword" id="dword"></span>
+      <span class="ddef" id="ddef"></span>
+    </span>
+  </a>
+  <div class="dactions">
+    <button id="dnext" type="button">↻ Nächstes Wort</button>
+    <a class="dcta" href="/bewerten">Mitmachen: Bilder bewerten</a>
+  </div>
+</div>
 
 <ul id="results"></ul>
 <div class="hint" id="hint"></div>
@@ -166,6 +207,8 @@ function resetSearch() {
   hint.textContent = '';
   clearBtn.style.display = 'none';
   history.replaceState(null, '', '/');
+  discover.style.display = '';
+  loadDiscover();
   q.focus();
 }
 clearBtn.addEventListener('click', resetSearch);
@@ -266,8 +309,31 @@ function linkify(defEl, text, langCode) {
   defEl.appendChild(document.createTextNode(text.slice(last)));
 }
 
+const discover = document.getElementById('discover');
+
+async function loadDiscover() {
+  try {
+    const d = await fetch('/zufall?' + new URLSearchParams({ language: lang.value }))
+      .then(r => r.ok ? r.json() : null);
+    if (!d) { discover.style.display = 'none'; return; }
+    document.getElementById('dimg').src = '/bilder/' + d.image;
+    document.getElementById('dword').textContent = d.word;
+    document.getElementById('ddef').textContent = d.definition || '';
+    document.getElementById('dlink').href =
+      '/worteintrag?' + new URLSearchParams({ word: d.word, lang: d.language });
+    // nicht mitten in einer Suche wieder einblenden
+    if (q.value.trim().length < 2) discover.style.display = '';
+  } catch { discover.style.display = 'none'; }
+}
+
+document.getElementById('dnext').addEventListener('click', (e) => {
+  e.preventDefault();
+  loadDiscover();
+});
+
 async function search() {
   const term = q.value.trim();
+  discover.style.display = term.length < 2 ? '' : 'none';
   if (term.length < 2) { results.innerHTML = ''; hint.textContent = ''; return; }
   const params = new URLSearchParams({ language: lang.value, q: term, limit: 50 });
   const rows = await fetch('/entries?' + params).then(r => r.json());
@@ -364,7 +430,7 @@ q.addEventListener('input', () => {
   clearTimeout(timer);
   timer = setTimeout(search, 300);
 });
-lang.addEventListener('change', search);
+lang.addEventListener('change', () => { search(); loadDiscover(); });
 
 async function loadTop() {
   const box = document.getElementById('top');
@@ -391,6 +457,7 @@ loadMeta().then(() => {
   if (p.get('lang') && [...lang.options].some(o => o.value === p.get('lang'))) lang.value = p.get('lang');
   if (p.get('q')) q.value = p.get('q');
   search();
+  loadDiscover();
 });
 loadTop();
 </script>

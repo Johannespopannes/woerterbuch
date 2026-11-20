@@ -773,6 +773,22 @@ def raten_next(request: Request, response: Response,
     return out
 
 
+@app.get("/zufall")
+def zufall(language: str = "de"):
+    """Zufälliger Eintrag mit Bild — Entdecken-Karte auf der Startseite."""
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT word, language, definition, image FROM entries "
+            "WHERE language = ? AND image IS NOT NULL AND image != '' "
+            "ORDER BY RANDOM() LIMIT 1", (language.lower(),)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        raise HTTPException(404, "Keine Einträge mit Bild in dieser Sprache")
+    return row_to_dict(row)
+
+
 @app.post("/raten/pick")
 def raten_pick(pick: PickIn):
     """Kandidaten-Bild zum offiziellen Bild machen (Voting-Eingriff).
