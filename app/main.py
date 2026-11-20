@@ -16,6 +16,7 @@ Schutz vor Missbrauch:
   - Payload-Grenzen: Wort max. 100 Zeichen, Batch max. 500 Einträge.
 """
 import base64
+import json
 import os
 import re
 import secrets
@@ -68,7 +69,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             limit = RATE_WRITE if is_write else RATE_READ
             # Abstimmen und Kandidaten-Wahl auf der Bewertungsseite sind
             # Writes, sollen aber flüssig klickbar bleiben — eigener Bucket.
-            if request.url.path in ("/raten/vote", "/raten/pick"):
+            if request.url.path in ("/raten/vote", "/raten/pick",
+                                    "/wort/vote"):
                 bucket = f"{host}:v"
                 limit = RATE_VOTE
         now = time.monotonic()
@@ -123,6 +125,10 @@ class EntryOut(BaseModel):
     image: str | None = None
     source: str
     created_at: str
+    lemma: str | None = None
+    form: str | None = None
+    confidence: float | None = None
+    sprache_unsicher: int = 0
     ja: int | None = None
     nein: int | None = None
 
@@ -130,6 +136,17 @@ class EntryOut(BaseModel):
 class VoteIn(BaseModel):
     entry_id: int
     understood: bool
+
+
+class WordVoteIn(BaseModel):
+    entry_id: int
+    fits: bool
+
+
+class EvidenceIn(BaseModel):
+    confidence: float = Field(ge=0, le=1)
+    evidence: dict = Field(default_factory=dict)
+    sprache_unsicher: bool = False
 
 
 class ImageIn(BaseModel):
@@ -671,6 +688,96 @@ def raten_stats():
         conn.close()
     return {"votes": votes, "understood": understood,
             "not_understood": votes - understood, "entries_with_image": with_image}
+
+
+# ---------- Wort-Konfidenz & Evidenz ----------
+
+@app.post("/wort/vote", status_code=201)
+def wort_vote(vote: WordVoteIn):
+    """Öffentliche Kuratier-Stimme: Gehört das Wort zur Sprache?
+
+    Unabhängig vom Bild-Voting — ein Wort kann ein gutes Bild haben
+    und trotzdem fehl am Platz sein (und umgekehrt).
+    """
+    conn = get_conn()
+    try:
+        exists = conn.execute(
+            "SELECT 1 FROM entries WHERE id = ?", (vote.entry_id,)
+        ).fetchone()
+        if not exists:
+            raise HTTPException(404, f"Eintrag {vote.entry_id} nicht gefunden")
+        conn.execute(
+            "INSERT INTO word_ratings (entry_id, fits) VALUES (?, ?)",
+            (vote.entry_id, 1 if vote.fits else 0),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@app.get("/entries/{entry_id}/evidence")
+def get_evidence(entry_id: int):
+    """Alles, was zur Konfidenz eines Wortes beiträgt."""
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT id, word, language, definition, image, source,"
+            "       confidence, evidence, sprache_unsicher, created_at "
+            "FROM entries WHERE id = ?", (entry_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        img = conn.execute(
+            "SELECT SUM(CASE WHEN understood=1 THEN 1 ELSE 0 END) ja,"
+            "       SUM(CASE WHEN understood=0 THEN 1 ELSE 0 END) nein "
+            "FROM ratings WHERE entry_id = ?", (entry_id,),
+        ).fetchone()
+        wr = conn.execute(
+            "SELECT SUM(CASE WHEN fits=1 THEN 1 ELSE 0 END) passt,"
+            "       SUM(CASE WHEN fits=0 THEN 1 ELSE 0 END) passt_nicht "
+            "FROM word_ratings WHERE entry_id = ?", (entry_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+    out = row_to_dict(row)
+    try:
+        out["evidence"] = json.loads(out["evidence"] or "{}")
+    except Exception:
+        out["evidence"] = {}
+    out["image_votes"] = {"ja": img["ja"] or 0, "nein": img["nein"] or 0}
+    out["word_votes"] = {"passt": wr["passt"] or 0,
+                         "passt_nicht": wr["passt_nicht"] or 0}
+    return out
+
+
+@app.post("/entries/{entry_id}/evidence", response_model=EntryOut)
+def set_evidence(entry_id: int, body: EvidenceIn,
+                 _=Depends(require_api_key)):
+    """Konfidenz + Evidenz speichern (Pruef-Pipeline)."""
+    conn = get_conn()
+    try:
+        cur = conn.execute(
+            "UPDATE entries SET confidence = ?, evidence = ?,"
+            " sprache_unsicher = ? WHERE id = ?",
+            (body.confidence, json.dumps(body.evidence, ensure_ascii=False),
+             1 if body.sprache_unsicher else 0, entry_id),
+        )
+        conn.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        row = conn.execute(
+            "SELECT * FROM entries WHERE id = ?", (entry_id,)
+        ).fetchone()
+        return row_to_dict(row)
+    finally:
+        conn.close()
+
+
+@app.get("/worteintrag", include_in_schema=False)
+def worteintrag():
+    """Wort-Detailseite: Konfidenzbalken, Evidenz, Votes, Formen."""
+    return FileResponse(Path(__file__).parent / "static" / "wort.html")
 
 
 @app.post("/entries/{entry_id}/image", response_model=EntryOut)

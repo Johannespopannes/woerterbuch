@@ -43,6 +43,28 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE entries ADD COLUMN lemma TEXT")
     if "form" not in cols:
         conn.execute("ALTER TABLE entries ADD COLUMN form TEXT")
+    if "confidence" not in cols:
+        # 0..1 Wahrscheinlichkeit, dass das Wort zur Sprache gehoert
+        # (NULL = noch nicht geprueft)
+        conn.execute("ALTER TABLE entries ADD COLUMN confidence REAL")
+    if "evidence" not in cols:
+        # JSON-Blob: Pruef-Evidenz (Woerterbuch-Treffer, Wikipedia,
+        # Modellurteil, Beispielsaetze, Votes)
+        conn.execute("ALTER TABLE entries ADD COLUMN evidence TEXT")
+    if "sprache_unsicher" not in cols:
+        # 1 = beanstandet; wird markiert statt geloescht
+        conn.execute("ALTER TABLE entries ADD COLUMN sprache_unsicher "
+                     "INTEGER NOT NULL DEFAULT 0")
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS word_ratings ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " entry_id INTEGER NOT NULL REFERENCES entries (id),"
+        " fits INTEGER NOT NULL,"
+        " created_at TEXT NOT NULL DEFAULT (datetime('now'))"
+        ")")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_word_ratings_entry "
+        "ON word_ratings (entry_id)")
 
 
 def get_conn() -> sqlite3.Connection:

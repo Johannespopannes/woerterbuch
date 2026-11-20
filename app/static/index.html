@@ -106,6 +106,14 @@
   #results .comp a { color: var(--accent); text-decoration: none; }
   #results .comp a:hover { text-decoration: underline; }
   #results .word { font-size: 1.15rem; }
+  /* Mini-Konfidenz rot->gruen; grau = noch ungeprueft */
+  .confmini { display: inline-block; width: 34px; height: 5px;
+              border-radius: 999px; background: var(--line);
+              margin-left: .5rem; vertical-align: middle; overflow: hidden; }
+  .confmini i { display: block; height: 100%; border-radius: 999px;
+                background: linear-gradient(90deg, #c0392b, #e67e22, #27ae60); }
+  a.wordlink { color: inherit; text-decoration: none; }
+  a.wordlink:hover { color: var(--accent); }
   #results .left { display: flex; align-items: center; gap: .7rem; }
   #results .thumb { width: 38px; height: 38px; border-radius: 8px; object-fit: cover; border: 1px solid var(--line); }
   #results .def { color: var(--muted); font-size: .9rem; text-align: right; }
@@ -278,10 +286,26 @@ async function search() {
       img.loading = 'lazy';
       left.appendChild(img);
     }
-    const w = document.createElement('span');
-    w.className = 'word';
+    const w = document.createElement('a');
+    w.className = 'word wordlink';
     w.textContent = e.word;
+    w.href = '/worteintrag?' + new URLSearchParams({ word: e.word, lang: lang.value });
     left.appendChild(w);
+    if (e.confidence != null) {
+      const mini = document.createElement('span');
+      mini.className = 'confmini';
+      mini.title = 'Sprach-Konfidenz ' +
+        (Math.round(e.confidence * 1000) / 10).toLocaleString('de-DE') + ' %';
+      const fill = document.createElement('i');
+      fill.style.width = Math.round(e.confidence * 100) + '%';
+      mini.appendChild(fill);
+      left.appendChild(mini);
+    } else if (e.sprache_unsicher) {
+      const mini = document.createElement('span');
+      mini.className = 'confmini';
+      mini.title = 'Sprachzugehörigkeit beanstandet';
+      left.appendChild(mini);
+    }
     const d = document.createElement('span');
     d.className = 'def';
     linkify(d, e.definition || '', lang.value);
