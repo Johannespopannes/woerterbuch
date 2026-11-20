@@ -188,6 +188,45 @@ def render(concept: str, out_path: Path, size: int, steps: int,
 
 GEMMA_URL = os.environ.get("GEMMA_URL", "http://127.0.0.1:8082/v1")
 
+
+# ---------- dHash-Dubletten-Check (aus icons.tassekaffee.com uebernommen) ----------
+# Flux mit leicht variierten Seeds liefert manchmal fast identische Kandidaten.
+# Solche Dubletten fluten die Alternativen-Reihe — Hamming-Distanz auf
+# Difference-Hashes filtert sie, bevor sie hochgeladen werden.
+
+def dhash(path: Path, size: int = 8) -> int | None:
+    """Difference-Hash (dHash): 64-Bit-Fingerabdruck, robust gegen
+    geringfuegige Groessen-/Farbabweichungen."""
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            im = im.convert("L").resize((size + 1, size), Image.LANCZOS)
+            px = list(im.getdata())
+        bits = 0
+        for row in range(size):
+            base = row * (size + 1)
+            for col in range(size):
+                bits = (bits << 1) | (1 if px[base + col] > px[base + col + 1]
+                                      else 0)
+        return bits
+    except Exception:
+        return None
+
+
+def dedupe_candidates(paths: list[Path], max_dist: int = 6) -> list[Path]:
+    """Kandidaten filtern, die einem bereits behaltenen zu aehnlich sind."""
+    keep: list[Path] = []
+    hashes: list[int] = []
+    for p in paths:
+        h = dhash(p)
+        if h is None or any(bin(h ^ k).count("1") <= max_dist
+                            for k in hashes):
+            print(f"  Dublette verworfen: {p.name}", flush=True)
+            continue
+        hashes.append(h)
+        keep.append(p)
+    return keep
+
 PICK_PROMPT = (
     'Die folgenden {n} Bilder (Bild 1 bis Bild {n}) sollen jeweils das Wort '
     '"{word}" als einfaches Piktogramm darstellen. Welches Bild macht "{word}" '
@@ -307,14 +346,14 @@ def main() -> None:
                                 render(concept, cand, args.size, args.steps,
                                        seed):
                             cand_files.append(cand)
-                    cand_paths = cand_files
-                    if not cand_files:
+                    cand_paths = dedupe_candidates(cand_files)
+                    if not cand_paths:
                         ok = False
                     else:
-                        pick = gemma_pick(e["word"], cand_files) \
-                            if len(cand_files) > 1 else 0
+                        pick = gemma_pick(e["word"], cand_paths) \
+                            if len(cand_paths) > 1 else 0
                         shutil.copyfile(
-                            cand_files[pick] if pick >= 0 else cand_files[0],
+                            cand_paths[pick] if pick >= 0 else cand_paths[0],
                             out)
                         ok = True
                 if ok:
