@@ -80,6 +80,9 @@
   <div style="text-align:center" id="kopf">
     <h1 id="wort">…</h1>
     <div class="lang" id="lang"></div>
+    <button id="ton" title="Wort anhören" style="font:inherit;font-size:1rem;
+      margin-top:.5rem;padding:.4rem 1.1rem;border-radius:999px;cursor:pointer;
+      border:1px solid var(--line);background:var(--card);color:var(--ink);">🔊 Anhören</button>
   </div>
 
   <div class="warn" id="warn" style="display:none">
@@ -300,6 +303,21 @@ async function load() {
       `Stimmen: ${wv.passt}× passt · ${wv.passt_nicht}× nicht`;
   }
   voteStand();
+  // Wort anhören (Piper); Audio wird auf dem Server gecacht
+  document.getElementById('ton').addEventListener('click', () => {
+    const btn = document.getElementById('ton');
+    btn.disabled = true;
+    btn.textContent = '⏳ Lade …';
+    const a = new Audio('/anhoeren?' +
+      new URLSearchParams({ word, language: lang }));
+    a.play().catch(() => {});
+    a.addEventListener('ended', () => {
+      btn.disabled = false; btn.textContent = '🔊 Anhören';
+    });
+    a.addEventListener('error', () => {
+      btn.disabled = false; btn.textContent = '🔊 (nicht verfügbar)';
+    });
+  });
   async function wvote(fits) {
     await fetch('/wort/vote', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

@@ -20,6 +20,7 @@ import json
 import os
 import re
 import secrets
+import subprocess
 import threading
 import time
 from collections import defaultdict, deque
@@ -44,6 +45,21 @@ IMAGES_DIR = Path(os.environ.get(
     "IMAGES_DIR", Path(__file__).resolve().parent.parent / "images"))
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 IMAGE_NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,120}\.(png|webp)$")
+
+# Piper-Sprachausgabe (Wörter anhören); auf dem Pi installiert unter
+# /home/johannes/piper (Binary piper/piper, Stimmen voices/*.onnx).
+PIPER_DIR = Path(os.environ.get("PIPER_DIR", "/home/johannes/piper"))
+PIPER_VOICES = {
+    "de": "de_DE-thorsten-medium.onnx",
+    "en": "en_GB-alan-medium.onnx",
+    "es": "es_ES-davefx-medium.onnx",
+    "fr": "fr_FR-siwis-medium.onnx",
+    "it": "it_IT-paola-medium.onnx",
+}
+AUDIO_DIR = Path(os.environ.get(
+    "AUDIO_DIR", Path(__file__).resolve().parent.parent / "audio"))
+AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+ANHOEREN_RE = re.compile(r"^[\wÄÖÜäöüßÀ-ÿ'’ -]{1,100}$", re.UNICODE)
 
 app = FastAPI(title="Wörterbuch API", version="0.2.0")
 
@@ -1020,6 +1036,56 @@ def set_evidence(entry_id: int, body: EvidenceIn,
         return _entry(row)
     finally:
         conn.close()
+
+
+# ---------- Anhören (Piper TTS) ----------
+
+@app.get("/anhoeren")
+def anhoeren(word: str, language: str = "de"):
+    """Wort aussprechen (Piper auf dem Pi). Gecacht pro Eintrag:
+    audio/<lang>-<id>.wav — Synthese nur beim ersten Aufruf."""
+    lang = language.lower()
+    if lang not in PIPER_VOICES:
+        raise HTTPException(404, f"Sprache '{lang}' hat keine Stimme")
+    wort = word.strip()
+    if not ANHOEREN_RE.fullmatch(wort):
+        raise HTTPException(400, "Ungültiges Wort")
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT id, word FROM entries WHERE word = ? AND language = ?",
+            (wort, lang),
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        raise HTTPException(404, f"'{wort}' nicht gefunden ({lang})")
+    out = AUDIO_DIR / f"{lang}-{row['id']}.wav"
+    if not out.is_file():
+        model = PIPER_DIR / "voices" / PIPER_VOICES[lang]
+        piper = PIPER_DIR / "piper" / "piper"
+        if not piper.is_file() or not model.is_file():
+            raise HTTPException(503, "Sprachausgabe auf diesem Server "
+                                     "nicht eingerichtet")
+        tmp = out.with_suffix(".tmp.wav")
+        try:
+            proc = subprocess.run(
+                [str(piper), "--model", str(model),
+                 "--output_file", str(tmp)],
+                input=(row["word"] + "\n").encode(),
+                capture_output=True, timeout=60)
+            if proc.returncode != 0 or not tmp.is_file():
+                raise HTTPException(500,
+                                    "Synthese fehlgeschlagen: "
+                                    + proc.stderr.decode(errors="replace")
+                                    [:300])
+            tmp.rename(out)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(500, f"Synthesefehler: {e}")
+    return FileResponse(out, media_type="audio/wav",
+                        filename=f"{row['word']}.wav")
 
 
 @app.get("/worteintrag", include_in_schema=False)
