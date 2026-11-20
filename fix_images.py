@@ -143,19 +143,21 @@ def main() -> None:
     ap.add_argument("--min-votes", type=int, default=2)
     ap.add_argument("--candidates", type=int, default=3)
     ap.add_argument("--size", type=int, default=384)
+    ap.add_argument("--limit", type=int, default=0,
+                    help="max. Einträge pro Lauf (0 = alle; kleine Werte "
+                         "für Queue-Jobs)")
     ap.add_argument("--steps", type=int, default=4,
                     help="Flux.1-schnell ist destilliert: 4 Schritte reichen")
     args = ap.parse_args()
 
     entries = api_get(f"/raten/schlecht?min_votes={args.min_votes}")
+    if args.limit:
+        entries = entries[: args.limit]
     print(f"{len(entries)} schlecht bewertete Bilder")
 
-    # GPU während des ganzen Laufs reservieren: der Harvester legt bei
-    # vorhandener PAUSE-Datei eine Ruhepause ein statt zu konkurrieren
-    pause = CACHE_DIR.parent / "PAUSE"
-    pause.touch()
+    # GPU-Serialisierung übernimmt die Queue (gpuq) — kein PAUSE-Tanz nötig
     jobs = []  # dicts: entry, critique, ideas, version, candidates[]
-    try:
+    if True:
         # Phase 1: Bilder laden + Gemma-Kritik (nur Gemma aktiv)
         print("Phase 1: Gemma-Kritik …")
         for e in entries:
@@ -229,8 +231,7 @@ def main() -> None:
                 print(f"  {e['word']}: Upload-Fehler: {ex}", file=sys.stderr)
                 failed += 1
         print(f"fertig: {fixed} Bilder ersetzt, {failed} Fehler")
-    finally:
-        pause.unlink(missing_ok=True)
+
 
 
 if __name__ == "__main__":
