@@ -48,11 +48,20 @@ LANG_NAMES = {
     "fr": "französische",
     "es": "spanische",
     "it": "italienische",
+    "ar": "arabische (Hocharabisch)",
+    "tn": "tunesisch-arabische (Derja)",
 }
+
+# Arabisches Alphabet (28 Buchstaben) für free/suggest in ar/tn
+AR_LETTERS = list("ابتثجحخدذرزسشصضطظعغفقكلمنهوي")
 
 # Sprachen, in denen Akzente Diakritika auf dem Basisbuchstaben sind
 # (é → e). Im Deutschen sind ä/ö/ü eigene Buchstaben — dort NICHT falten.
 ACCENT_FOLD_LANGS = {"en", "fr", "es", "it"}
+
+# Hamza- und Alef-Varianten werden im Arabischen üblicherweise unter
+# ا einsortiert, ة nahe ت/h, ى unter ي.
+AR_FOLD = {"أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ى": "ي", "ئ": "ي", "ؤ": "و"}
 
 
 def _first_letter(word: str, language: str) -> str:
@@ -60,6 +69,8 @@ def _first_letter(word: str, language: str) -> str:
     c = word[0].lower()
     if language in ACCENT_FOLD_LANGS:
         c = unicodedata.normalize("NFD", c)[0]
+    elif language in ("ar", "tn"):
+        c = AR_FOLD.get(c, c)
     return c
 
 # ---------- Prompts ----------
@@ -134,6 +145,27 @@ SEEDS = {
         "u": ["umbrella", "uncle", "uniform", "union"], "v": ["valley", "velvet", "village", "violin"],
         "w": ["window", "winter", "wheat", "wagon"], "x": ["xenon", "xylophone"],
         "y": ["yellow", "yarn", "yard", "yogurt"], "z": ["zebra", "zipper", "zenith", "zephyr"],
+    },
+    "ar": {
+        "ا": ["أسد", "أمل", "أخذ", "أرض"], "ب": ["بيت", "باب", "بحر", "بطيخ"],
+        "ت": ["تمر", "تفاح", "تلميذ", "تموز"], "ث": ["ثلج", "ثعلب", "ثورة"],
+        "ج": ["جبل", "جميل", "جمل", "جدار"], "ح": ["حبل", "حديقة", "حليب", "حجر"],
+        "خ": ["خبز", "خيمة", "خاتم", "خروف"], "د": ["دار", "دفتر", "دواء", "دجاجة"],
+        "ذ": ["ذهب", "ذرة", "ذيل"], "ر": ["رجل", "رز", "رسم", "رعد"],
+        "ز": ["زهرة", "زيتون", "زرافة", "زجاج"], "س": ["سماء", "سمك", "سكر", "ساعة"],
+        "ش": ["شمس", "شجرة", "شاي", "شهر"], "ص": ["صحراء", "صاروخ", "صباح", "صندوق"],
+        "ض": ["ضوء", "ضفدع", "ضيف"], "ط": ["طائر", "طبيب", "طريق", "طاولة"],
+        "ظ": ["ظهر", "ظرف", "ظل"], "ع": ["عين", "علم", "عسل", "عمل"],
+        "غ": ["غيمة", "غابة", "غزال", "غداء"], "ف": ["فم", "فانوس", "فراشة", "فنجان"],
+        "ق": ["قلم", "قمر", "قهوة", "قلعة"], "ك": ["كتاب", "كلب", "كرسي", "كعكة"],
+        "ل": ["ليل", "لعبة", "ليمون", "لحم"], "م": ["ماء", "مدرسة", "مفتاح", "مزهرية"],
+        "ن": ["نجم", "نافذة", "نهر", "نحلة"], "ه": ["هدية", "هرم", "هواء", "هدهد"],
+        "و": ["وردة", "وقت", "ولد", "وزن"], "ي": ["يد", "يمامة", "يد"],
+    },
+    "tn": {
+        "ا": ["أكل", "أم", "أب"], "ب": ["بابور", "برشة", "باهي"],
+        "ج": ["جربة", "جامع"], "ش": ["شنوة", "شاي"], "ف": ["فورمة", "فطور"],
+        "ق": ["قهوة عربي", "قصر"], "ص": ["صاحبي", "صغيرة"], "ي": ["يسر", "يوم"],
     },
 }
 
@@ -471,6 +503,8 @@ def seed(language: str) -> None:
 def parse_letters(spec: str) -> list[str]:
     if spec == "all":
         return list(string.ascii_lowercase) + ["ä", "ö", "ü", "ß"]
+    if spec == "ar":
+        return list(AR_LETTERS)
     if re.fullmatch(r"[a-z]-[a-z]", spec):
         return list(string.ascii_lowercase[
             string.ascii_lowercase.index(spec[0]):
