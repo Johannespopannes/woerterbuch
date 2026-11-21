@@ -371,7 +371,16 @@ def create_batch(batch: BatchIn, _=Depends(require_api_key)):
     conn = get_conn()
     try:
         for lang, items in by_lang.items():
-            existing = _fetch_existing(lang, [e.word.strip() for e in items])
+            # Duplikat-Check auf DIESER Connection (kein verschachtelter
+            # get_conn — zwei Connections mit Migrations-DML blockieren
+            # sich sonst gegenseitig: database is locked).
+            words = [e.word.strip() for e in items]
+            marks = ",".join("?" for _ in words)
+            rows = conn.execute(
+                f"SELECT word FROM entries WHERE language = ? "
+                f"AND word IN ({marks})", [lang, *words],
+            ).fetchall()
+            existing = {r["word"] for r in rows}
             for e in items:
                 word = e.word.strip()
                 if word in existing:
