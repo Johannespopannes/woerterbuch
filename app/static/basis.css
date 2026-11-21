@@ -1,0 +1,72 @@
+/* basis.css — gemeinsames Designsystem des Wörterbuchs.
+   Zentral: Farben, Typografie, Abstände, Buttons, Formulare, Footer.
+   Seitenspezifisches CSS bleibt in den jeweiligen Seiten. */
+
+:root {
+  --bg: #faf7f2;      /* warmweiss */
+  --ink: #292521;     /* anthrazit */
+  --muted: #8a7f6f;   /* sandgrau */
+  --accent: #a75a31;  /* kupfer */
+  --card: #ffffff;
+  --line: #e6ded2;    /* sandlinie */
+  --ok: #4a7c59;
+  --no: #a0442c;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* --- Pill-Buttons (Standard-Aussehen aller klickbaren Aktionen) --- */
+button {
+  font: inherit;
+  font-size: .9rem;
+  padding: .45rem .9rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
+
+/* --- Formulare --- */
+input, select {
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  padding: .6rem 1rem;
+  outline: none;
+}
+input:focus, select:focus { border-color: var(--accent); }
+
+/* --- Karten --- */
+.karte {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/* --- Metatext --- */
+.meta, .sub {
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+/* --- Footer --- */
+footer {
+  margin-top: auto;
+  padding-top: 2.5rem;
+  color: var(--muted);
+  font-size: .8rem;
+}
+footer a { color: var(--accent); text-decoration: none; }
+footer a:hover { text-decoration: underline; }

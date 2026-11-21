@@ -286,6 +286,13 @@ def datenschutz():
     return FileResponse(Path(__file__).parent / "static" / "datenschutz.html")
 
 
+@app.get("/basis.css", include_in_schema=False)
+def basis_css():
+    """Gemeinsames Designsystem (Farben, Typografie, Buttons, Formulare)."""
+    return FileResponse(Path(__file__).parent / "static" / "basis.css",
+                        media_type="text/css")
+
+
 @app.post("/entries", response_model=EntryOut, status_code=201)
 def create_entry(entry: EntryIn, _=Depends(require_api_key)):
     conn = get_conn()
