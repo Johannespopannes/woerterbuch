@@ -148,7 +148,7 @@ def chat(prompt: str, temperature: float) -> str:
             "model": MODEL_NAME,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": temperature,
-            "max_tokens": 4000,
+            "max_tokens": 6000,
         }).encode(),
         headers={
             "Content-Type": "application/json",
