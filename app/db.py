@@ -171,6 +171,21 @@ def _migrate(conn: sqlite3.Connection) -> None:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_grammar_lemma "
         "ON grammar (language, lemma)")
+    # Sprecher-Bewertung (Piper-Stimmen): 👍/👎 pro Sitzung und Stimme,
+    # damit sich schlechte Sprecher pro Sprache identifizieren lassen.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS speaker_ratings ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " language TEXT NOT NULL,"
+        " voice TEXT NOT NULL,"
+        " gut INTEGER NOT NULL,"
+        " session_id TEXT NOT NULL,"
+        " created_at TEXT NOT NULL DEFAULT (datetime('now')),"
+        " UNIQUE (language, voice, session_id)"
+        ")")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_speaker_ratings_voice "
+        "ON speaker_ratings (language, voice)")
 
 
 def get_conn() -> sqlite3.Connection:

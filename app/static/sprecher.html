@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sprecher testen · Wörterbuch</title>
+<link rel="stylesheet" href="/basis.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 6vh 1rem 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  header { text-align: center; margin-bottom: 1.5rem; }
+  h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: normal; margin: 0 0 .3rem; }
+  h1 a { color: inherit; text-decoration: none; }
+  .sub { color: var(--muted); font-style: italic; font-size: .95rem; }
+  #langs {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: .4rem; margin-bottom: 1.4rem;
+  }
+  #langs button {
+    font: inherit; font-size: .95rem;
+    padding: .35rem .9rem;
+    border: 1px solid var(--line); border-radius: 999px;
+    background: var(--card); color: var(--ink);
+    cursor: pointer;
+  }
+  #langs button:hover { border-color: var(--accent); color: var(--accent); }
+  #langs button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #voices { width: min(860px, 100%); }
+  .voice {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; padding: 1.1rem 1.3rem; margin-bottom: 1rem;
+  }
+  .voice h2 {
+    font-size: 1.15rem; font-weight: normal; margin: 0 0 .6rem;
+    display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  }
+  .voice h2 .tag {
+    font-size: .72rem; border: 1px solid var(--line);
+    border-radius: 999px; padding: .1rem .55rem; color: var(--muted);
+  }
+  .voice h2 .tag.warn { color: #a33; border-color: #a33; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .45rem 0; }
+  button.play, button.vote {
+    font: inherit; font-size: .92rem; cursor: pointer;
+    padding: .3rem .8rem;
+    border: 1px solid var(--line); border-radius: 999px;
+    background: var(--card); color: var(--ink);
+  }
+  button.play:hover { border-color: var(--accent); color: var(--accent); }
+  button.vote.gut:hover, button.vote.gut.active { border-color: #2a7; color: #2a7; }
+  button.vote.schlecht:hover, button.vote.schlecht.active { border-color: #a33; color: #a33; }
+  .bilanz { font-size: .85rem; color: var(--muted); }
+  .bilanz b.g { color: #2a7; } .bilanz b.s { color: #a33; }
+  label.tempo { font-size: .85rem; color: var(--muted); display: flex; align-items: center; gap: .5rem; }
+  input[type=range] { width: 140px; }
+  input.testwort {
+    font: inherit; font-size: .92rem; padding: .3rem .6rem;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--ink); width: 11em;
+  }
+  .beispiele { font-size: .85rem; color: var(--muted); }
+  footer { margin-top: auto; padding-top: 2.5rem; color: var(--muted); font-size: .8rem; }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1><a href="/">Wörterbuch</a></h1>
+  <div class="sub">Sprecher testen und bewerten</div>
+</header>
+
+<nav id="langs"></nav>
+<div id="voices"></div>
+
+<footer>
+  <a href="/">Zur Suche</a> · <a href="/verzeichnis">Stichwortverzeichnis</a> · <a href="/bewerten">Bilder bewerten</a> · <a href="/sprecher">Sprecher testen</a> · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
+</footer>
+
+<script>
+const LANG_NAMES = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', es: 'Spanisch', it: 'Italienisch', ar: 'Arabisch', tn: 'Tunesisch' };
+const DEFAULT_TESTWORT = { de: 'Haus', en: 'house', fr: 'maison', es: 'casa', it: 'casa', ar: 'بيت', tn: 'دار' };
+
+const langsNav = document.getElementById('langs');
+const voicesBox = document.getElementById('voices');
+let data = [];
+let lang = 'de';
+// eigene Stimmen-Stimmen je Stimme (Toggle merken)
+const stimmen = new Set();
+
+function spiel(url, btn) {
+  const a = new Audio(url);
+  if (btn) { btn.disabled = true; a.addEventListener('ended', () => btn.disabled = false);
+             a.addEventListener('error', () => { btn.disabled = false; alert('Audio nicht verfügbar'); }); }
+  a.play();
+}
+
+function anhoerenUrl(word, voiceKey, ls) {
+  const p = new URLSearchParams({ word, language: lang, voice: voiceKey });
+  if (ls && ls !== 1.0) p.set('length_scale', ls);
+  return '/anhoeren?' + p;
+}
+
+async function stimmeBewerten(voiceKey, gut, btn) {
+  try {
+    const r = await fetch('/stimme/bewerten', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: lang, voice: voiceKey, gut }),
+    });
+    if (r.status === 409) { alert('Diese Sitzung hat diesen Sprecher schon bewertet.'); return; }
+    if (!r.ok) { alert('Fehler: ' + r.status); return; }
+    const key = lang + '|' + voiceKey;
+    if (gut) { stimmen.add(key + '|gut'); stimmen.delete(key + '|schlecht'); }
+    else { stimmen.add(key + '|schlecht'); stimmen.delete(key + '|gut'); }
+    render();
+  } catch (e) { alert('Netzwerkfehler'); }
+}
+
+function voiceCard(v) {
+  const card = document.createElement('div');
+  card.className = 'voice';
+
+  const h = document.createElement('h2');
+  h.textContent = v.label;
+  if (v.default) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'Standard'; h.appendChild(t); }
+  if (!v.model_present) { const t = document.createElement('span'); t.className = 'tag warn'; t.textContent = 'Modell fehlt auf dem Server'; h.appendChild(t); }
+  card.appendChild(h);
+
+  // Beispielwörter
+  const bRow = document.createElement('div');
+  bRow.className = 'row';
+  const bLbl = document.createElement('span');
+  bLbl.className = 'beispiele';
+  bLbl.textContent = 'Beispiele:';
+  bRow.appendChild(bLbl);
+  const langData = data.find(d => d.language === lang);
+  for (const ex of (langData?.beispiele || [])) {
+    const b = document.createElement('button');
+    b.className = 'play';
+    b.textContent = ex.word;
+    b.addEventListener('click', () => spiel(anhoerenUrl(ex.word, v.key, v.length_scale), b));
+    bRow.appendChild(b);
+  }
+  card.appendChild(bRow);
+
+  // Tempo + freier Test
+  const tRow = document.createElement('div');
+  tRow.className = 'row';
+  const tempo = document.createElement('label');
+  tempo.className = 'tempo';
+  tempo.textContent = 'Tempo ';
+  const slider = document.createElement('input');
+  slider.type = 'range'; slider.min = '0.7'; slider.max = '1.3'; slider.step = '0.05';
+  slider.value = String(v.length_scale);
+  const tempoVal = document.createElement('span');
+  tempoVal.textContent = Number(v.length_scale).toFixed(2) + '×';
+  slider.addEventListener('input', () => tempoVal.textContent = Number(slider.value).toFixed(2) + '×');
+  tempo.appendChild(slider); tempo.appendChild(tempoVal);
+  tRow.appendChild(tempo);
+  const test = document.createElement('input');
+  test.className = 'testwort';
+  test.value = DEFAULT_TESTWORT[lang] || 'Haus';
+  test.maxLength = 100;
+  const playTest = document.createElement('button');
+  playTest.className = 'play';
+  playTest.textContent = '▶ Testwort';
+  const doTest = () => {
+    const w = test.value.trim();
+    if (!w) return;
+    spiel(anhoerenUrl(w, v.key, Number(slider.value)), playTest);
+  };
+  playTest.addEventListener('click', doTest);
+  test.addEventListener('keydown', e => { if (e.key === 'Enter') doTest(); });
+  tRow.appendChild(test); tRow.appendChild(playTest);
+  card.appendChild(tRow);
+
+  // Bewertung
+  const vRow = document.createElement('div');
+  vRow.className = 'row';
+  const up = document.createElement('button');
+  up.className = 'vote gut'; up.textContent = '👍 gut';
+  const down = document.createElement('button');
+  down.className = 'vote schlecht'; down.textContent = '👎 taugt nicht';
+  const key = lang + '|' + v.key;
+  if (stimmen.has(key + '|gut')) up.classList.add('active');
+  if (stimmen.has(key + '|schlecht')) down.classList.add('active');
+  up.addEventListener('click', () => stimmeBewerten(v.key, true, up));
+  down.addEventListener('click', () => stimmeBewerten(v.key, false, down));
+  const bz = document.createElement('span');
+  bz.className = 'bilanz';
+  const gut = v.bewertung.gut, nicht = v.bewertung.nicht;
+  bz.innerHTML = 'Bilanz: <b class="g">' + gut + '× gut</b> · <b class="s">' + nicht + '× taugt nicht</b>';
+  vRow.appendChild(up); vRow.appendChild(down); vRow.appendChild(bz);
+  card.appendChild(vRow);
+
+  return card;
+}
+
+function render() {
+  voicesBox.innerHTML = '';
+  const d = data.find(x => x.language === lang);
+  if (!d || !d.voices.length) {
+    const p = document.createElement('p');
+    p.style.color = 'var(--muted)';
+    p.textContent = d?.note || 'Für diese Sprache gibt es keine Stimme.';
+    voicesBox.appendChild(p);
+    return;
+  }
+  for (const v of d.voices) voicesBox.appendChild(voiceCard(v));
+}
+
+async function init() {
+  data = await fetch('/stimmen').then(r => r.json());
+  for (const d of data) {
+    const b = document.createElement('button');
+    b.textContent = LANG_NAMES[d.language] || d.language.toUpperCase();
+    b.title = d.voices.map(v => v.label).join(', ') || d.note || '';
+    if (!d.voices.length) b.style.opacity = '.5';
+    b.addEventListener('click', () => {
+      lang = d.language;
+      document.querySelectorAll('#langs button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      render();
+    });
+    langsNav.appendChild(b);
+  }
+  const de = data.findIndex(d => d.language === 'de');
+  const first = data.findIndex(d => d.voices.length);
+  const idx = de >= 0 ? de : (first >= 0 ? first : 0);
+  if (data[idx]) langsNav.children[idx].click();
+}
+
+init();
+</script>
+</body>
+</html>

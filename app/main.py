@@ -16,10 +16,12 @@ Schutz vor Missbrauch:
   - Payload-Grenzen: Wort max. 100 Zeichen, Batch max. 500 Einträge.
 """
 import base64
+import hashlib
 import json
 import os
 import re
 import secrets
+import shutil
 import subprocess
 import threading
 import time
@@ -49,18 +51,57 @@ IMAGE_NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,120}\.(png|webp)$")
 
 # Piper-Sprachausgabe (Wörter anhören); auf dem Pi installiert unter
 # /home/johannes/piper (Binary piper/piper, Stimmen voices/*.onnx).
+# Pro Sprache mehrere Sprecher — die erste Stimme ist der Default.
+# length_scale: Piper-Tempo (< 1.0 schneller, > 1.0 langsamer).
 PIPER_DIR = Path(os.environ.get("PIPER_DIR", "/home/johannes/piper"))
-PIPER_VOICES = {
-    "de": "de_DE-thorsten-medium.onnx",
-    "en": "en_GB-alan-medium.onnx",
-    "es": "es_ES-davefx-medium.onnx",
-    "fr": "fr_FR-siwis-medium.onnx",
-    "it": "it_IT-paola-medium.onnx",
+PIPER_VOICES: dict[str, dict[str, dict]] = {
+    "de": {
+        "thorsten": {"model": "de_DE-thorsten-medium.onnx",
+                     "label": "Thorsten", "length_scale": 1.0},
+        "karlsson": {"model": "de_DE-karlsson-low.onnx",
+                     "label": "Karlsson", "length_scale": 1.0},
+        "eva": {"model": "de_DE-eva_k-x_low.onnx",
+                "label": "Eva", "length_scale": 1.0},
+    },
+    "en": {
+        "alan": {"model": "en_GB-alan-medium.onnx",
+                 "label": "Alan", "length_scale": 1.0},
+        "lessac": {"model": "en_US-lessac-medium.onnx",
+                   "label": "Lessac", "length_scale": 1.0},
+    },
+    "es": {
+        "davefx": {"model": "es_ES-davefx-medium.onnx",
+                   "label": "Davefx", "length_scale": 1.0},
+        "sharvard": {"model": "es_ES-sharvard-medium.onnx",
+                     "label": "Sharvard", "length_scale": 1.0},
+    },
+    "fr": {
+        "siwis": {"model": "fr_FR-siwis-medium.onnx",
+                  "label": "Siwis", "length_scale": 1.0},
+        "upmc": {"model": "fr_FR-upmc-medium.onnx",
+                 "label": "UPMC", "length_scale": 1.0},
+    },
+    "it": {
+        "paola": {"model": "it_IT-paola-medium.onnx",
+                  "label": "Paola", "length_scale": 1.0},
+        "riccardo": {"model": "it_IT-riccardo-x_low.onnx",
+                     "label": "Riccardo", "length_scale": 1.0},
+    },
+    "ar": {
+        "kareem": {"model": "ar_JO-kareem-medium.onnx",
+                   "label": "Kareem", "length_scale": 1.0},
+    },
+    # Tunesisch: Piper hat keine tn-Stimme — Texte ja, Audio nein (404).
+    "tn": {},
 }
 AUDIO_DIR = Path(os.environ.get(
     "AUDIO_DIR", Path(__file__).resolve().parent.parent / "audio"))
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
-ANHOEREN_RE = re.compile(r"^[\wÄÖÜäöüßÀ-ÿ'’ -]{1,100}$", re.UNICODE)
+# erlaubte Zeichen: Latein (inkl. Akzente), arabisches Alphabet,
+# Apostrophe, Bindestrich/Leerzeichen
+ANHOEREN_RE = re.compile(
+    r"^[\wÄÖÜäöüßÀ-ÿ'’ \-\u0600-\u06FF]{1,100}$", re.UNICODE)
+FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 
 app = FastAPI(title="Wörterbuch API", version="0.2.0")
 
@@ -742,6 +783,12 @@ def bewerten():
     return FileResponse(Path(__file__).parent / "static" / "bewerten.html")
 
 
+@app.get("/sprecher", include_in_schema=False)
+def sprecher_seite():
+    """Sprecher-Testseite: Stimmen anhören, Tempo testen, bewerten."""
+    return FileResponse(Path(__file__).parent / "static" / "sprecher.html")
+
+
 @app.get("/bilder/{filename}", include_in_schema=False)
 def bilder(filename: str):
     """Generierte Wort-Bilder ausliefern (nur simple Dateinamen)."""
@@ -1348,13 +1395,87 @@ def set_evidence(entry_id: int, body: EvidenceIn,
 
 # ---------- Anhören (Piper TTS) ----------
 
+def _trim_wav(src: Path, dst: Path) -> None:
+    """Stille am Anfang/Ende abschneiden (Piper röchelt sonst am Rand).
+
+    ffmpeg silenceremove, beidseitig über areverse; Fallback: Kopie.
+    """
+    try:
+        proc = subprocess.run(
+            [FFMPEG, "-y", "-loglevel", "error", "-i", str(src),
+             "-af", "silenceremove=start_periods=1:start_duration=0.05"
+                    ":start_threshold=-45dB,areverse,"
+                    "silenceremove=start_periods=1:start_duration=0.05"
+                    ":start_threshold=-45dB,areverse",
+             "-ac", "1", str(dst)],
+            capture_output=True, timeout=30)
+        if proc.returncode != 0 or not dst.is_file():
+            shutil.copyfile(src, dst)
+    except Exception:
+        shutil.copyfile(src, dst)
+
+
+def _synth_wort(text: str, lang: str, voice_key: str, out: Path,
+                length_scale: float | None = None) -> None:
+    """Piper-Synthese für ein Wort, getrimmt nach out schreiben."""
+    voice = PIPER_VOICES[lang][voice_key]
+    model = PIPER_DIR / "voices" / voice["model"]
+    piper = PIPER_DIR / "piper" / "piper"
+    if not piper.is_file() or not model.is_file():
+        raise HTTPException(503, "Sprachausgabe auf diesem Server "
+                                 "nicht eingerichtet")
+    ls = length_scale if length_scale is not None else voice["length_scale"]
+    tmp = out.with_suffix(".tmp.wav")
+    try:
+        proc = subprocess.run(
+            [str(piper), "--model", str(model), "--length-scale", str(ls),
+             "--output_file", str(tmp)],
+            input=(text + "\n").encode(),
+            capture_output=True, timeout=120)
+        if proc.returncode != 0 or not tmp.is_file():
+            raise HTTPException(500,
+                                "Synthese fehlgeschlagen: "
+                                + proc.stderr.decode(errors="replace")
+                                [:300])
+        _trim_wav(tmp, out)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Synthesefehler: {e}")
+    finally:
+        if tmp.is_file():
+            tmp.unlink()
+
+
+def _default_voice(lang: str) -> str:
+    """Erste Stimme einer Sprache = Default."""
+    return next(iter(PIPER_VOICES[lang]))
+
+
+def _stimme_namen(lang: str, voice: str | None) -> str:
+    if voice is None:
+        return _default_voice(lang)
+    if voice not in PIPER_VOICES[lang]:
+        raise HTTPException(404, f"Sprecher '{voice}' nicht bekannt ({lang})")
+    return voice
+
+
 @app.get("/anhoeren")
-def anhoeren(word: str, language: str = "de"):
-    """Wort aussprechen (Piper auf dem Pi). Gecacht pro Eintrag:
-    audio/<lang>-<id>.wav — Synthese nur beim ersten Aufruf."""
+def anhoeren(word: str, language: str = "de", voice: str | None = None,
+             length_scale: float | None = None):
+    """Wort aussprechen (Piper auf dem Pi). Gecacht pro Eintrag und
+    Sprecher: audio/<lang>-<id>-<voice>.wav — Synthese nur beim ersten
+    Aufruf. Unbekannte Wörter laufen als Test (eigener Cache-Namespace),
+    damit die Sprecher-Testseite freie Eingaben erlaubt."""
     lang = language.lower()
     if lang not in PIPER_VOICES:
         raise HTTPException(404, f"Sprache '{lang}' hat keine Stimme")
+    if not PIPER_VOICES[lang]:
+        raise HTTPException(404, f"Sprache '{lang}' hat keine Piper-Stimme "
+                                 "(Texte vorhanden, Audio folgt evtl. später)")
+    voice_key = _stimme_namen(lang, voice)
+    if length_scale is not None and not 0.5 <= length_scale <= 2.0:
+        raise HTTPException(400, "length_scale zwischen 0.5 und 2.0")
     wort = word.strip()
     if not ANHOEREN_RE.fullmatch(wort):
         raise HTTPException(400, "Ungültiges Wort")
@@ -1366,34 +1487,176 @@ def anhoeren(word: str, language: str = "de"):
         ).fetchone()
     finally:
         conn.close()
-    if not row:
-        raise HTTPException(404, f"'{wort}' nicht gefunden ({lang})")
-    out = AUDIO_DIR / f"{lang}-{row['id']}.wav"
+    voice = PIPER_VOICES[lang][voice_key]
+    ls = voice["length_scale"] if length_scale is None else length_scale
+    # Abweichendes Tempo bekommt eigenen Cache-Eintrag (Test-Einstellungen
+    # verunreinigen nicht den Standard-Cache).
+    ls_tag = "" if ls == voice["length_scale"] else f"-ls{ls:g}"
+    if row:
+        out = AUDIO_DIR / f"{lang}-{row['id']}-{voice_key}{ls_tag}.wav"
+        text = row["word"]
+    else:
+        h = hashlib.sha1(wort.encode()).hexdigest()[:10]
+        out = AUDIO_DIR / f"_t-{lang}-{voice_key}{ls_tag}-{h}.wav"
+        text = wort
     if not out.is_file():
-        model = PIPER_DIR / "voices" / PIPER_VOICES[lang]
-        piper = PIPER_DIR / "piper" / "piper"
-        if not piper.is_file() or not model.is_file():
-            raise HTTPException(503, "Sprachausgabe auf diesem Server "
-                                     "nicht eingerichtet")
-        tmp = out.with_suffix(".tmp.wav")
-        try:
-            proc = subprocess.run(
-                [str(piper), "--model", str(model),
-                 "--output_file", str(tmp)],
-                input=(row["word"] + "\n").encode(),
-                capture_output=True, timeout=60)
-            if proc.returncode != 0 or not tmp.is_file():
-                raise HTTPException(500,
-                                    "Synthese fehlgeschlagen: "
-                                    + proc.stderr.decode(errors="replace")
-                                    [:300])
-            tmp.rename(out)
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(500, f"Synthesefehler: {e}")
+        _synth_wort(text, lang, voice_key, out, length_scale)
     return FileResponse(out, media_type="audio/wav",
-                        filename=f"{row['word']}.wav")
+                        filename=f"{text}.wav")
+
+
+class StimmeVoteIn(BaseModel):
+    language: str = Field(min_length=2, max_length=10, pattern=r"^[a-z]+$")
+    voice: str = Field(min_length=1, max_length=40)
+    gut: bool
+
+
+@app.post("/stimme/bewerten", status_code=201)
+def stimme_bewerten(vote: StimmeVoteIn, request: Request,
+                    response: Response):
+    """Sprecher bewerten (👍 gut / 👎 nicht brauchbar), eine Stimme pro
+    Sitzung und Sprecher (Cookie-Kennung, kein Merkmal)."""
+    lang = vote.language.lower()
+    if lang not in PIPER_VOICES or vote.voice not in PIPER_VOICES[lang]:
+        raise HTTPException(404, "Sprecher nicht bekannt")
+    sid = _get_session(request, response)
+    conn = get_conn()
+    try:
+        dup = conn.execute(
+            "SELECT 1 FROM speaker_ratings WHERE language = ? AND voice = ?"
+            " AND session_id = ?",
+            (lang, vote.voice, sid),
+        ).fetchone()
+        if dup:
+            raise HTTPException(409, "Diese Sitzung hat diesen Sprecher "
+                                     "schon bewertet")
+        conn.execute(
+            "INSERT INTO speaker_ratings (language, voice, gut, session_id)"
+            " VALUES (?, ?, ?, ?)",
+            (lang, vote.voice, 1 if vote.gut else 0, sid),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@app.get("/stimmen")
+def stimmen():
+    """Stimmen je Sprache mit Label, Modell-Status, Bewertungsbilanz und
+    Beispielwörtern (mit Bild) — Datengrundlage der /sprecher-Testseite."""
+    conn = get_conn()
+    try:
+        result = []
+        for lang, voices in PIPER_VOICES.items():
+            if not voices:
+                result.append({"language": lang, "voices": [],
+                               "note": "keine Piper-Stimme verfügbar"})
+                continue
+            rows = conn.execute(
+                "SELECT voice,"
+                " SUM(CASE WHEN gut=1 THEN 1 ELSE 0 END) gut,"
+                " SUM(CASE WHEN gut=0 THEN 1 ELSE 0 END) nicht "
+                "FROM speaker_ratings WHERE language = ? GROUP BY voice",
+                (lang,),
+            ).fetchall()
+            bilanz = {r["voice"]: {"gut": r["gut"] or 0, "nicht": r["nicht"] or 0}
+                      for r in rows}
+            examples = [
+                {"word": r["word"], "image": r["image"]}
+                for r in conn.execute(
+                    "SELECT word, image FROM entries WHERE language = ?"
+                    " ORDER BY id LIMIT 4", (lang,)).fetchall()
+            ]
+            voice_list = []
+            for key, v in voices.items():
+                model_file = PIPER_DIR / "voices" / v["model"]
+                voice_list.append({
+                    "key": key, "label": v["label"],
+                    "model": v["model"],
+                    "model_present": model_file.is_file(),
+                    "length_scale": v["length_scale"],
+                    "default": key == _default_voice(lang),
+                    "bewertung": bilanz.get(key, {"gut": 0, "nicht": 0}),
+                })
+            result.append({"language": lang, "voices": voice_list,
+                           "beispiele": examples})
+        return result
+    finally:
+        conn.close()
+
+
+class VorwaermenIn(BaseModel):
+    language: str = Field(min_length=2, max_length=10, pattern=r"^[a-z]+$")
+    voice: str | None = Field(default=None, max_length=40)
+
+
+_vorwaermen_lock = threading.Lock()
+_vorwaermen_state: dict[str, str] = {}
+
+
+def _vorwaermen_job(lang: str, voice: str | None) -> None:
+    """Hintergrund: fehlende Audiodateien für Sprache (alle Stimmen oder
+    eine) nachgenerieren. Fehlende Datei = offene Aufgabe: abgebrochene
+    Läufe lassen sich jederzeit fortsetzen."""
+    voices = [voice] if voice else list(PIPER_VOICES[lang])
+    try:
+        conn = get_conn()
+        try:
+            rows = conn.execute(
+                "SELECT id, word FROM entries WHERE language = ?",
+                (lang,)).fetchall()
+        finally:
+            conn.close()
+        for vkey in voices:
+            v = PIPER_VOICES[lang][vkey]
+            ls_tag = "" if v["length_scale"] == 1.0 else \
+                f"-ls{v['length_scale']:g}"
+            for row in rows:
+                out = AUDIO_DIR / f"{lang}-{row['id']}-{vkey}{ls_tag}.wav"
+                if out.is_file():
+                    continue
+                try:
+                    _synth_wort(row["word"], lang, vkey, out)
+                except HTTPException:
+                    pass  # einzelner Fehler stoppt den Lauf nicht
+        _vorwaermen_state[lang] = "fertig"
+    except Exception as e:
+        _vorwaermen_state[lang] = f"fehler: {e}"
+    finally:
+        _vorwaermen_lock.release()
+
+
+@app.post("/audio/vorwaermen", status_code=202)
+def audio_vorwaermen(body: VorwaermenIn, _=Depends(require_api_key)):
+    """Fehlende Wort-Audios für eine Sprache vorgenerieren (Hintergrund).
+    Restart-fähig: bereits vorhandene Dateien werden übersprungen."""
+    lang = body.language.lower()
+    if lang not in PIPER_VOICES or not PIPER_VOICES[lang]:
+        raise HTTPException(404, f"Sprache '{lang}' hat keine Stimme")
+    voice = None
+    if body.voice is not None:
+        if body.voice not in PIPER_VOICES[lang]:
+            raise HTTPException(404, f"Sprecher '{body.voice}' nicht bekannt")
+        voice = body.voice
+    if not _vorwaermen_lock.acquire(blocking=False):
+        raise HTTPException(409,
+                            f"Vorgenerierung für '{lang}' läuft bereits")
+    _vorwaermen_state[lang] = "läuft"
+    threading.Thread(target=_vorwaermen_job, args=(lang, voice),
+                     daemon=True).start()
+    return {"gestartet": True, "language": lang,
+            "status": _vorwaermen_state}
+
+
+@app.get("/audio/status")
+def audio_status(_=Depends(require_api_key)):
+    """Fortschritt der Vorgenerierung: Dateianzahl je Sprach-Prefix."""
+    counts: dict[str, int] = {}
+    for f in AUDIO_DIR.glob("*.wav"):
+        prefix = f.name.split("-")[0]
+        counts[prefix] = counts.get(prefix, 0) + 1
+    return {"zustaende": dict(_vorwaermen_state), "dateien": counts}
 
 
 @app.get("/worteintrag", include_in_schema=False)
