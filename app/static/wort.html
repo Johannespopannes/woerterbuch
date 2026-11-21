@@ -115,6 +115,22 @@
                                 text-align: left; }
   .gramflex th { background: var(--bg); font-weight: normal; color: var(--muted); }
 
+  .bildvote { margin-top: .6rem; }
+  .frage-klein { display: block; color: var(--muted); font-size: .82rem;
+                 margin-bottom: .35rem; }
+  .bvbtns { display: flex; gap: .45rem; align-items: center; }
+  .bvbtns button {
+    font: inherit; font-size: .85rem; padding: .35rem .9rem;
+    border-radius: 999px; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink); cursor: pointer;
+  }
+  .bvbtns button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .bvbtns button:disabled { opacity: .5; cursor: default; }
+  #bja { border-color: #4a7c59; color: #4a7c59; }
+  #bja:hover:not(:disabled) { background: #4a7c59; color: #fff; }
+  #bnein { border-color: #a0442c; color: #a0442c; }
+  #bnein:hover:not(:disabled) { background: #a0442c; color: #fff; }
+
   footer { margin-top: 2.5rem; color: var(--muted); font-size: .8rem; }
   footer a { color: var(--accent); text-decoration: none; }
 </style>
@@ -139,6 +155,14 @@
   <div class="inhalt">
     <div class="bildbox" id="bildcard" style="display:none">
       <img id="hauptbild" class="wbild" alt="Bild zum Wort">
+      <div class="bildvote">
+        <span class="frage-klein">Versteht man das Bild?</span>
+        <span class="bvbtns">
+          <button id="bja" title="Das Bild beschreibt das Wort gut">Ja</button>
+          <button id="bnein" title="Das Bild passt nicht">Nein</button>
+          <span class="meta" id="bstand"></span>
+        </span>
+      </div>
       <div id="galerie"></div>
     </div>
 
@@ -488,6 +512,36 @@ async function load() {
   document.getElementById('dazu').addEventListener('click', () => wvote('dazu'));
   document.getElementById('nicht').addEventListener('click', () => wvote('nicht'));
   document.getElementById('unsicher').addEventListener('click', () => wvote('unsicher'));
+
+  // Bild-Stimme direkt auf der Wortseite (Hauptbild)
+  const iv = ev.image_votes || { ja: 0, nein: 0 };
+  function bildStand(extraJa, extraNein) {
+    document.getElementById('bstand').textContent =
+      `${iv.ja + (extraJa || 0)}× ja · ${iv.nein + (extraNein || 0)}× nein`;
+  }
+  if (ev.image) {
+    bildStand();
+    let voted = false;
+    const bv = async (understood) => {
+      if (voted) return;
+      voted = true;
+      document.getElementById('bja').disabled = true;
+      document.getElementById('bnein').disabled = true;
+      const r = await fetch('/wort/bildvote', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entry_id: e.id, understood }),
+      });
+      if (r.ok || r.status === 409) {
+        bildStand(understood ? 1 : 0, understood ? 0 : 1);
+      } else {
+        voted = false;
+        document.getElementById('bja').disabled = false;
+        document.getElementById('bnein').disabled = false;
+      }
+    };
+    document.getElementById('bja').addEventListener('click', () => bv(true));
+    document.getElementById('bnein').addEventListener('click', () => bv(false));
+  }
 }
 load();
 </script>

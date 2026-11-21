@@ -1149,6 +1149,48 @@ def raten_stats():
 
 # ---------- Wort-Konfidenz & Evidenz ----------
 
+class BildVoteIn(BaseModel):
+    entry_id: int
+    understood: bool
+    # konkrete Bilddatei (Galerie), leer/fehlend = Hauptbild
+    image: str | None = Field(default=None, max_length=150)
+
+
+@app.post("/wort/bildvote", status_code=201)
+def wort_bildvote(vote: BildVoteIn, request: Request, response: Response):
+    """Oeffentliche Bild-Stimme direkt von der Wortseite.
+
+    Wie die Kuratier-Stimme ohne Nonce, aber eine Stimme pro Sitzung
+    und Bild (Cookie-Kennung, kein Merkmal) — gegen Doppelklicks und
+    leichtes Fluten.
+    """
+    sid = _get_session(request, response)
+    conn = get_conn()
+    try:
+        exists = conn.execute(
+            "SELECT 1 FROM entries WHERE id = ?", (vote.entry_id,)
+        ).fetchone()
+        if not exists:
+            raise HTTPException(404, f"Eintrag {vote.entry_id} nicht gefunden")
+        img = vote.image or None
+        dup = conn.execute(
+            "SELECT 1 FROM ratings WHERE entry_id = ? AND session_id = ? "
+            "AND kind = 'image' AND COALESCE(image, '') = COALESCE(?, '')",
+            (vote.entry_id, sid, img),
+        ).fetchone()
+        if dup:
+            raise HTTPException(409, "Diese Sitzung hat hier schon abgestimmt")
+        conn.execute(
+            "INSERT INTO ratings (entry_id, understood, kind, image,"
+            " session_id) VALUES (?, ?, 'image', ?, ?)",
+            (vote.entry_id, 1 if vote.understood else 0, img, sid),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
 @app.post("/wort/vote", status_code=201)
 def wort_vote(vote: WordVoteIn):
     """Öffentliche Kuratier-Stimme: Gehört das Wort zur Sprache?
