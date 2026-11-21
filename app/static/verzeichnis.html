@@ -92,8 +92,8 @@
 </footer>
 
 <script>
-const LANG_NAMES = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', es: 'Spanisch', it: 'Italienisch' };
-const LOCALES = { de: 'de-DE', en: 'en-GB', fr: 'fr-FR', es: 'es-ES', it: 'it-IT' };
+const LANG_NAMES = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', es: 'Spanisch', it: 'Italienisch', ar: 'Arabisch', tn: 'Tunesisch' };
+const LOCALES = { de: 'de-DE', en: 'en-GB', fr: 'fr-FR', es: 'es-ES', it: 'it-IT', ar: 'ar', tn: 'ar-TN' };
 
 // Akzente, die auf den Basisbuchstaben gefaltet werden (API-Prefix ist
 // Unicode-genau, darum werden die Varianten einzeln abgefragt und gemischt).
@@ -101,11 +101,19 @@ const FOLDED = {
   fr: { a: 'àâä', c: 'ç', e: 'éèêë', i: 'îï', o: 'ôö', u: 'ùûü', y: 'ÿ' },
   es: { a: 'á', e: 'é', i: 'í', o: 'ó', u: 'úü' },
   it: { a: 'à', e: 'èé', i: 'ìí', o: 'òó', u: 'ù' },
+  ar: { 'ا': 'أإآٱ' },
+  tn: { 'ا': 'أإآٱ' },
 };
 // Eigene Buchstaben (Reihenfolge im Alphabet): de hat ä ö ü ß, es hat ñ nach n.
 const OWN_LETTERS = { de: ['ä', 'ö', 'ü', 'ß'], es: ['ñ'] };
+// Arabisches Alphabet (28 Buchstaben) für ar/tn — statt a–z.
+const AR_LETTERS = [..."ابتثجحخدذرزسشصضطظعغفقكلمنهوي"];
 
 function letterGroups(lang) {
+  if (lang === 'ar' || lang === 'tn') {
+    // Hamza-Varianten werden unter ا gefaltet (FOLDED oben)
+    return AR_LETTERS.map(l => [l, [l, ...((FOLDED[lang] || {})[l] || '')]]);
+  }
   const base = [..."abcdefghijklmnopqrstuvwxyz"];
   const fold = FOLDED[lang] || {};
   const groups = base.map(l => [l, [l, ...(fold[l] || '')]]);
