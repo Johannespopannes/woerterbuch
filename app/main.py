@@ -1591,7 +1591,7 @@ class VorwaermenIn(BaseModel):
     voice: str | None = Field(default=None, max_length=40)
 
 
-_vorwaermen_lock = threading.Lock()
+_vorwaermen_locks: dict[str, threading.Lock] = defaultdict(threading.Lock)
 _vorwaermen_state: dict[str, str] = {}
 
 
@@ -1624,7 +1624,7 @@ def _vorwaermen_job(lang: str, voice: str | None) -> None:
     except Exception as e:
         _vorwaermen_state[lang] = f"fehler: {e}"
     finally:
-        _vorwaermen_lock.release()
+        _vorwaermen_locks[lang].release()
 
 
 @app.post("/audio/vorwaermen", status_code=202)
@@ -1639,7 +1639,8 @@ def audio_vorwaermen(body: VorwaermenIn, _=Depends(require_api_key)):
         if body.voice not in PIPER_VOICES[lang]:
             raise HTTPException(404, f"Sprecher '{body.voice}' nicht bekannt")
         voice = body.voice
-    if not _vorwaermen_lock.acquire(blocking=False):
+    lock = _vorwaermen_locks[lang]
+    if not lock.acquire(blocking=False):
         raise HTTPException(409,
                             f"Vorgenerierung für '{lang}' läuft bereits")
     _vorwaermen_state[lang] = "läuft"
