@@ -327,6 +327,19 @@ def insert(language: str, words: list[str]) -> int:
 
 # ---------- Strategien ----------
 
+def _with_script(base: str, language: str) -> str:
+    """Für Arabisch/Tunesisch arabische Schrift verlangen — Kolibri
+    transkribiert sonst ins Lateinische und der Buchstaben-Filter
+    verwirft alles."""
+    if language == "ar":
+        return base + ("\nWichtig: Alle Wörter ausschließlich in arabischer "
+                       "Schrift (keine lateinische Umschrift).")
+    if language == "tn":
+        return base + ("\nWichtig: Alle Wörter ausschließlich in arabischer "
+                       "Schrift, tunesisch (keine lateinische Umschrift).")
+    return base
+
+
 def harvest_free(language, letters, rounds, per_round, temperature, delay):
     lang = LANG_NAMES.get(language, f"{language}-Sprachige")
     for letter in letters:
@@ -335,7 +348,9 @@ def harvest_free(language, letters, rounds, per_round, temperature, delay):
         for rnd in range(1, rounds + 1):
             try:
                 cand = parse_words(chat(
-                    PROMPT_FREE.format(n=per_round, lang=lang, letter=letter), temperature))
+                    _with_script(PROMPT_FREE.format(
+                        n=per_round, lang=lang, letter=letter), language),
+                    temperature))
             except Exception as e:
                 print(f"[{letter}] Runde {rnd}: Modell-Fehler: {e}", file=sys.stderr)
                 time.sleep(delay * 3)
@@ -359,10 +374,10 @@ def harvest_suggest(language, letters, max_rounds, per_round, temperature, delay
             rnd += 1
             known = letter_words(language, letter)
             sample = random.sample(known, min(10, len(known))) if known else []
-            prompt = PROMPT_SUGGEST.format(
+            prompt = _with_script(PROMPT_SUGGEST.format(
                 lang=lang, letter=letter,
                 known=", ".join(sample) if sample else "(noch keine bekannt)",
-                n=per_round)
+                n=per_round), language)
             try:
                 cand = parse_words(chat(prompt, temperature))
             except Exception as e:
@@ -397,7 +412,9 @@ def harvest_gap(language, letters, max_rounds, per_round, temperature, delay, pa
             new_total = 0
             for i in sorted(idx):
                 a, b = words[i], words[i + 1]
-                prompt = PROMPT_GAP.format(lang=lang, a=a, b=b, n=per_round)
+                prompt = _with_script(
+                    PROMPT_GAP.format(lang=lang, a=a, b=b, n=per_round),
+                    language)
                 try:
                     cand = parse_words(chat(prompt, temperature))
                 except Exception as e:
@@ -426,7 +443,9 @@ def _define_batch(batch: list[dict], lang: str, temperature: float,
     words = [e["word"] for e in batch]
     try:
         defs = parse_definitions(chat(
-            PROMPT_DEFINE.format(lang=lang, words=", ".join(words)),
+            _with_script(
+                PROMPT_DEFINE.format(lang=lang, words=", ".join(words)),
+                batch[0].get("language", "") if batch else ""),
             temperature))
     except Exception as e:
         if len(batch) > 5 and depth < 3:
