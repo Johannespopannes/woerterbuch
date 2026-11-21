@@ -219,6 +219,11 @@ def render_queued(concept: str, out_path: Path, size: int, steps: int,
     """
     if out_path.is_file() and out_path.stat().st_size > 1000:
         return True  # Cache-Treffer
+    # Läuft der Harvester selbst ALS Queue-Job (gpu), hält der Worker
+    # bereits das GPU-Lock — innere Render-Jobs doppelt einzureihen
+    # würde sich gegenseitig aushungern (Deadlock bis Timeout).
+    if os.environ.get("GPUQ_MANAGED") == "1":
+        return render(concept, out_path, size, steps, seed)
     if direct or _GPUQ is None:
         return render(concept, out_path, size, steps, seed)
     global _worker_versucht
