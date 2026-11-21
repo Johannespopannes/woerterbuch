@@ -293,6 +293,13 @@ def basis_css():
                         media_type="text/css")
 
 
+@app.get("/wb.js", include_in_schema=False)
+def wb_js():
+    """Gemeinsame Wörterbuch-Funktionen (siehe FUNKTIONSKATALOG.md)."""
+    return FileResponse(Path(__file__).parent / "static" / "wb.js",
+                        media_type="application/javascript")
+
+
 @app.post("/entries", response_model=EntryOut, status_code=201)
 def create_entry(entry: EntryIn, _=Depends(require_api_key)):
     conn = get_conn()

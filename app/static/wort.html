@@ -215,14 +215,16 @@
   <a href="/">Zur Suche</a> · <a href="/verzeichnis">Stichwortverzeichnis</a> · <a href="/bewerten">Bilder bewerten</a> · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
 </footer>
 
+<script src="/wb.js"></script>
 <script>
+// Verbindliche Bildfrage aus dem gemeinsamen Modul
+document.querySelector('.frage-klein').textContent = WB.BILD_FRAGEN.frage;
+document.getElementById('bja').textContent = WB.BILD_FRAGEN.ja;
+document.getElementById('bnein').textContent = WB.BILD_FRAGEN.nein;
+
 const p = new URLSearchParams(location.search);
 const word = p.get('word') || '';
 const lang = p.get('lang') || 'de';
-const SPRACHEN = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch',
-                   es: 'Spanisch', it: 'Italienisch' };
-const SPRACHADJ = { de: 'deutsches', en: 'englisches', fr: 'französisches',
-                    es: 'spanisches', it: 'italienisches' };
 document.getElementById('wort').textContent = word;
 
 const STOP = new Set(('der die das den dem des ein eine und oder aber mit von zu in im an auf aus bei nach über als auch nicht ich du er sie es wir ihr man sich so wie wenn dann noch schon zum zur vom').split(' '));
@@ -245,98 +247,6 @@ function linkify(el, text) {
 
 function show(el, on) { el.style.display = on ? '' : 'none'; }
 
-// Flexion generisch rendern: {"cases": {"Singular": {"Nominativ": "der Kanton", ...}}}
-// oder {"tenses": {...}} / {"comparison": {...}}. Dauerhaft sichtbar, keine
-// internen Feldnamen als Beschriftung. Auf schmalen Displays wird die
-// Matrix transponiert (Zeilen <-> Spalten), damit sie lesbar bleibt.
-const schmal = window.matchMedia('(max-width: 620px)');
-
-function renderFlexion(flexion) {
-  window.__letzteFlexion = flexion;
-  const wrap = document.getElementById('gramflexwrap');
-  const box = document.getElementById('gramflex');
-  box.innerHTML = '';
-  if (!flexion || typeof flexion !== 'object') { show(wrap, false); return; }
-  const bloecke = Object.entries(flexion).filter(([, v]) => v && typeof v === 'object');
-  if (!bloecke.length) { show(wrap, false); return; }
-  for (const [, zeilen] of bloecke) {
-    box.appendChild(flexTabelle(zeilen, schmal.matches));
-  }
-  show(wrap, true);
-}
-
-function flexTabelle(zeilen, transponiert) {
-  const vals = Object.values(zeilen);
-  const istMatrix = vals.some(v => v && typeof v === 'object');
-  const tab = document.createElement('table');
-  if (!istMatrix) {
-    for (const [k, v] of Object.entries(zeilen)) {
-      const tr = document.createElement('tr');
-      const th = document.createElement('th');
-      th.textContent = k;
-      const td = document.createElement('td');
-      td.textContent = v;
-      tr.append(th, td);
-      tab.appendChild(tr);
-    }
-    return tab;
-  }
-  let reihen = Object.entries(zeilen);               // z. B. Singular/Plural
-  let spalten = [...new Set(vals.filter(v => v && typeof v === 'object')
-    .flatMap(v => Object.keys(v)))];
-  if (transponiert) {
-    const trh = document.createElement('tr');
-    trh.appendChild(document.createElement('th'));
-    for (const [name] of reihen) {
-      const th = document.createElement('th');
-      th.textContent = name;
-      trh.appendChild(th);
-    }
-    tab.appendChild(trh);
-    for (const s of spalten) {
-      const tr = document.createElement('tr');
-      const th = document.createElement('th');
-      th.textContent = s;
-      tr.appendChild(th);
-      for (const [, zv] of reihen) {
-        const td = document.createElement('td');
-        td.textContent = (zv && zv[s]) || '—';
-        tr.appendChild(td);
-      }
-      tab.appendChild(tr);
-    }
-  } else {
-    const trh = document.createElement('tr');
-    trh.appendChild(document.createElement('th'));
-    for (const s of spalten) {
-      const th = document.createElement('th');
-      th.textContent = s;
-      trh.appendChild(th);
-    }
-    tab.appendChild(trh);
-    for (const [name, zv] of reihen) {
-      const tr = document.createElement('tr');
-      const th = document.createElement('th');
-      th.textContent = name;
-      tr.appendChild(th);
-      for (const s of spalten) {
-        const td = document.createElement('td');
-        td.textContent = (zv && zv[s]) || '—';
-        tr.appendChild(td);
-      }
-      tab.appendChild(tr);
-    }
-  }
-  return tab;
-}
-
-schmal.addEventListener('change', () => {
-  const box = document.getElementById('gramflex');
-  if (box.childElementCount && window.__letzteFlexion !== undefined) {
-    renderFlexion(window.__letzteFlexion);
-  }
-});
-
 
 async function load() {
   const lu = await fetch('/lookup?' + new URLSearchParams({ word, language: lang }));
@@ -352,29 +262,18 @@ async function load() {
     if (mArt) wortart = ' · ' + mArt[1];
   }
   document.getElementById('wsub').textContent =
-    (SPRACHEN[lang] || lang) + wortart;
+    WB.sprachName(lang) + wortart;
   document.getElementById('sprachfrage').textContent =
-    'Ist „' + word + '“ ein ' + (SPRACHADJ[lang] || lang) + ' Wort?';
+    'Ist „' + word + '“ ein ' + WB.sprachAdj(lang) + ' Wort?';
 
-  // Grammatik-Karte: Wortart · Artikel/Genus · Grundform, Flexion aufklappbar
+  // Grammatik-Karte komplett aus dem gemeinsamen Modul (FUNKTIONSKATALOG)
   if (ev.grammar) {
-    const g = ev.grammar;
-    const teile = [];
-    if (g.article) teile.push(g.article);
-    if (g.gender) teile.push({ m: 'maskulin', f: 'feminin', n: 'neutrum' }[g.gender] || g.gender);
-    if (g.word_class) teile.push(g.word_class);
-    const zeile = document.getElementById('gramzeile');
-    zeile.textContent = teile.join(' · ');
-    if (g.lemma && g.lemma !== word) {
-      if (teile.length) zeile.appendChild(document.createTextNode(' · Grundform: '));
-      else zeile.appendChild(document.createTextNode('Grundform: '));
-      const a = document.createElement('a');
-      a.href = '/worteintrag?' + new URLSearchParams({ word: g.lemma, lang });
-      a.textContent = g.lemma;
-      zeile.appendChild(a);
-    }
     show(document.getElementById('gramcard'), true);
-    renderFlexion(g.flexion);
+    WB.grammatikKarte({
+      zeile: document.getElementById('gramzeile'),
+      flexwrap: document.getElementById('gramflexwrap'),
+      flexbox: document.getElementById('gramflex'),
+    }, ev.grammar, word, lang);
   }
 
   // Konfidenz als klarer Textstatus statt Fortschrittsbalken
@@ -535,12 +434,10 @@ async function load() {
   });
 
   async function wvote(kind) {
-    await fetch('/wort/vote', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entry_id: e.id, kind }),
-    });
-    wv[kind]++;
-    voteStand();
+    if (await WB.wortVote(e.id, kind)) {
+      wv[kind]++;
+      voteStand();
+    }
   }
   document.getElementById('dazu').addEventListener('click', () => wvote('dazu'));
   document.getElementById('nicht').addEventListener('click', () => wvote('nicht'));
@@ -560,11 +457,9 @@ async function load() {
       voted = true;
       document.getElementById('bja').disabled = true;
       document.getElementById('bnein').disabled = true;
-      const r = await fetch('/wort/bildvote', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entry_id: e.id, understood }),
-      });
-      if (r.ok || r.status === 409) {
+      const r = await WB.bildVote({ entryId: e.id, understood,
+                                    session: 'wortseite' });
+      if (r.ok) {
         bildStand(understood ? 1 : 0, understood ? 0 : 1);
       } else {
         voted = false;

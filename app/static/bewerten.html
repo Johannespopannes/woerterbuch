@@ -115,7 +115,13 @@
   <a href="/">Zur Suche</a> · <a href="/verzeichnis">Stichwortverzeichnis</a> · <a href="/bewerten">Bilder bewerten</a> · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
 </footer>
 
+<script src="/wb.js"></script>
 <script>
+// Verbindliche Bildfrage aus dem gemeinsamen Modul (FUNKTIONSKATALOG)
+document.querySelector('.sub').textContent = WB.BILD_FRAGEN.frage;
+document.getElementById('ja').textContent = WB.BILD_FRAGEN.ja;
+document.getElementById('nein').textContent = WB.BILD_FRAGEN.nein;
+
 const card = document.getElementById('card');
 const bild = document.getElementById('bild');
 const wort = document.getElementById('wort');
@@ -271,13 +277,9 @@ async function vote(understood, kind) {
   setButtonsDisabled(true);   // kein Doppelklick, kein zweiter Vote
   card.classList.add(understood ? 'ok' : 'no');
   try {
-    await fetch('/raten/vote', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entry_id: current.id, understood,
-                             image: currentFile, kind: kind || 'image',
-                             nonce: currentNonce }),
-    });
+    await WB.bildVote({ entryId: current.id, understood,
+                        image: currentFile, kind: kind || 'image',
+                        nonce: currentNonce, session: 'bewerten' });
   } catch (e) { /* offline o. a. — trotzdem weiter */ }
   setTimeout(() => { card.classList.remove('ok', 'no'); next(); }, 350);
   loadStats();
