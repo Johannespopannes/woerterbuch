@@ -292,7 +292,7 @@ CREATE TABLE IF NOT EXISTS grammar (
     created_at TEXT NOT NULL DEFAULT (NOW()),
     UNIQUE (language, lemma)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE INDEX idx_grammar_lemma ON grammar (language, lemma);
+CREATE INDEX idx_grammar_lemma ON grammar (language(8), lemma(191));
 CREATE TABLE IF NOT EXISTS speaker_ratings (
     id INT PRIMARY KEY AUTO_INCREMENT,
     language TEXT NOT NULL,
