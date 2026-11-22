@@ -33,15 +33,22 @@ LATIN_RE = re.compile(r"^[A-Za-z0-9 '’\-]{1,40}$")
 
 
 def post(path: str, body: dict):
-    req = urllib.request.Request(
-        DICT_API_URL + path, data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json",
-                 "X-API-Key": DICT_API_KEY}, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            return json.load(r), None
-    except urllib.error.HTTPError as e:
-        return None, e.code
+    for versuch in range(4):
+        req = urllib.request.Request(
+            DICT_API_URL + path, data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json",
+                     "X-API-Key": DICT_API_KEY}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return json.load(r), None
+        except urllib.error.HTTPError as e:
+            return None, e.code
+        except Exception as e:
+            # Verbindungsfehler (Deploy-Neustart, Netz) — kurz warten
+            print(f"  POST {path}: {e} — Versuch {versuch + 1}/4",
+                  file=sys.stderr)
+            time.sleep(15 * (versuch + 1))
+    return None, "unreachable"
 
 
 def main() -> None:
