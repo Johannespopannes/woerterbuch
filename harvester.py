@@ -364,8 +364,26 @@ def chat(prompt: str, temperature: float) -> str:
             "Authorization": f"Bearer {MODEL_API_KEY}",
         },
     )
-    with urllib.request.urlopen(req, timeout=300) as resp:
-        data = json.loads(resp.read())
+    last_err: Exception | None = None
+    for versuch in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=300) as resp:
+                data = json.loads(resp.read())
+            break
+        except urllib.error.HTTPError as e:
+            # 502/503 (ModelHub-Upstream flackert gelegentlich) — warten
+            # und erneut versuchen; 4xx sofort weiterwerfen.
+            last_err = e
+            if e.code < 500 or versuch == 3:
+                raise
+            time.sleep(5 * (versuch + 1))
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+            last_err = e
+            if versuch == 3:
+                raise
+            time.sleep(5 * (versuch + 1))
+    else:
+        raise last_err or RuntimeError("chat unbekannter Fehler")
     content = data["choices"][0]["message"]["content"]
     if not content or not content.strip():
         raise RuntimeError("Leere Antwort (Reasoning-Budget aufgebraucht?) — Retry")
