@@ -965,6 +965,23 @@ def sprecher_seite():
     return FileResponse(Path(__file__).parent / "static" / "sprecher.html")
 
 
+@app.get("/bilder/neu", include_in_schema=False)
+def bilder_neu(limit: int = Query(default=12, le=30)):
+    """Die zuletzt verknüpften Bilder (Galerie-Zeitstrahl) mit Wort-Link."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT ei.filename AS filename, e.word AS word, "
+            "       e.language AS language, e.id AS entry_id "
+            "FROM entry_images ei JOIN entries e ON e.id = ei.entry_id "
+            "ORDER BY ei.id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [row_to_dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
 @app.get("/bilder/{filename}", include_in_schema=False)
 def bilder(filename: str):
     """Generierte Wort-Bilder ausliefern (nur simple Dateinamen)."""
@@ -1866,6 +1883,11 @@ def set_image(entry_id: int, body: ImageIn, _=Depends(require_api_key)):
             "UPDATE entries SET image = ? WHERE id = ?",
             (body.filename, entry_id),
         )
+        # Galerie-Zeitstrahl: Neuzugänge (/bilder/neu) leben von dieser
+        # Verknüpfungs-Zeile — UNIQUE(entry_id, filename) macht sie idempotent
+        conn.execute(
+            "INSERT OR IGNORE INTO entry_images (entry_id, filename) "
+            "VALUES (?,?)", (entry_id, body.filename))
         conn.commit()
         (IMAGES_DIR / body.filename).write_bytes(data)
         row = conn.execute(
@@ -1895,6 +1917,9 @@ def set_image_ref(entry_id: int, body: ImageIn, _=Depends(require_api_key)):
                 "UPDATE entries SET image = ? WHERE id = ?",
                 (body.filename, entry_id),
             )
+            conn.execute(
+                "INSERT OR IGNORE INTO entry_images (entry_id, filename) "
+                "VALUES (?,?)", (entry_id, body.filename))
             conn.commit()
         row = conn.execute(
             "SELECT * FROM entries WHERE id = ?", (entry_id,)
