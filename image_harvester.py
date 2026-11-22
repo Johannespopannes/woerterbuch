@@ -44,6 +44,16 @@ DICT_API_KEY = os.environ.get("DICT_API_KEY", "")
 # Flux.1-schnell — kein Modell-Reload pro Bild (~17 s statt ~37 s)
 SD_SERVER = os.environ.get("SD_SERVER", "http://127.0.0.1:8100")
 
+# Cloud-Render über ModelHub (Wan auf dem Pi): keine lokale GPU nötig,
+# ~11 s pro Bild. Aktiv via WB_RENDER_CLOUD=1.
+CLOUD_IMAGE_URL = os.environ.get(
+    "WB_CLOUD_IMAGE_URL",
+    "https://modelhub.tassekaffee.com/v1/images/generations")
+# Leer = ModelHub-Default (Wan). Alternativen siehe /v1/image/models.
+CLOUD_IMAGE_MODEL = os.environ.get("WB_CLOUD_IMAGE_MODEL", "")
+MODELHUB_URL = os.environ.get(
+    "MODEL_BASE_URL", "https://modelhub.tassekaffee.com/v1")
+
 PROMPT_TEMPLATE = (
     "flat vector pictogram of {concept}, minimal geometric icon, "
     "solid colors, centered, isolated on pure white background"
@@ -192,6 +202,33 @@ def render(concept: str, out_path: Path, size: int, steps: int,
     return out_path.is_file() and out_path.stat().st_size > 1000
 
 
+def render_cloud(concept: str, out_path: Path, size: int, steps: int,
+                 seed: int) -> bool:
+    """Piktogramm über ModelHub-Cloud rendern (Wan, auf dem Pi).
+
+    OpenAI-kompatibles /v1/images/generations; kein API-Key nötig.
+    Wan kennt kein Negativ-Prompt — Ausschlüsse fließen in den Prompt.
+    Liefert 1024x1024 RGBA-PNG (~1,2 MB); Eintrags-PNGs werden beim
+    Upload ohnehin skaliert/verarbeitet.
+    """
+    prompt = (PROMPT_TEMPLATE.format(concept=concept)
+              + ", no text, no letters, no watermark, not photorealistic")
+    body = {"prompt": prompt, "size": "1024x1024"}
+    if CLOUD_IMAGE_MODEL:
+        body["model"] = CLOUD_IMAGE_MODEL
+    req = urllib.request.Request(
+        CLOUD_IMAGE_URL, data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            data = json.loads(resp.read())
+        out_path.write_bytes(base64.b64decode(data["data"][0]["b64_json"]))
+    except Exception as e:
+        print(f"  cloud-render Fehler: {e}", file=sys.stderr)
+        return False
+    return out_path.is_file() and out_path.stat().st_size > 1000
+
+
 # ---------- Gemeinsame GPU-Queue (FIFO mit icons.tassekaffee.com) ----------
 # Client liegt im Chain-Verzeichnis (ORIGIN woerterbuch.tassekaffee.com).
 # Fehlt er oder ist die Queue nicht erreichbar, fällt render_queued()
@@ -219,6 +256,9 @@ def render_queued(concept: str, out_path: Path, size: int, steps: int,
     """
     if out_path.is_file() and out_path.stat().st_size > 1000:
         return True  # Cache-Treffer
+    # Cloud-Modus: Wan auf dem Pi — braucht weder lokale GPU noch Queue.
+    if os.environ.get("WB_RENDER_CLOUD") == "1":
+        return render_cloud(concept, out_path, size, steps, seed)
     # Läuft der Harvester selbst ALS Queue-Job (gpu), hält der Worker
     # bereits das GPU-Lock — innere Render-Jobs doppelt einzureihen
     # würde sich gegenseitig aushungern (Deadlock bis Timeout).
@@ -298,7 +338,12 @@ PICK_PROMPT = (
 
 
 def gemma_pick(word: str, paths: list[Path]) -> int:
-    """0-basierter Index des besten Kandidaten laut Gemma-Vision, -1 bei Fehler."""
+    """0-basierter Index des besten Kandidaten laut Vision-LLM, -1 bei Fehler.
+
+    WB_PICK_MODEL gesetzt (z. B. qwen3.8-flash) → Pick über ModelHub,
+    sonst lokales Gemma-Vision (GEMMA_URL).
+    """
+    pick_model = os.environ.get("WB_PICK_MODEL", "")
     content = [{
         "type": "image_url",
         "image_url": {"url": "data:image/png;base64,"
@@ -307,13 +352,15 @@ def gemma_pick(word: str, paths: list[Path]) -> int:
     content.append({"type": "text", "text": PICK_PROMPT.format(
         n=len(paths), word=word)})
     body = {
-        "model": "gemma-vision",
+        "model": pick_model or "gemma-vision",
         "messages": [{"role": "user", "content": content}],
         "max_tokens": 800,  # Reasoning-Modell: Denkpfad braucht Budget
         "temperature": 0.1,
     }
+    url = (f"{MODELHUB_URL}/chat/completions" if pick_model
+           else f"{GEMMA_URL}/chat/completions")
     req = urllib.request.Request(
-        f"{GEMMA_URL}/chat/completions",
+        url,
         data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json"})
     try:
