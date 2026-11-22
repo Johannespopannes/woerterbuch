@@ -302,7 +302,7 @@ CREATE TABLE IF NOT EXISTS speaker_ratings (
     created_at TEXT NOT NULL DEFAULT (NOW()),
     UNIQUE (language(8), voice(64), session_id(64))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE INDEX IF NOT EXISTS idx_speaker_ratings_voice ON speaker_ratings (language, voice);
+CREATE INDEX IF NOT EXISTS idx_speaker_ratings_voice ON speaker_ratings (language(8), voice(64));
 """
 
 _TRANSLATE = [
