@@ -156,6 +156,19 @@
   .ddef { color: var(--muted); font-size: .9rem; }
   .dactions { display: flex; gap: .8rem; align-items: center;
               margin-top: .6rem; flex-wrap: wrap; }
+  /* Neuzugänge: die jüngsten Einträge quer durch alle Sprachen */
+  .neueste { width: min(680px, 100%); margin-top: 1.4rem; }
+  .neueste ul { list-style: none; margin: .45rem 0 0; padding: 0;
+                display: flex; flex-wrap: wrap; gap: .45rem; }
+  .neueste li a { display: inline-flex; align-items: center; gap: .4rem;
+                  background: var(--card); border: 1px solid var(--line);
+                  border-radius: 999px; padding: .3rem .8rem;
+                  text-decoration: none; color: inherit; font-size: .95rem; }
+  .neueste li a:hover { border-color: var(--accent); }
+  .neueste li a img { width: 22px; height: 22px; border-radius: 50%;
+                      object-fit: cover; border: 1px solid var(--line); }
+  .neueste li a .nl { color: var(--muted); font-size: .72rem;
+                      text-transform: uppercase; letter-spacing: .06em; }
   .dactions button, .dcta {
     font: inherit; font-size: .9rem; padding: .4rem .9rem;
     border-radius: 999px; border: 1px solid var(--line);
@@ -199,6 +212,11 @@
   </div>
 </div>
 
+<div id="neueste" class="neueste">
+  <span class="dlabel">Neuzugänge</span>
+  <ul id="neulist"></ul>
+</div>
+
 <div class="mitmachen">
   <a class="mcard" href="/bewerten">
     <b>Bilder bewerten</b>
@@ -236,6 +254,7 @@ function resetSearch() {
   clearBtn.style.display = 'none';
   history.replaceState(null, '', '/');
   discover.style.display = '';
+  document.getElementById('neueste').style.display = '';
   loadDiscover();
   q.focus();
 }
@@ -360,9 +379,45 @@ document.getElementById('dnext').addEventListener('click', (e) => {
   loadDiscover();
 });
 
+// Neuzugänge: die jüngsten Einträge quer durch alle Sprachen
+async function loadNeueste() {
+  try {
+    const rows = await fetch('/entries?' + new URLSearchParams({
+      neu: 1, limit: 12,
+    })).then(r => r.ok ? r.json() : null);
+    const list = document.getElementById('neulist');
+    if (!rows || !rows.length) {
+      document.getElementById('neueste').style.display = 'none';
+      return;
+    }
+    list.innerHTML = '';
+    for (const e of rows) {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = '/worteintrag?' + new URLSearchParams(
+        { word: e.word, lang: e.language });
+      if (e.image) {
+        const img = document.createElement('img');
+        img.src = '/bilder/' + e.image;
+        img.alt = '';
+        img.loading = 'lazy';
+        a.appendChild(img);
+      }
+      a.append(e.word);
+      const tag = document.createElement('span');
+      tag.className = 'nl';
+      tag.textContent = e.language;
+      a.appendChild(tag);
+      li.appendChild(a);
+      list.appendChild(li);
+    }
+  } catch { document.getElementById('neueste').style.display = 'none'; }
+}
+
 async function search() {
   const term = q.value.trim();
   discover.style.display = term.length < 2 ? '' : 'none';
+  document.getElementById('neueste').style.display = term.length < 2 ? '' : 'none';
   if (term.length < 2) { results.innerHTML = ''; hint.textContent = ''; return; }
   const params = new URLSearchParams({ language: lang.value, q: term, limit: 50 });
   const rows = await fetch('/entries?' + params).then(r => r.json());
@@ -487,6 +542,7 @@ loadMeta().then(() => {
   if (p.get('q')) q.value = p.get('q');
   search();
   loadDiscover();
+  loadNeueste();
 });
 loadTop();
 </script>

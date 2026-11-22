@@ -440,6 +440,8 @@ def list_entries(
                              description="Ja/Nein-Bewertungen mit ausgeben"),
     with_evidence: bool = Query(default=False,
                                 description="Evidenz-JSON mit ausgeben"),
+    neu: bool = Query(default=False,
+                      description="neueste Einträge zuerst (nach Anlage)"),
     limit: int = Query(default=100, le=1000),
     offset: int = 0,
 ):
@@ -462,7 +464,8 @@ def list_entries(
         sql += " AND (image IS NULL OR image = '')"
     if nolemma:
         sql += " AND (lemma IS NULL OR lemma = '')"
-    sql += " ORDER BY word LIMIT ? OFFSET ?"
+    sql += " ORDER BY id DESC" if neu else " ORDER BY word"
+    sql += " LIMIT ? OFFSET ?"
     params += [limit, offset]
     conn = get_conn()
     try:
