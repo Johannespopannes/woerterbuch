@@ -208,7 +208,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
 SCHEMA_MYSQL = """
 CREATE TABLE IF NOT EXISTS entries (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    word TEXT NOT NULL,
+    word TEXT COLLATE utf8mb4_bin NOT NULL,
     language TEXT NOT NULL,
     definition TEXT,
     image TEXT,
@@ -250,7 +250,7 @@ CREATE TABLE IF NOT EXISTS entry_images (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE INDEX IF NOT EXISTS idx_entry_images_entry ON entry_images (entry_id);
 CREATE TABLE IF NOT EXISTS search_stats (
-    term TEXT NOT NULL,
+    term TEXT COLLATE utf8mb4_bin NOT NULL,
     language TEXT NOT NULL,
     count INT NOT NULL DEFAULT 0,
     UNIQUE (term, language)
@@ -283,7 +283,7 @@ CREATE INDEX IF NOT EXISTS idx_image_moves_status ON image_moves (status);
 CREATE TABLE IF NOT EXISTS grammar (
     id INT PRIMARY KEY AUTO_INCREMENT,
     language TEXT NOT NULL,
-    lemma TEXT NOT NULL,
+    lemma TEXT COLLATE utf8mb4_bin NOT NULL,
     word_class TEXT,
     gender TEXT,
     article TEXT,
