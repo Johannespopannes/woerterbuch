@@ -37,6 +37,8 @@ from harvester import AR_FOLD, normalize_ar  # noqa: E402
 SSH = ["ssh", "-J", "root@v65200.php-friends.de",
        "-i", os.path.expanduser("~/.ssh/id_ed25519"),
        "-o", "StrictHostKeyChecking=accept-new", "johannes@10.77.0.2"]
+# Seit dem MariaDB-Umzug läuft der Merge gegen MySQL, nicht SQLite.
+MARIADB = SSH[:-1] + ["sudo", "mariadb", "woerterbuch", "-e"]
 
 DUP_PROMPT = (
     "لديّ هذه الكلمات من قاموس عربي: {words}.\n"
@@ -97,7 +99,7 @@ def parse_object(raw: str) -> dict:
 
 
 def sqlite(sql: str) -> None:
-    proc = subprocess.run(SSH + [f"sqlite3 {DB} \"{sql}\""],
+    proc = subprocess.run(MARIADB + [sql],
                           capture_output=True, text=True, timeout=120)
     if proc.returncode != 0:
         raise RuntimeError(f"sqlite-Fehler: {proc.stderr.strip()[:300]}")
@@ -108,7 +110,7 @@ def merge_sql(canon: int, dup: int) -> str:
 BEGIN;
 UPDATE ratings SET entry_id={canon} WHERE entry_id={dup};
 UPDATE word_ratings SET entry_id={canon} WHERE entry_id={dup};
-INSERT OR IGNORE INTO entry_images (entry_id, filename, created_at)
+INSERT IGNORE INTO entry_images (entry_id, filename, created_at)
     SELECT {canon}, filename, created_at FROM entry_images WHERE entry_id={dup};
 DELETE FROM entry_images WHERE entry_id={dup};
 UPDATE entries SET image=(SELECT image FROM entries WHERE id={dup})
