@@ -28,7 +28,7 @@ PROMPT = (
     "Antworte mit GENAU einer Zeile im Format:\n"
     "FRANCO: <Schreibweise>"
 )
-FRANCO_RE = re.compile(r"^FRANCO:\s*([A-Za-z0-9 '’\-]{1,40})\s*$")
+FRANCO_RE = re.compile(r"^FRANCH?O:\s*([A-Za-z0-9 '’\-]{1,40})\s*$")
 LATIN_RE = re.compile(r"^[A-Za-z0-9 '’\-]{1,40}$")
 
 
