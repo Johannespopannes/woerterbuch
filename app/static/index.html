@@ -139,6 +139,16 @@
     font-size: .85rem; color: var(--ink);
   }
   .hint { color: var(--muted); margin-top: 1.5rem; font-size: .9rem; }
+  /* Live-Counter: hochzählen wenn neue Inhalte ankommen */
+  .livecounter { display: flex; align-items: baseline; gap: .45rem;
+                 justify-content: center; flex-wrap: wrap;
+                 margin-top: 1.1rem; font-variant-numeric: tabular-nums; }
+  .lc-num { font-size: 1.5rem; font-weight: 700; color: var(--ink);
+            transition: color .4s; }
+  .lc-num.lc-up { color: var(--accent); }
+  .lc-label { color: var(--muted); font-size: .82rem;
+              text-transform: uppercase; letter-spacing: .07em;
+              margin-right: .9rem; }
   /* Entdecken-Karte: ein Wort zum Stöbern, direkt auf seiner Seite landen */
   .discover { width: min(680px, 100%); margin-top: 1.6rem; }
   .dcard { display: flex; gap: 1rem; align-items: center;
@@ -197,6 +207,15 @@
   <select id="lang"></select>
 </div>
 <div class="topsearches" id="top"></div>
+
+<div class="livecounter" id="livecounter" aria-live="polite">
+  <span class="lc-num" id="lcEntries">–</span>
+  <span class="lc-label">Wörter</span>
+  <span class="lc-num" id="lcImages">–</span>
+  <span class="lc-label">Bilder</span>
+  <span class="lc-num" id="lcAudio">–</span>
+  <span class="lc-label">Audios</span>
+</div>
 
 <div id="discover" class="discover">
   <a id="dlink" class="dcard">
@@ -275,7 +294,62 @@ async function loadMeta() {
     o.textContent = l.language.toUpperCase() + ' (' + l.count.toLocaleString('de-DE') + ')';
     lang.appendChild(o);
   }
+  updateCounter({
+    entries: stats.total_entries,
+    images: stats.with_image,
+    audio: stats.with_audio,
+  });
 }
+
+// --- Live-Counter: alle 30 s pollen, hochzählen wenn es mehr wurde ---
+const lcShown = { lcEntries: 0, lcImages: 0, lcAudio: 0 };
+const lcTimer = {};
+
+function tween(id, from, to) {
+  const el = document.getElementById(id);
+  const t0 = performance.now(), d = 1600;
+  cancelAnimationFrame(lcTimer[id]);
+  const step = t => {
+    const k = Math.min(1, (t - t0) / d);
+    const v = Math.round(from + (to - from) * (1 - (1 - k) ** 3));
+    el.textContent = v.toLocaleString('de-DE');
+    if (k < 1) lcTimer[id] = requestAnimationFrame(step);
+  };
+  lcTimer[id] = requestAnimationFrame(step);
+}
+
+function updateCounter(s) {
+  for (const [id, val] of [['lcEntries', s.entries],
+                           ['lcImages', s.images],
+                           ['lcAudio', s.audio]]) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!lcShown[id] && val == null) { el.textContent = '–'; continue; }
+    const target = val ?? 0;
+    if (target > lcShown[id] && lcShown[id] > 0) {
+      el.classList.add('lc-up');
+      setTimeout(() => el.classList.remove('lc-up'), 2200);
+    }
+    if (lcShown[id] > 0 && target !== lcShown[id]) {
+      tween(id, lcShown[id], target);
+    } else {
+      el.textContent = target.toLocaleString('de-DE');
+    }
+    lcShown[id] = target;
+  }
+}
+
+async function pollCounter() {
+  try {
+    const s = await fetch('/stats').then(r => r.json());
+    updateCounter({
+      entries: s.total_entries,
+      images: s.with_image,
+      audio: s.with_audio,
+    });
+  } catch { /* nächste Runde */ }
+}
+setInterval(pollCounter, 30000);
 
 // --- Querverweise: Wörter in Definitionen werden hover- & klickbar ---
 const STOPWORDS = Object.fromEntries(Object.entries({

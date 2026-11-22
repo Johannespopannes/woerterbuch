@@ -725,14 +725,36 @@ def languages():
         conn.close()
 
 
+_stats_cache: dict = {"ts": 0.0, "data": {}}
+
+
 @app.get("/stats")
 def stats():
+    now = time.time()
+    if now - _stats_cache["ts"] < 30:
+        return _stats_cache["data"]
     conn = get_conn()
     try:
         total = conn.execute("SELECT COUNT(*) AS n FROM entries").fetchone()["n"]
-        return {"total_entries": total}
+        with_image = conn.execute(
+            "SELECT COUNT(*) AS n FROM entries "
+            "WHERE image IS NOT NULL AND image != ''").fetchone()["n"]
+        with_definition = conn.execute(
+            "SELECT COUNT(*) AS n FROM entries "
+            "WHERE definition IS NOT NULL AND definition != ''").fetchone()["n"]
     finally:
         conn.close()
+    try:
+        with_audio = sum(1 for _ in AUDIO_DIR.glob("*.wav"))
+    except Exception:
+        with_audio = 0
+    _stats_cache.update(ts=now, data={
+        "total_entries": total,
+        "with_image": with_image,
+        "with_definition": with_definition,
+        "with_audio": with_audio,
+    })
+    return _stats_cache["data"]
 
 
 @app.get("/suchen/top")
