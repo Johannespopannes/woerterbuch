@@ -477,6 +477,43 @@ def franco_variants(query: str) -> list[str]:
     return sorted(v for v in variants if v and v != query.lower())
 
 
+# --- Skeleton-Matching gegen gespeicherte Franco-Einträge ---------------
+# Vokal-Schreibweisen schwanken (sbe7 vs. sba7). Wörter mit derselben
+# Konsonant-Ziffer-Kette gelten als gleich; abgeglichen wird gegen die
+# in der DB gespeicherten latn-Formen (kleine Mengen, gecacht).
+_VOWELS_LATIN = set("aeiou")
+_latn_cache: dict = {"ts": 0.0, "words": []}
+
+
+def _latn_words() -> list[str]:
+    now = time.time()
+    if now - _latn_cache["ts"] < 60:
+        return _latn_cache["words"]
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT word FROM entries WHERE script = 'latn'").fetchall()
+    finally:
+        conn.close()
+    _latn_cache.update(ts=now, words=[r["word"] for r in rows])
+    return _latn_cache["words"]
+
+
+def _latn_skeleton(s: str) -> str:
+    return "".join(c for c in s.lower() if c not in _VOWELS_LATIN)
+
+
+def franco_latn_matches(query: str) -> list[str]:
+    """Gespeicherte latn-Formen mit gleicher Konsonant-Ziffer-Kette."""
+    if not any(c in query for c in _FRANCO_DIGITS):
+        return []
+    qs = _latn_skeleton(query)
+    if len(qs) < 2:
+        return []
+    return [w for w in _latn_words()
+            if _latn_skeleton(w) == qs and w.lower() != query.lower()]
+
+
 @app.get("/entries", response_model=list[EntryOut])
 def list_entries(
     language: str | None = None,
@@ -513,6 +550,10 @@ def list_entries(
         for v in franco_variants(q):
             sql += " OR word LIKE ?"
             params.append(f"%{v}%")
+        # ... und gespeicherte latn-Formen mit gleichem Skeleton
+        for v in franco_latn_matches(q):
+            sql += " OR word = ?"
+            params.append(v)
         sql += ")"
         _count_search(q, language or "")
     if undefined:
@@ -571,6 +612,15 @@ def lookup(word: str, language: str):
         ).fetchone()
         if not row:
             for v in franco_variants(word):
+                row = conn.execute(
+                    "SELECT * FROM entries WHERE word = ? AND language = ?",
+                    (v, language.lower()),
+                ).fetchone()
+                if row:
+                    break
+        if not row:
+            # Skeleton: sbe7 findet die gespeicherte Form sba7
+            for v in franco_latn_matches(word):
                 row = conn.execute(
                     "SELECT * FROM entries WHERE word = ? AND language = ?",
                     (v, language.lower()),
