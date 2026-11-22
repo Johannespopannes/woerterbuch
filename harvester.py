@@ -344,7 +344,12 @@ SEEDS = {
 # ---------- API-Hilfen ----------
 
 def chat(prompt: str, temperature: float) -> str:
-    """Ein Chat-Request gegen einen OpenAI-kompatiblen Endpunkt (nur stdlib)."""
+    """Ein Chat-Request gegen einen OpenAI-kompatiblen Endpunkt (nur stdlib).
+
+    enable_thinking:false — Qwen3 würde sonst per Default erst Reasoning
+    produzieren und den eigentlichen Inhalt erst nach tausenden Tokens
+    liefern. llama-server übergibt das Kwarg nur an Templates, die es
+    kennen; Kolibri/Mistral/Jais ignorieren es schadlos."""
     req = urllib.request.Request(
         f"{MODEL_BASE_URL}/chat/completions",
         data=json.dumps({
@@ -352,6 +357,7 @@ def chat(prompt: str, temperature: float) -> str:
             "messages": [{"role": "user", "content": prompt}],
             "temperature": temperature,
             "max_tokens": 8000,
+            "chat_template_kwargs": {"enable_thinking": False},
         }).encode(),
         headers={
             "Content-Type": "application/json",
