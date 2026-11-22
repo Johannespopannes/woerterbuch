@@ -63,6 +63,23 @@ ACCENT_FOLD_LANGS = {"en", "fr", "es", "it"}
 # ا einsortiert, ة nahe ت/h, ى unter ي.
 AR_FOLD = {"أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ى": "ي", "ئ": "ي", "ؤ": "و"}
 
+# Harakat/Tanwin (U+064B–0652), Dolch-Alif (U+0670), koranische Zeichen
+# (U+06D6–06ED) und Tatweel/Kashida (U+0640) — wie in arabischen
+# Wörterbüchern üblich wird das Lemma unvokalisiert gespeichert.
+AR_DIACRITICS = set("ًٌٍَُِّْٖ") | {chr(c) for c in range(0x06D6, 0x06EE)}
+AR_TATWEEL = "ـ"
+
+
+def normalize_ar(word: str) -> str:
+    """Kanonicalform für Arabisch/Tunesisch: NFKC, ohne Vokalzeichen und
+    Tatweel, mit gefalteten Hamza-/Alef-Varianten."""
+    w = unicodedata.normalize("NFKC", word)
+    w = "".join(
+        AR_FOLD.get(c, c) for c in w
+        if c not in AR_DIACRITICS and c != AR_TATWEEL
+    )
+    return " ".join(w.split())
+
 
 def _first_letter(word: str, language: str) -> str:
     """Anfangsbuchstabe für den Buchstaben-Filter, ggf. akzentgefaltet."""
@@ -189,7 +206,10 @@ def chat(prompt: str, temperature: float) -> str:
     )
     with urllib.request.urlopen(req, timeout=300) as resp:
         data = json.loads(resp.read())
-    return data["choices"][0]["message"]["content"]
+    content = data["choices"][0]["message"]["content"]
+    if not content or not content.strip():
+        raise RuntimeError("Leere Antwort (Reasoning-Budget aufgebraucht?) — Retry")
+    return content
 
 
 def parse_words(raw: str) -> list[str]:
@@ -295,8 +315,10 @@ def letter_words(language: str, letter: str) -> list[str]:
 def insert(language: str, words: list[str]) -> int:
     if not words:
         return 0
+    if language in ("ar", "tn"):
+        words = [normalize_ar(w) for w in words]
     # API-Payload-Grenzen beachten (Wort max. 100 Zeichen)
-    words = [w for w in words if len(w) <= 100]
+    words = [w for w in words if w and len(w) <= 100]
     if not words:
         return 0
     try:
