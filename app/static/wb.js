@@ -7,9 +7,11 @@
 
   // ---------- Sprach-Metadaten ----------
   const NAMEN = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch',
-                  es: 'Spanisch', it: 'Italienisch' };
+                  es: 'Spanisch', it: 'Italienisch',
+                  ar: 'Arabisch', tn: 'Tunesisch' };
   const ADJ = { de: 'deutsches', en: 'englisches', fr: 'französisches',
-                es: 'spanisches', it: 'italienisches' };
+                es: 'spanisches', it: 'italienisches',
+                ar: 'arabisches', tn: 'tunesisches' };
   WB.sprachName = (l) => NAMEN[l] || l;
   WB.sprachAdj = (l) => ADJ[l] || (NAMEN[l] || l);
 

@@ -327,7 +327,7 @@ document.addEventListener('keydown', e => {
 });
 
 fetch('/languages').then(r => r.json()).then(langs => {
-  const NAMES = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', es: 'Spanisch', it: 'Italienisch' };
+  const NAMES = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', es: 'Spanisch', it: 'Italienisch', ar: 'Arabisch', tn: 'Tunesisch' };
   for (const l of langs) {
     const o = document.createElement('option');
     o.value = l.language;
