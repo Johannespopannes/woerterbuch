@@ -114,18 +114,92 @@ VERIFY_PROMPT = (
 )
 
 LABELS = {"ar": "العربية الفصحى", "tn": "الدارجة التونسية"}
+UA = {"User-Agent": "woerterbuch-audit/1.0 (privates Nachschlagewerk)"}
 
 
-def step_verify(entries: list[dict], language: str) -> None:
-    stale = [e for e in entries
-             if e.get("source") == "model:mistral-small-4"]
-    if not stale:
-        print(f"[{language}] keine Kolibri-Einträge zu prüfen")
+def save_evidence(entry_id: int, confidence: float, unsicher: bool,
+                  evidence: dict) -> bool:
+    code, _ = api("POST", f"/entries/{entry_id}/evidence", {
+        "confidence": confidence,
+        "sprache_unsicher": unsicher,
+        "evidence": evidence,
+    })
+    if code != 200:
+        print(f"  FEHLER {code} bei Eintrag #{entry_id}", file=sys.stderr)
+    return code == 200
+
+
+def step_sources(entries: list[dict], language: str,
+                 budget: int) -> list[dict]:
+    """Stufe 1: ungeprüfte ar-Einträge gegen ar.wiktionary.org.
+    Gefundene werden verifiziert; Fehlende gehen als Liste an Stufe 2.
+    (Tunesisch überspringen — Derja führt kein Wiktionary.)"""
+    import urllib.parse
+    if language != "ar":
+        return [e for e in entries if not e.get("evidence")][:budget]
+    pending = [e for e in entries if not e.get("evidence")][:budget]
+    if not pending:
+        return []
+    print(f"[{language}] Quellen-Check ar.wiktionary.org: "
+          f"{len(pending)} ungeprüfte Einträge")
+    missing: list[dict] = []
+    verified = 0
+    for i in range(0, len(pending), 50):
+        batch = pending[i: i + 50]
+        titles = "|".join(urllib.parse.quote(w) for w in
+                          (e["word"] for e in batch))
+        url = (f"https://ar.wiktionary.org/w/api.php"
+               f"?action=query&format=json&titles={titles}")
+        try:
+            req = urllib.request.Request(url, headers=UA)
+            with urllib.request.urlopen(req, timeout=30) as r:
+                data = json.loads(r.read())
+        except Exception as ex:
+            print(f"  Wiktionary-Fehler: {ex}", file=sys.stderr)
+            missing.extend(batch)
+            continue
+        pages = data.get("query", {}).get("pages", {})
+        present = {p.get("title", "").replace(" ", "_")
+                   for p in pages.values() if "missing" not in p}
+        for e in batch:
+            w = e["word"]
+            if w in present or w.capitalize() in present:
+                if save_evidence(e["id"], 0.9, False,
+                                 {"quelle": "ar-wiktionary"}):
+                    verified += 1
+            else:
+                missing.append(e)
+        time.sleep(0.7)
+    print(f"[{language}] Wiktionary: {verified} verifiziert, "
+          f"{len(missing)} fehlen → Jais-Stufe")
+    return missing
+
+
+def step_verify(entries: list[dict], language: str, budget: int,
+                priority: list[dict]) -> None:
+    """Stufe 2: Jais-Prüfung — Kolibri-Erbe, Wiktionary-Fehlende,
+    Tunesisch-Ungeprüfte und Wiederholungs-Checks früherer 'unsicher'."""
+    def needs_check(e: dict) -> bool:
+        ev = e.get("evidence")
+        if ev is None:
+            return True
+        return (ev.get("quelle") == "jais-3-audit"
+                and e.get("sprache_unsicher") == 1)
+
+    pri_ids = {e["id"] for e in priority}
+    candidates = [e for e in entries if needs_check(e)]
+    candidates.sort(key=lambda e: (0 if e["id"] in pri_ids else 1,
+                                   0 if e.get("source") ==
+                                   "model:mistral-small-4" else 1,
+                                   e["id"]))
+    todo = candidates[:budget]
+    if not todo:
+        print(f"[{language}] Jais-Stufe: nichts zu prüfen")
         return
-    print(f"[{language}] Verifikation: {len(stale)} Kolibri-Einträge")
-    marked = 0
-    for i in range(0, len(stale), 10):
-        batch = stale[i:i + 10]
+    print(f"[{language}] Jais-Verifikation: {len(todo)} Einträge")
+    marked = rescued = 0
+    for i in range(0, len(todo), 10):
+        batch = todo[i: i + 10]
         words = [e["word"] for e in batch]
         prompt = VERIFY_PROMPT.format(
             label=LABELS.get(language, "العربية"), words=json.dumps(
@@ -139,31 +213,42 @@ def step_verify(entries: list[dict], language: str) -> None:
             v = verdicts.get(e["word"])
             if not isinstance(v, dict):
                 continue
+            note = str(v.get("note", ""))[:300]
             if v.get("ok"):
-                continue
-            note = str(v.get("note", "laut Modell kein echtes Wort"))[:300]
-            code, _ = api("POST", f"/entries/{e['id']}/evidence", {
-                "confidence": 0.3,
-                "sprache_unsicher": True,
-                "evidence": {"hinweis": f"Jais-Audit: {note}",
-                             "quelle": "jais-3-audit"},
-            })
-            if code == 200:
-                marked += 1
-                print(f"  UNSICHER: {e['word']} — {note}")
+                if e.get("sprache_unsicher") == 1 or \
+                        not e.get("evidence"):
+                    if save_evidence(
+                            e["id"], 0.7, False,
+                            {"quelle": "jais-3",
+                             "hinweis": "von Jais bestätigt"
+                                        + (f"; {note}" if note else "")}):
+                        rescued += 1
+            else:
+                note = note or "laut Modell kein echtes Wort"
+                if save_evidence(e["id"], 0.3, True,
+                                 {"hinweis": f"Jais-Audit: {note}",
+                                  "quelle": "jais-3-audit"}):
+                    marked += 1
+                    print(f"  UNSICHER: {e['word']} — {note}")
         time.sleep(0.3)
-    print(f"[{language}] als unsicher markiert: {marked}")
+    print(f"[{language}] Jais: {rescued} bestätigt, "
+          f"{marked} unsicher markiert")
 
 
 def main() -> None:
+    budget = 200
+    if "--budget" in sys.argv:
+        budget = int(sys.argv[sys.argv.index("--budget") + 1])
     languages = ([sys.argv[sys.argv.index("--language") + 1]]
                  if "--language" in sys.argv else ["ar", "tn"])
     for language in languages:
         entries = fetch_entries(language)
         print(f"=== Audit {language}: {len(entries)} Einträge ===")
         step_normalize(entries, language)
-        # nach Umbenennung frisch lesen, damit Verifikation neue Form sieht
-        step_verify(fetch_entries(language), language)
+        # nach Umbenennung frisch lesen, damit Prüfung neue Form sieht
+        entries = fetch_entries(language)
+        missing = step_sources(entries, language, budget)
+        step_verify(entries, language, budget, missing)
         print(f"=== Audit {language} fertig ===")
 
 

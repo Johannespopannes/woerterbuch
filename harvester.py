@@ -60,22 +60,25 @@ AR_LETTERS = list("ابتثجحخدذرزسشصضطظعغفقكلمنهوي")
 ACCENT_FOLD_LANGS = {"en", "fr", "es", "it"}
 
 # Hamza- und Alef-Varianten werden im Arabischen üblicherweise unter
-# ا einsortiert, ة nahe ت/h, ى unter ي.
+# ا einsortiert, ة nahe ت/h, ى unter ي. NUR für die Index-Sortierung
+# (_first_letter) — NIEMALS in der gespeicherten Lemmaform: سأل (fragen)
+# und سال (fließen) sind verschiedene Wörter!
 AR_FOLD = {"أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ى": "ي", "ئ": "ي", "ؤ": "و"}
 
 # Harakat/Tanwin (U+064B–0652), Dolch-Alif (U+0670), koranische Zeichen
 # (U+06D6–06ED) und Tatweel/Kashida (U+0640) — wie in arabischen
 # Wörterbüchern üblich wird das Lemma unvokalisiert gespeichert.
+# Die Hamza-Schreibweise BLEIBT erhalten (s. AR_FOLD oben).
 AR_DIACRITICS = set("ًٌٍَُِّْٖ") | {chr(c) for c in range(0x06D6, 0x06EE)}
 AR_TATWEEL = "ـ"
 
 
 def normalize_ar(word: str) -> str:
     """Kanonicalform für Arabisch/Tunesisch: NFKC, ohne Vokalzeichen und
-    Tatweel, mit gefalteten Hamza-/Alef-Varianten."""
+    Tatweel — Hamza- und Alef-Varianten bleiben unverändert."""
     w = unicodedata.normalize("NFKC", word)
     w = "".join(
-        AR_FOLD.get(c, c) for c in w
+        c for c in w
         if c not in AR_DIACRITICS and c != AR_TATWEEL
     )
     return " ".join(w.split())
