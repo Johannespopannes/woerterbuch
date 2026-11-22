@@ -92,8 +92,8 @@
 </footer>
 
 <script>
-const LANG_NAMES = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', es: 'Spanisch', it: 'Italienisch', ar: 'Arabisch', tn: 'Tunesisch' };
-const LOCALES = { de: 'de-DE', en: 'en-GB', fr: 'fr-FR', es: 'es-ES', it: 'it-IT', ar: 'ar', tn: 'ar-TN' };
+const LANG_NAMES = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', es: 'Spanisch', it: 'Italienisch', ar: 'Arabisch', tn: 'Tunesisch', ru: 'Russisch', zh: 'Chinesisch', ja: 'Japanisch', hi: 'Hindi' };
+const LOCALES = { de: 'de-DE', en: 'en-GB', fr: 'fr-FR', es: 'es-ES', it: 'it-IT', ar: 'ar', tn: 'ar-TN', ru: 'ru-RU', zh: 'zh-CN', ja: 'ja-JP', hi: 'hi-IN' };
 
 // Akzente, die auf den Basisbuchstaben gefaltet werden (API-Prefix ist
 // Unicode-genau, darum werden die Varianten einzeln abgefragt und gemischt).
@@ -103,16 +103,39 @@ const FOLDED = {
   it: { a: 'à', e: 'èé', i: 'ìí', o: 'òó', u: 'ù' },
   ar: { 'ا': 'أإآٱ' },
   tn: { 'ا': 'أإآٱ' },
+  hi: { 'अ': 'आ', 'इ': 'ई', 'उ': 'ऊ', 'ए': 'ऐ', 'ओ': 'औ' },
+  ja: { 'か': 'が', 'き': 'ぎ', 'く': 'ぐ', 'け': 'げ', 'こ': 'ご',
+        'さ': 'ざ', 'し': 'じ', 'す': 'ず', 'せ': 'ぜ', 'そ': 'ぞ',
+        'た': 'だ', 'ち': 'ぢ', 'つ': 'づ', 'て': 'で', 'と': 'ど',
+        'は': 'ばぱ', 'ひ': 'びぴ', 'ふ': 'ぶぷ', 'へ': 'べぺ', 'ほ': 'ぼぽ' },
 };
 // Eigene Buchstaben (Reihenfolge im Alphabet): de hat ä ö ü ß, es hat ñ nach n.
 const OWN_LETTERS = { de: ['ä', 'ö', 'ü', 'ß'], es: ['ñ'] };
 // Arabisches Alphabet (28 Buchstaben) für ar/tn — statt a–z.
 const AR_LETTERS = [..."ابتثجحخدذرزسشصضطظعغفقكلمنهوي"];
+// Kyrillisches Alphabet (33 Buchstaben, inkl. ё).
+const RU_LETTERS = [..."абвгдеёжзийклмнопрстуфхцчшщъыьэюя"];
+// Devanagari: Vokale + Konsonanten (Nachlange Vokale werden gefaltet).
+const HI_LETTERS = [..."अइउएओकखगघङचछजझञटठडढणतथदधनपफबभमयरलवशषसह"];
+// Gojūon (Basiszeichen; Dakuten/Handakuten werden auf die Stimmlosen gefaltet).
+const JA_LETTERS = [..."あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん"];
 
 function letterGroups(lang) {
   if (lang === 'ar' || lang === 'tn') {
     // Hamza-Varianten werden unter ا gefaltet (FOLDED oben)
     return AR_LETTERS.map(l => [l, [l, ...((FOLDED[lang] || {})[l] || '')]]);
+  }
+  if (lang === 'ru') return RU_LETTERS.map(l => [l, [l]]);
+  if (lang === 'hi') {
+    return HI_LETTERS.map(l => [l, [l, ...((FOLDED.hi || {})[l] || '')]]);
+  }
+  if (lang === 'ja') {
+    return JA_LETTERS.map(l => [l, [l, ...((FOLDED.ja || {})[l] || '')]]);
+  }
+  if (lang === 'zh') {
+    // Chinesisch hat kein Alphabet — flache Liste, Sortierung über
+    // Intl.Collator('zh') = Pinyin-Reihenfolge.
+    return [['alle', ['']]];
   }
   const base = [..."abcdefghijklmnopqrstuvwxyz"];
   const fold = FOLDED[lang] || {};

@@ -93,14 +93,38 @@ PIPER_VOICES: dict[str, dict[str, dict]] = {
     },
     # Tunesisch: Piper hat keine tn-Stimme — Texte ja, Audio nein (404).
     "tn": {},
+    "ru": {
+        "dmitri": {"model": "ru_RU-dmitri-medium.onnx",
+                   "label": "Dmitri", "length_scale": 1.0},
+        "irina": {"model": "ru_RU-irina-medium.onnx",
+                  "label": "Irina", "length_scale": 1.0},
+    },
+    "zh": {
+        "huayan": {"model": "zh_CN-huayan-medium.onnx",
+                   "label": "Huayan", "length_scale": 1.0},
+        "xiao_ya": {"model": "zh_CN-xiao_ya-medium.onnx",
+                    "label": "Xiao Ya", "length_scale": 1.0},
+    },
+    "ja": {
+        "hi_fi_captain": {"model": "ja_JP-hi_fi_captain-medium.onnx",
+                          "label": "Hi-Fi Captain", "length_scale": 1.0},
+    },
+    "hi": {
+        "pratham": {"model": "hi_IN-pratham-medium.onnx",
+                    "label": "Pratham", "length_scale": 1.0},
+        "priyamvada": {"model": "hi_IN-priyamvada-medium.onnx",
+                       "label": "Priyamvada", "length_scale": 1.0},
+    },
 }
 AUDIO_DIR = Path(os.environ.get(
     "AUDIO_DIR", Path(__file__).resolve().parent.parent / "audio"))
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 # erlaubte Zeichen: Latein (inkl. Akzente), arabisches Alphabet,
+# Kyrillisch, CJK, Hiragana/Katakana, Devanagari,
 # Apostrophe, Bindestrich/Leerzeichen
 ANHOEREN_RE = re.compile(
-    r"^[\wÄÖÜäöüßÀ-ÿ'’ \-\u0600-\u06FF]{1,100}$", re.UNICODE)
+    r"^[\wÄÖÜäöüßÀ-ÿ'’ \-\u0600-\u06FF\u0400-\u04FF"
+    r"\u4E00-\u9FFF\u3040-\u30FF\u0900-\u097F]{1,100}$", re.UNICODE)
 FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 
 app = FastAPI(title="Wörterbuch API", version="0.2.0")

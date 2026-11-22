@@ -283,8 +283,9 @@ async function load() {
   }
   document.getElementById('wsub').textContent =
     WB.sprachName(lang) + wortart;
+  const adj = WB.sprachAdj(lang);
   document.getElementById('sprachfrage').textContent =
-    'Ist „' + word + '“ ein ' + WB.sprachAdj(lang) + ' Wort?';
+    'Ist „' + word + '“ ein ' + (adj.endsWith('-') ? adj + 'Wort' : adj + ' Wort') + '?';
 
   // Grammatik-Karte komplett aus dem gemeinsamen Modul (FUNKTIONSKATALOG)
   if (ev.grammar) {
