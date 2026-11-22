@@ -197,6 +197,8 @@ class EntryIn(BaseModel):
                           description="Kleinbuchstaben, z. B. 'de', 'en'")
     definition: str | None = Field(default=None, max_length=1000)
     source: str = Field(default="manual", max_length=50)
+    script: str = Field(default="", max_length=20,
+                        description="Schrift: '' = Standard, 'latn' = Franco")
 
 
 class EntryOut(BaseModel):
@@ -211,6 +213,7 @@ class EntryOut(BaseModel):
     form: str | None = None
     confidence: float | None = None
     sprache_unsicher: int = 0
+    script: str = ""
     ja: int | None = None
     nein: int | None = None
     evidence: dict | None = None
@@ -370,8 +373,10 @@ def create_entry(entry: EntryIn, _=Depends(require_api_key)):
     conn = get_conn()
     try:
         cur = conn.execute(
-            "INSERT INTO entries (word, language, definition, source) VALUES (?,?,?,?)",
-            (entry.word.strip(), entry.language.lower(), entry.definition, entry.source),
+            "INSERT INTO entries (word, language, definition, source, script)"
+            " VALUES (?,?,?,?,?)",
+            (entry.word.strip(), entry.language.lower(), entry.definition,
+             entry.source, entry.script),
         )
         conn.commit()
         row = conn.execute(
@@ -412,8 +417,9 @@ def create_batch(batch: BatchIn, _=Depends(require_api_key)):
                     continue
                 try:
                     conn.execute(
-                        "INSERT INTO entries (word, language, definition, source) VALUES (?,?,?,?)",
-                        (word, lang, e.definition, e.source),
+                        "INSERT INTO entries (word, language, definition, source, script)"
+                        " VALUES (?,?,?,?,?)",
+                        (word, lang, e.definition, e.source, e.script),
                     )
                     existing.add(word)
                     inserted += 1
@@ -423,6 +429,52 @@ def create_batch(batch: BatchIn, _=Depends(require_api_key)):
     finally:
         conn.close()
     return BatchResult(inserted=inserted, duplicates=duplicates, errors=errors)
+
+
+# ---------- Franco-Arabisch (Tunesisch in Lateinschrift) ----------
+# Alltagsschrift Tunesiens: lateinische Buchstaben + Ziffern für Laute,
+# die das lateinische Alphabet nicht hat (3=ع, 7=ح, 5=خ, 9=ق, 2=ء).
+# "sbe7" -> صباح. Nur aktiviert, wenn Ziffern vorkommen — reine
+# Latin-Eingaben ohne Ziffern sind mehrdeutig und bleiben unangetastet.
+_FRANCO_DIGRAPHS = [("ch", "ش"), ("sh", "ش"), ("th", "ث"), ("kh", "خ"),
+                    ("dh", "ذ"), ("gh", "غ"), ("ph", "ف")]
+_FRANCO_DIGITS = {"2": "ء", "3": "ع", "5": "خ", "7": "ح", "9": "ق"}
+# Volltransliteration Latin -> Arabisch (Maghreb-Konvention).
+_FRANCO_LETTERS = {
+    "a": "ا", "b": "ب", "c": "ك", "d": "د", "f": "ف", "g": "ج",
+    "h": "ه", "i": "ي", "j": "ج", "k": "ك", "l": "ل", "m": "م",
+    "n": "ن", "o": "و", "p": "ب", "q": "ق", "r": "ر", "s": "س",
+    "t": "ت", "u": "و", "v": "ف", "w": "و", "x": "كس", "y": "ي",
+    "z": "ز", "e": "ي", "é": "ي", "è": "ي", "ø": "و",
+}
+
+
+def franco_variants(query: str) -> list[str]:
+    """Arabisch-Schrift-Kandidaten für eine Franco-Eingabe.
+
+    Liefert [] wenn keine Franco-Ziffer enthalten ist. Mehrere Kandidaten:
+    1) Ziffern/Digraphen nur ersetzt (deterministisch),
+    2) Volltransliteration (z. B. "sbe7" -> "سبيح"),
+    3) Konsonanten-Skeleton davon, vowel-los (س ب ح) — robust gegen
+       unterschiedliche Vokal-Schreibweisen.
+    """
+    if not any(c in query for c in _FRANCO_DIGITS):
+        return []
+    t = query.lower()
+    for lat, ar in _FRANCO_DIGRAPHS:
+        t = t.replace(lat, ar)
+    for digit, ar in _FRANCO_DIGITS.items():
+        t = t.replace(digit, ar)
+    variants = {t}
+    if t.startswith("ء"):
+        variants.add("أ" + t[1:])
+    # Volltransliteration ueber die noch verbliebenen Lateinbuchstaben
+    full = "".join(_FRANCO_LETTERS.get(c, c) for c in t)
+    variants.add(full)
+    # Konsonanten-Skeleton: Vokale beidseitig ignorieren (ا و ي ء)
+    skeleton = "".join(c for c in full if c not in "اويء")
+    variants.add(skeleton)
+    return sorted(v for v in variants if v and v != query.lower())
 
 
 @app.get("/entries", response_model=list[EntryOut])
@@ -455,8 +507,13 @@ def list_entries(
         sql += " AND ULOWER(word) LIKE ULOWER(?)"
         params.append(prefix + "%")
     if q:
-        sql += " AND word LIKE ?"
+        sql += " AND (word LIKE ?"
         params.append(f"%{q}%")
+        # Franco-Eingabe? Zusätzlich die arabischen Kandidaten suchen
+        for v in franco_variants(q):
+            sql += " OR word LIKE ?"
+            params.append(f"%{v}%")
+        sql += ")"
         _count_search(q, language or "")
     if undefined:
         sql += " AND (definition IS NULL OR definition = '')"
@@ -501,7 +558,10 @@ def list_entries(
 
 @app.get("/lookup", response_model=EntryOut)
 def lookup(word: str, language: str):
-    """Exaktes Nachschlagen eines Wortes in einer Sprache."""
+    """Exaktes Nachschlagen eines Wortes in einer Sprache.
+
+    Fallback: Franco-Eingabe (sbe7) findet auch die arabische Schreibweise.
+    """
     _count_search(word, language)
     conn = get_conn()
     try:
@@ -509,6 +569,14 @@ def lookup(word: str, language: str):
             "SELECT * FROM entries WHERE word = ? AND language = ?",
             (word.strip(), language.lower()),
         ).fetchone()
+        if not row:
+            for v in franco_variants(word):
+                row = conn.execute(
+                    "SELECT * FROM entries WHERE word = ? AND language = ?",
+                    (v, language.lower()),
+                ).fetchone()
+                if row:
+                    break
     finally:
         conn.close()
     if not row:

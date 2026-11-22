@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS entries (
     image       TEXT,
     source      TEXT    NOT NULL DEFAULT 'manual',
     created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+    script      TEXT    NOT NULL DEFAULT '',
     UNIQUE (word, language)
 );
 CREATE INDEX IF NOT EXISTS idx_entries_prefix ON entries (language, word);
@@ -70,6 +71,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
         # 1 = beanstandet; wird markiert statt geloescht
         conn.execute("ALTER TABLE entries ADD COLUMN sprache_unsicher "
                      "INTEGER NOT NULL DEFAULT 0")
+    if "script" not in cols:
+        # Schrift der Wortform: '' = Standardschrift der Sprache,
+        # 'latn' = Franco-Arabisch (Tunesisch in Lateinschrift) etc.
+        conn.execute("ALTER TABLE entries ADD COLUMN script "
+                     "TEXT NOT NULL DEFAULT ''")
     conn.execute(
         "CREATE TABLE IF NOT EXISTS word_ratings ("
         " id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -219,6 +225,7 @@ CREATE TABLE IF NOT EXISTS entries (
     confidence REAL,
     evidence TEXT,
     sprache_unsicher INT NOT NULL DEFAULT 0,
+    script TEXT NOT NULL DEFAULT '',
     UNIQUE (word, language)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE INDEX IF NOT EXISTS idx_entries_prefix ON entries (language(8), word(191));
