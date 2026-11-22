@@ -214,12 +214,68 @@ function renderStrip() {
   }
   // Kandidaten: anklicken macht sie zum Hauptbild (Galerie nicht doppelt)
   const gset = new Set(current.gallery || []);
+  const candFigs = [];
   for (const c of (current.candidates || [])) {
     if (gset.has(c)) continue;
-    strip.appendChild(stripFig(c, 'Alternative — zum Hauptbild machen',
-      el => pick(c, el), c === currentFile));
+    const fig = stripFig(c, 'Alternative — zum Hauptbild machen',
+      el => pick(c, el), c === currentFile);
+    strip.appendChild(fig);
+    candFigs.push({ fig, fn: c });
   }
   kandis.appendChild(strip);
+  // Optische Dubletten raus: Kandidat, der einer Galerie-Datei bis auf
+  // wenige Pixel gleicht, verwirrt nur ("Galerie und Alternative gleich").
+  // Vergleich per dHash (8x8 Graustufen-Differenzen), Schwellwert 6 Bits.
+  if (candFigs.length && (current.gallery || []).length) {
+    Promise.all((current.gallery || []).map(dhashOf)).then(galHashes => {
+      for (const { fig, fn } of candFigs) {
+        dhashOf(fn).then(h => {
+          if (h != null && galHashes.some(
+              g => g != null && hamming(g, h) <= 6)) {
+            fig.remove();
+          }
+        });
+      }
+    });
+  }
+}
+
+// dHash (Difference Hash): 64-Bit-Fingerabdruck, robust gegen leichte
+// Farb-/Positionsunterschiede — gleicher Abgleich wie in der Pipeline.
+const _dhashCache = new Map();
+function dhashOf(fn) {
+  if (_dhashCache.has(fn)) return _dhashCache.get(fn);
+  const p = new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = 9; c.height = 8;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, 9, 8);
+        const d = ctx.getImageData(0, 0, 9, 8).data;
+        let bits = 0n;
+        for (let y = 0; y < 8; y++) {
+          for (let x = 0; x < 8; x++) {
+            const i1 = (y * 9 + x) * 4, i2 = (y * 9 + x + 1) * 4;
+            const g1 = d[i1] * .299 + d[i1 + 1] * .587 + d[i1 + 2] * .114;
+            const g2 = d[i2] * .299 + d[i2 + 1] * .587 + d[i2 + 2] * .114;
+            bits = (bits << 1n) | (g1 > g2 ? 1n : 0n);
+          }
+        }
+        resolve(bits);
+      } catch (e) { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = '/bilder/' + fn;
+  });
+  _dhashCache.set(fn, p);
+  return p;
+}
+function hamming(a, b) {
+  let x = a ^ b, n = 0;
+  while (x) { n += Number(x & 1n); x >>= 1n; }
+  return n;
 }
 
 function stripFig(fn, title, onpick, active) {
