@@ -1116,14 +1116,21 @@ def raten_next(request: Request, response: Response,
 
 
 @app.get("/zufall")
-def zufall(language: str = "de"):
-    """Zufälliger Eintrag mit Bild — Entdecken-Karte auf der Startseite."""
+def zufall(language: str = ""):
+    """Zufälliger Eintrag mit Bild — Entdecken-Karte auf der Startseite.
+    Leere Sprache = beliebige Sprache."""
     conn = get_conn()
     try:
-        row = conn.execute(
-            "SELECT word, language, definition, image FROM entries "
-            "WHERE language = ? AND image IS NOT NULL AND image != '' "
-            "ORDER BY RANDOM() LIMIT 1", (language.lower(),)).fetchone()
+        if language:
+            row = conn.execute(
+                "SELECT word, language, definition, image FROM entries "
+                "WHERE language = ? AND image IS NOT NULL AND image != '' "
+                "ORDER BY RANDOM() LIMIT 1", (language.lower(),)).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT word, language, definition, image FROM entries "
+                "WHERE image IS NOT NULL AND image != '' "
+                "ORDER BY RANDOM() LIMIT 1").fetchone()
     finally:
         conn.close()
     if not row:

@@ -216,7 +216,7 @@
     <input id="q" type="search" placeholder="Wort suchen …" autofocus autocomplete="off">
     <button id="clear" title="Suche leeren" aria-label="Suche leeren">✕</button>
   </div>
-  <select id="lang"></select>
+  <select id="lang"><option value="">Alle Sprachen</option></select>
 </div>
 <div class="topsearches" id="top"></div>
 
@@ -503,9 +503,9 @@ async function loadNeueBilder() {
 }
 async function loadNeueste() {
   try {
-    const rows = await fetch('/entries?' + new URLSearchParams({
-      neu: 1, limit: 12,
-    })).then(r => r.ok ? r.json() : null);
+    const p = new URLSearchParams({ neu: 1, limit: 12 });
+    if (lang.value) p.set('language', lang.value);
+    const rows = await fetch('/entries?' + p).then(r => r.ok ? r.json() : null);
     const list = document.getElementById('neulist');
     if (!rows || !rows.length) {
       document.getElementById('neueste').style.display = 'none';
@@ -541,7 +541,8 @@ async function search() {
   document.getElementById('neueste').style.display = term.length < 2 ? '' : 'none';
   document.getElementById('neuebilder').style.display = term.length < 2 ? '' : 'none';
   if (term.length < 2) { results.innerHTML = ''; hint.textContent = ''; return; }
-  const params = new URLSearchParams({ language: lang.value, q: term, limit: 50 });
+  const params = new URLSearchParams({ q: term, limit: 50 });
+  if (lang.value) params.set('language', lang.value);
   const rows = await fetch('/entries?' + params).then(r => r.json());
   results.innerHTML = '';
   hint.textContent = rows.length === 50 ? 'Erste 50 Treffer — Suche verfeinern für mehr.' :
@@ -561,8 +562,17 @@ async function search() {
     const w = document.createElement('a');
     w.className = 'word wordlink';
     w.textContent = e.word;
-    w.href = '/worteintrag?' + new URLSearchParams({ word: e.word, lang: lang.value });
+    w.href = '/worteintrag?' + new URLSearchParams({ word: e.word, lang: e.language });
     left.appendChild(w);
+    // Bei Suche über alle Sprachen: Herkunft sichtbar machen
+    if (!lang.value) {
+      const tag = document.createElement('span');
+      tag.className = 'nl';
+      tag.style.cssText = 'color:var(--muted);font-size:.72rem;' +
+        'text-transform:uppercase;letter-spacing:.06em;';
+      tag.textContent = e.language;
+      left.appendChild(tag);
+    }
     if (e.confidence != null) {
       const mini = document.createElement('span');
       mini.className = 'confmini';
@@ -580,11 +590,11 @@ async function search() {
     }
     const d = document.createElement('span');
     d.className = 'def';
-    linkify(d, e.definition || '', lang.value);
+    linkify(d, e.definition || '', e.language);
     li.append(left, d);
     // Kompositum? -> Bestandteile als Links unter dem Wort anzeigen
     if (e.word.length >= 8) {
-      fetch('/zerlegen?' + new URLSearchParams({ word: e.word, language: lang.value }))
+      fetch('/zerlegen?' + new URLSearchParams({ word: e.word, language: e.language }))
         .then(r => r.ok ? r.json() : null)
         .then(z => {
           if (!z || !z.parts || z.parts.length < 2) return;
@@ -595,7 +605,7 @@ async function search() {
             if (idx) comp.appendChild(document.createTextNode(' + '));
             const a = document.createElement('a');
             a.textContent = p.entry;
-            a.href = '/?' + new URLSearchParams({ q: p.entry, lang: lang.value });
+            a.href = '/?' + new URLSearchParams({ q: p.entry, lang: p.language || e.language });
             comp.appendChild(a);
           });
           li.appendChild(comp);
@@ -603,7 +613,7 @@ async function search() {
         .catch(() => {});
     }
     // Wortfamilie? -> bekannte Formen derselben Grundform verlinken
-    fetch('/formen?' + new URLSearchParams({ word: e.word, language: lang.value }))
+    fetch('/formen?' + new URLSearchParams({ word: e.word, language: e.language }))
       .then(r => r.ok ? r.json() : null)
       .then(f => {
         if (!f || !f.forms || f.forms.length < 2) return;
@@ -612,14 +622,14 @@ async function search() {
         fam.appendChild(document.createTextNode('Formen von '));
         const lm = document.createElement('a');
         lm.textContent = f.lemma;
-        lm.href = '/?' + new URLSearchParams({ q: f.lemma, lang: lang.value });
+        lm.href = '/?' + new URLSearchParams({ q: f.lemma, lang: f.language || e.language });
         fam.appendChild(lm);
         fam.appendChild(document.createTextNode(': '));
         f.forms.forEach((fo, idx) => {
           if (idx) fam.appendChild(document.createTextNode(' · '));
           const a = document.createElement('a');
           a.textContent = fo.word;
-          a.href = '/?' + new URLSearchParams({ q: fo.word, lang: lang.value });
+          a.href = '/?' + new URLSearchParams({ q: fo.word, lang: fo.language || e.language });
           if (fo.word === e.word) a.style.fontWeight = '700';
           fam.appendChild(a);
           if (fo.form) fam.appendChild(document.createTextNode(' (' + fo.form + ')'));
@@ -636,7 +646,7 @@ q.addEventListener('input', () => {
   clearTimeout(timer);
   timer = setTimeout(search, 300);
 });
-lang.addEventListener('change', () => { search(); loadDiscover(); });
+lang.addEventListener('change', () => { search(); loadDiscover(); loadNeueste(); });
 
 async function loadTop() {
   const box = document.getElementById('top');
