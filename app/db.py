@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS search_stats (
     term        TEXT    NOT NULL,
     language    TEXT    NOT NULL,
     count       INTEGER NOT NULL DEFAULT 0,
-    UNIQUE (term, language)
+    UNIQUE (term(150), language(8))
 );
 """
 
@@ -221,7 +221,7 @@ CREATE TABLE IF NOT EXISTS entries (
     sprache_unsicher INT NOT NULL DEFAULT 0,
     UNIQUE (word, language)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE INDEX idx_entries_prefix ON entries (language, word);
+CREATE INDEX idx_entries_prefix ON entries (language(8), word(191));
 CREATE TABLE IF NOT EXISTS ratings (
     id INT PRIMARY KEY AUTO_INCREMENT,
     entry_id INT NOT NULL REFERENCES entries (id),
@@ -232,7 +232,7 @@ CREATE TABLE IF NOT EXISTS ratings (
     session_id TEXT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE INDEX idx_ratings_entry ON ratings (entry_id);
-CREATE INDEX idx_ratings_session ON ratings (session_id);
+CREATE INDEX idx_ratings_session ON ratings (session_id(64));
 CREATE TABLE IF NOT EXISTS word_ratings (
     id INT PRIMARY KEY AUTO_INCREMENT,
     entry_id INT NOT NULL REFERENCES entries (id),
@@ -256,18 +256,18 @@ CREATE TABLE IF NOT EXISTS search_stats (
     UNIQUE (term, language)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS rating_sessions (
-    id TEXT PRIMARY KEY,
+    id VARCHAR(64) PRIMARY KEY,
     created_at TEXT NOT NULL DEFAULT (NOW()),
     last_seen TEXT NOT NULL DEFAULT (NOW())
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS rating_nonces (
-    nonce TEXT PRIMARY KEY,
+    nonce VARCHAR(128) PRIMARY KEY,
     session_id TEXT NOT NULL,
     entry_id INT NOT NULL REFERENCES entries (id),
     created_at TEXT NOT NULL DEFAULT (NOW()),
     expires_at TEXT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE INDEX idx_rating_nonces_session ON rating_nonces (session_id);
+CREATE INDEX idx_rating_nonces_session ON rating_nonces (session_id(64));
 CREATE TABLE IF NOT EXISTS image_moves (
     id INT PRIMARY KEY AUTO_INCREMENT,
     filename TEXT NOT NULL,
@@ -300,7 +300,7 @@ CREATE TABLE IF NOT EXISTS speaker_ratings (
     gut INT NOT NULL,
     session_id TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (NOW()),
-    UNIQUE (language, voice, session_id)
+    UNIQUE (language(8), voice(64), session_id(64))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE INDEX idx_speaker_ratings_voice ON speaker_ratings (language, voice);
 """
