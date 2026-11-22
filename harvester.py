@@ -50,10 +50,33 @@ LANG_NAMES = {
     "it": "italienische",
     "ar": "arabische (Hocharabisch)",
     "tn": "tunesisch-arabische (Derja)",
+    "ru": "russische",
+    "zh": "chinesische (Mandarin, vereinfachte Schriftzeichen)",
+    "ja": "japanische",
+    "hi": "Hindi",
 }
 
 # Arabisches Alphabet (28 Buchstaben) für free/suggest in ar/tn
 AR_LETTERS = list("ابتثجحخدذرزسشصضطظعغفقكلمنهوي")
+# Kyrillisches Alphabet (33 Buchstaben) für ru.
+RU_LETTERS = list("абвгдеёжзийклмнопрстуфхцчшщъыьэюя")
+# Gojūon (Basiszeichen; Dakuten/Handakuten werden für den Index gefaltet).
+JA_LETTERS = list("あいうえおかきくけこさしすせそたちつてとなにぬねの"
+                  "はひふへほまみむめもやゆよらりるれろわをん")
+# Devanagari: Vokale + Konsonanten (lange Vokale werden gefaltet).
+HI_LETTERS = list("अइउएओकखगघङचछजझञटठडढणतथदधनपफबभमयरलवशषसह")
+# Pinyin-Anfangslaute (zh): Buchstaben-Modus nutzt lateinische
+# Anfangsbuchstaben des Pinyin statt eines Zeichen-Alphabets.
+ZH_PINYIN_LETTERS = list("abcdefghijklmnopqrstuvwxyz")
+
+# Dakuten/Handakuten → stimmlose Basiszeichen (nur Index-Faltung,
+# niemals in der gespeicherten Lemmaform).
+JA_FOLD = {}
+for _base, _voiced in [("か", "がぎぐげご"), ("さ", "ざじずぜぞ"),
+                       ("た", "だぢづでど"), ("は", "ばびぶべぼぱぴぷぺぽ")]:
+    JA_FOLD.update(zip(_voiced, [_base] * len(_voiced)))
+# Devanagari: lange Vokale unter dem Kurzvokal einsortieren.
+HI_FOLD = dict(zip("आईऊऐऔ", "अइउएओ"))
 
 # Sprachen, in denen Akzente Diakritika auf dem Basisbuchstaben sind
 # (é → e). Im Deutschen sind ä/ö/ü eigene Buchstaben — dort NICHT falten.
@@ -91,7 +114,28 @@ def _first_letter(word: str, language: str) -> str:
         c = unicodedata.normalize("NFD", c)[0]
     elif language in ("ar", "tn"):
         c = AR_FOLD.get(c, c)
+    elif language == "ja":
+        c = JA_FOLD.get(c, c)
+    elif language == "hi":
+        c = HI_FOLD.get(c, c)
+    elif language == "ru":
+        if c == "ё":
+            c = "е"
     return c
+
+
+def _matches_letter(word: str, letter: str, language: str) -> bool:
+    """Buchstaben-Filter. Für Chinesisch ist der 'Buchstabe' ein
+    Pinyin-Anfangslaut — der lässt sich aus dem Schriftzeichen nicht
+    ableiten, darum: Zwei-Ebenen-Prüfung (Zeichen gültig? Modell wurde
+    nach Pinyin-X gefragt und liefert nur passende Wörter)."""
+    if not word:
+        return False
+    if language == "zh":
+        # Nur echte Schriftzeichen annehmen — keine Pinyin-/Lateinwörter,
+        # keine Interpunktion. Modell-Prompt sorgt für den Pinyin-Filter.
+        return any("一" <= ch <= "鿿" for ch in word)
+    return _first_letter(word, language) == letter
 
 # ---------- Prompts ----------
 
@@ -131,6 +175,14 @@ PROMPT_GAP = (
     "korrekte Rechtschreibung). Antworte NUR mit einem JSON-Array von Strings."
 )
 
+PROMPT_GAP_ZH = (
+    "Bekannte chinesische Wörter in Pinyin-Sortierung: \"{a}\" kommt direkt "
+    "vor \"{b}\". Welche häufigen chinesischen Wörter (vereinfachte "
+    "Schriftzeichen, Grundformen, Alltagssprache) könnten dazwischen fehlen? "
+    "Nenne genau {n} Treffer. Antworte NUR mit einem JSON-Array von Strings "
+    "(nur die Schriftzeichen, kein Pinyin, kein Markdown)."
+)
+
 
 def _gap_prompt(lang: str, language: str, a: str, b: str,
                 per_round: int) -> str:
@@ -140,6 +192,11 @@ def _gap_prompt(lang: str, language: str, a: str, b: str,
         return _with_script(
             PROMPT_GAP_AR.format(lang=lang, a=a, b=b, n=per_round),
             language)
+    if language == "zh":
+        # Ganze Zeichen statt Pinyin-Platzhaltern in der Nachbarliste —
+        # das Modell sortiert selbst nach Pinyin.
+        return _with_script(
+            PROMPT_GAP_ZH.format(a=a, b=b, n=per_round), language)
     return _with_script(
         PROMPT_GAP.format(lang=lang, a=a, b=b, n=per_round), language)
 
@@ -206,6 +263,80 @@ SEEDS = {
         "ا": ["أكل", "أم", "أب"], "ب": ["بابور", "برشة", "باهي"],
         "ج": ["جربة", "جامع"], "ش": ["شنوة", "شاي"], "ف": ["فورمة", "فطور"],
         "ق": ["قهوة عربي", "قصر"], "ص": ["صاحبي", "صغيرة"], "ي": ["يسر", "يوم"],
+    },
+    "ru": {
+        "а": ["апельсин", "арбуз", "автобус"], "б": ["банан", "брат", "берёза"],
+        "в": ["вода", "врач", "весна"], "г": ["город", "гриб", "гора"],
+        "д": ["дом", "дерево", "друг"], "е": ["ель", "еда"],
+        "ж": ["журнал", "жизнь", "железо"], "з": ["зима", "зонт", "звезда"],
+        "и": ["игра", "история", "имя"], "й": ["йогурт", "йод"],
+        "к": ["книга", "кошка", "картофель"], "л": ["лимон", "лес", "лампа"],
+        "м": ["молоко", "мама", "море"], "н": ["ночь", "нога", "небо"],
+        "о": ["окно", "огонь", "осень"], "п": ["папа", "песок", "письмо"],
+        "р": ["река", "рука", "работа"], "с": ["солнце", "стол", "собака"],
+        "т": ["трава", "телефон", "тигр"], "у": ["утро", "улица", "ухо"],
+        "ф": ["фрукт", "фотография"], "х": ["хлеб", "холод", "художник"],
+        "ц": ["цветок", "цирк"], "ч": ["часы", "чай", "человек"],
+        "ш": ["школа", "шапка", "шум"], "щ": ["щётка", "щука"],
+        "э": ["этаж", "электричество"], "ю": ["юг", "юбка"],
+        "я": ["яблоко", "язык", "январь"],
+    },
+    "ja": {
+        "あ": ["あさ", "あめ", "あか"], "い": ["いぬ", "いえ", "いす"],
+        "う": ["うみ", "うた", "うし"], "え": ["えき", "えんぴつ"],
+        "お": ["おかね", "おちゃ", "おとこ"],
+        "か": ["かさ", "かわ", "かぎ"], "き": ["きつね", "きのう", "きって"],
+        "く": ["くも", "くつ", "くすり"], "け": ["けしき", "けさ"],
+        "こ": ["こども", "こころ", "ごはん"],
+        "さ": ["さかな", "さくら", "さとう"], "し": ["しろ", "しま", "しごと"],
+        "す": ["すし", "すみれ"], "せ": ["せんせい", "せかい"],
+        "そ": ["そら", "そば", "そつぎょう"],
+        "た": ["たべもの", "たまご", "たなばた"], "ち": ["ちず", "ちから"],
+        "つ": ["つき", "つめ"], "て": ["てがみ", "てんき"],
+        "と": ["とり", "とけい", "ともだち"],
+        "な": ["なつ", "なみ", "なか"], "に": ["にわ", "にく"],
+        "ぬ": ["ぬの"], "ね": ["ねこ", "ねむり"], "の": ["のり", "のはら"],
+        "は": ["はな", "はし", "はる"], "ひ": ["ひと", "ひみつ"],
+        "ふ": ["ふね", "ふゆ"], "へ": ["へや"], "ほ": ["ほし", "ほん"],
+        "ま": ["まど", "まち", "みち"], "み": ["みず", "みかん", "みみ"],
+        "む": ["むし"], "め": ["めがね"], "も": ["もり", "もち"],
+        "や": ["やま", "やすみ"], "ゆ": ["ゆき", "ゆび"],
+        "よ": ["よる", "よこ"], "ら": ["らくだ", "らっぱ"],
+        "り": ["りんご", "りゅう"], "る": ["るすばん"],
+        "れ": ["れきし"], "ろ": ["ろうそく"], "わ": ["わたし", "わに"],
+        "を": [], "ん": [],
+    },
+    "hi": {
+        "अ": ["अमर", "अनार"], "इ": ["इमारत", "इच्छा"], "उ": ["उपहार", "उन्नति"],
+        "ए": ["एकता"], "ओ": ["ओस"],
+        "क": ["किताब", "कमरा", "कलम"], "ख": ["खिड़की", "खाना"],
+        "ग": ["घर", "गमला", "गाड़ी"], "घ": ["घड़ी", "घोड़ा"], "ङ": [],
+        "च": ["चाय", "चित्र"], "छ": ["छाता", "छत"],
+        "ज": ["जग", "जंगल"], "झ": ["झरना", "झूला"], "ञ": [],
+        "ट": ["टमाटर", "ट्रेन"], "ठ": ["ठंडा"], "ड": ["डिब्बा"],
+        "ढ": ["ढक्कन"], "ण": [],
+        "त": ["तारा", "तालाब"], "थ": ["थैला", "थाली"],
+        "द": ["दरवाज़ा", "दूध", "दोस्त"], "ध": ["धूप", "धन्यवाद"],
+        "न": ["नदी", "नाम", "नाश्ता"],
+        "प": ["पानी", "पेड़", "पक्षी"], "फ": ["फूल", "फल"],
+        "ब": ["बच्चा", "बादल", "बिल्ली"], "भ": ["भालू", "भोजन"],
+        "म": ["मकान", "मछली", "माँ"], "य": ["यमुना"],
+        "र": ["रास्ता", "रात", "रंग"], "ल": ["लड़का", "लकड़ी", "लाल"],
+        "व": ["वक्त", "विद्यालय"], "श": ["शहर", "शेर", "शुक्रिया"],
+        "ष": [], "स": ["सूरज", "सड़क", "सेब"], "ह": ["हाथी", "हवा", "हरा"],
+    },
+    "zh": {
+        "a": ["爱", "安", "按"], "b": ["不", "把", "白", "百"],
+        "c": ["茶", "吃", "车", "从"], "d": ["大", "的", "得", "对"],
+        "e": ["二", "饿", "鹅"], "f": ["飞", "分", "风", "饭"],
+        "g": ["国", "工", "高", "个"], "h": ["好", "和", "花", "回"],
+        "j": ["家", "见", "叫", "九"], "k": ["看", "口", "开", "可以"],
+        "l": ["了", "来", "老", "六"], "m": ["马", "猫", "美", "没有"],
+        "n": ["你", "年", "能", "女"], "o": ["偶"], "p": ["朋友", "票", "跑"],
+        "q": ["七", "去", "前", "请"], "r": ["人", "日", "热", "肉"],
+        "s": ["三", "是", "说", "水"], "t": ["他", "天", "听", "同"],
+        "w": ["我", "五", "问", "为"], "x": ["下", "小", "学", "喜欢"],
+        "y": ["一", "有", "月", "也"], "z": ["在", "走", "子", "字"],
     },
 }
 
@@ -373,16 +504,68 @@ def insert(language: str, words: list[str]) -> int:
 # ---------- Strategien ----------
 
 def _with_script(base: str, language: str) -> str:
-    """Für Arabisch/Tunesisch arabische Schrift verlangen — Kolibri
-    transkribiert sonst ins Lateinische und der Buchstaben-Filter
-    verwirft alles."""
+    """Für Nicht-Lateinschriften die Zielschrift verlangen — sonst
+    transkribiert das Modell und der Buchstaben-Filter verwirft alles."""
     if language == "ar":
         return base + ("\nWichtig: Alle Wörter ausschließlich in arabischer "
                        "Schrift (keine lateinische Umschrift).")
     if language == "tn":
         return base + ("\nWichtig: Alle Wörter ausschließlich in arabischer "
                        "Schrift, tunesisch (keine lateinische Umschrift).")
+    if language == "ru":
+        return base + ("\nWichtig: Alle Wörter ausschließlich in kyrillischer "
+                       "Schrift (keine lateinische Umschrift).")
+    if language == "ja":
+        return base + ("\nWichtig: Alle Wörter ausschließlich in japanischer "
+                       "Schrift (Kanji/Kana, keine Rōmaji-Umschrift).")
+    if language == "hi":
+        return base + ("\nWichtig: Alle Wörter ausschließlich in Devanagari "
+                       "(keine lateinische Umschrift).")
+    if language == "zh":
+        return base + ("\nWichtig: Alle Wörter ausschließlich als "
+                       "vereinfachte chinesische Schriftzeichen (keine "
+                       "Pinyin-Angabe, keine traditionellen Zeichen).")
     return base
+
+
+# Chinesisch hat kein Alphabet: free/suggest fragen per Pinyin-Anfangslaut.
+PROMPT_FREE_ZH = (
+    "Liste genau {n} häufige chinesische Wörter (Grundformen, "
+    "Alltagssprache, vereinfachte Schriftzeichen, keine Eigennamen, keine "
+    "Abkürzungen), deren Pinyin mit dem Buchstaben \"{letter}\" beginnt. "
+    "NUR Wörter, die im modernen Mandarin tatsächlich gebräuchlich sind. "
+    "Antworte NUR mit einem JSON-Array von Strings (nur die Schriftzeichen, "
+    "kein Pinyin, kein Markdown)."
+)
+
+PROMPT_SUGGEST_ZH = (
+    "Bekannte chinesische Wörter (Schriftzeichen):\n{known}\n"
+    "Nenne genau {n} weitere häufige chinesische Wörter (vereinfachte "
+    "Schriftzeichen, Grundformen, Alltagssprache, keine Eigennamen), deren "
+    "Pinyin mit dem Buchstaben \"{letter}\" beginnt und die NICHT in der "
+    "Liste stehen. Antworte NUR mit einem JSON-Array von Strings (nur die "
+    "Schriftzeichen, kein Pinyin, kein Markdown)."
+)
+
+
+def _free_prompt(lang: str, language: str, letter: str, per_round: int) -> str:
+    if language == "zh":
+        return _with_script(PROMPT_FREE_ZH.format(
+            n=per_round, letter=letter), language)
+    return _with_script(PROMPT_FREE.format(
+        n=per_round, lang=lang, letter=letter), language)
+
+
+def _suggest_prompt(lang: str, language: str, letter: str,
+                    known: list[str], per_round: int) -> str:
+    if language == "zh":
+        return _with_script(PROMPT_SUGGEST_ZH.format(
+            letter=letter, known=", ".join(known) if known
+            else "(noch keine bekannt)", n=per_round), language)
+    return _with_script(PROMPT_SUGGEST.format(
+        lang=lang, letter=letter,
+        known=", ".join(known) if known else "(noch keine bekannt)",
+        n=per_round), language)
 
 
 def harvest_free(language, letters, rounds, per_round, temperature, delay):
@@ -393,15 +576,14 @@ def harvest_free(language, letters, rounds, per_round, temperature, delay):
         for rnd in range(1, rounds + 1):
             try:
                 cand = parse_words(chat(
-                    _with_script(PROMPT_FREE.format(
-                        n=per_round, lang=lang, letter=letter), language),
+                    _free_prompt(lang, language, letter, per_round),
                     temperature))
             except Exception as e:
                 print(f"[{letter}] Runde {rnd}: Modell-Fehler: {e}", file=sys.stderr)
                 time.sleep(delay * 3)
                 continue
             new = [w for w in cand
-                   if w and _first_letter(w, language) == letter
+                   if _matches_letter(w, letter, language)
                    and w not in known]
             added = insert(language, new)
             known.update(new)
@@ -419,10 +601,7 @@ def harvest_suggest(language, letters, max_rounds, per_round, temperature, delay
             rnd += 1
             known = letter_words(language, letter)
             sample = random.sample(known, min(10, len(known))) if known else []
-            prompt = _with_script(PROMPT_SUGGEST.format(
-                lang=lang, letter=letter,
-                known=", ".join(sample) if sample else "(noch keine bekannt)",
-                n=per_round), language)
+            prompt = _suggest_prompt(lang, language, letter, sample, per_round)
             try:
                 cand = parse_words(chat(prompt, temperature))
             except Exception as e:
@@ -431,7 +610,7 @@ def harvest_suggest(language, letters, max_rounds, per_round, temperature, delay
                 break
             known_set = set(known)
             new = [w for w in cand
-                   if w and _first_letter(w, language) == letter
+                   if _matches_letter(w, letter, language)
                    and w not in known_set]
             added = insert(language, new)
             print(f"[{letter}] Runde {rnd}: +{added} neu ({len(known)} vorher bekannt)")
@@ -443,6 +622,10 @@ def harvest_suggest(language, letters, max_rounds, per_round, temperature, delay
 def harvest_gap(language, letters, max_rounds, per_round, temperature, delay, pairs_per_round):
     """Gezielt Lücken schließen: Wörter zwischen zwei Nachbarn erfragen."""
     lang = LANG_NAMES.get(language, f"{language}-Sprachige")
+    if language == "zh":
+        # Kein zeichenbasierter Index: ein Durchlauf über den ganzen
+        # Bestand, Kandidaten werden nicht auf Unicode-Position geprüft.
+        letters = [""]
     for letter in letters:
         rnd = 0
         while rnd < max_rounds:
@@ -465,8 +648,13 @@ def harvest_gap(language, letters, max_rounds, per_round, temperature, delay, pa
                           file=sys.stderr)
                     time.sleep(delay * 3)
                     continue
-                gap = [w for w in cand
-                       if w and a.lower() < w.lower() < b.lower()]
+                if language == "zh":
+                    # Unicode-Order ≠ Pinyin-Order: Between-Check entfällt,
+                    # das Modell liefert nur passende Zwischenwörter.
+                    gap = [w for w in cand if _matches_letter(w, letter, language)]
+                else:
+                    gap = [w for w in cand
+                           if w and a.lower() < w.lower() < b.lower()]
                 new_total += insert(language, gap)
                 time.sleep(delay)
             print(f"[{letter}] Runde {rnd}: +{new_total} neu "
@@ -567,6 +755,15 @@ def parse_letters(spec: str) -> list[str]:
         return list(string.ascii_lowercase) + ["ä", "ö", "ü", "ß"]
     if spec == "ar":
         return list(AR_LETTERS)
+    if spec == "ru":
+        return list(RU_LETTERS)
+    if spec == "ja":
+        return list(JA_LETTERS)
+    if spec == "hi":
+        return list(HI_LETTERS)
+    if spec == "zh":
+        # Pinyin-Anfangslaute statt Zeichen-Alphabet
+        return list(ZH_PINYIN_LETTERS)
     if re.fullmatch(r"[a-z]-[a-z]", spec):
         return list(string.ascii_lowercase[
             string.ascii_lowercase.index(spec[0]):
