@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS search_stats (
     term        TEXT    NOT NULL,
     language    TEXT    NOT NULL,
     count       INTEGER NOT NULL DEFAULT 0,
-    UNIQUE (term(150), language(8))
+    UNIQUE (term, language)
 );
 """
 
