@@ -323,6 +323,21 @@ def _translate(sql: str) -> str:
     return sql
 
 
+def now_str(minutes: int = 0) -> str:
+    """Aktueller Zeitstempel im DB-Stringformat, backend-konsistent.
+
+    SQLite datetime('now') ist UTC, MariaDB NOW() Lokalzeit — das hier
+    liefert jeweils dasselbe Format/Zeitbasis wie die SQL-Pendants, damit
+    String-Vergleiche mit bestehenden created_at/last_seen-Zeilen stimmen.
+    """
+    from datetime import datetime, timedelta, timezone
+    if BACKEND == "mysql":
+        dt = datetime.now() + timedelta(minutes=minutes)
+    else:
+        dt = datetime.now(timezone.utc) + timedelta(minutes=minutes)
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
 class _MyCursor:
     """sqlite-Cursor-Emulation über PyMySQL (Dict-Zeilen)."""
 

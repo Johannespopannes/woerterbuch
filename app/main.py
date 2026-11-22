@@ -35,7 +35,7 @@ from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-from .db import get_conn, row_to_dict
+from .db import get_conn, now_str, row_to_dict
 
 API_KEY = os.environ.get("API_KEY")
 RATE_READ = int(os.environ.get("RATE_READ_PER_MIN", "240"))
@@ -870,7 +870,7 @@ def _get_session(request: Request, response: Response) -> str:
         if SESSION_RE.fullmatch(sid):
             row = conn.execute(
                 "SELECT id FROM rating_sessions WHERE id = ? AND "
-                "last_seen > datetime('now', ?)", (sid, f"-{SESSION_IDLE_H} hours"),
+                "last_seen > ?", (sid, now_str(-SESSION_IDLE_H * 60)),
             ).fetchone()
         if row:
             conn.execute("UPDATE rating_sessions SET last_seen = datetime('now') "
@@ -926,8 +926,8 @@ def raten_next(request: Request, response: Response,
             "DELETE FROM rating_nonces WHERE expires_at < datetime('now')")
         conn_n.execute(
             "INSERT INTO rating_nonces (nonce, session_id, entry_id, "
-            "expires_at) VALUES (?, ?, ?, datetime('now', ?))",
-            (nonce, sid, out["id"], f"+{NONCE_TTL_MIN} minutes"))
+            "expires_at) VALUES (?, ?, ?, ?)",
+            (nonce, sid, out["id"], now_str(NONCE_TTL_MIN)))
         conn_n.commit()
     finally:
         conn_n.close()
