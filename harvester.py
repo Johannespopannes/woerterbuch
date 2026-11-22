@@ -113,12 +113,32 @@ PROMPT_SUGGEST = (
     "Antworte NUR mit einem JSON-Array von Strings."
 )
 
+PROMPT_GAP_AR = (
+    "اذكر بالضبط {n} كلمات عربية شائعة (صيغ أساسية، لغة عامية فصيحة، "
+    "بدون أسماء علم، بدون اختصارات) تأتي في الترتيب الأبجدي العربي بعد "
+    "كلمة \"{a}\" وقبل كلمة \"{b}\". أجب فقط بمصفوفة JSON من النصوص، "
+    "بدون شرح وبدون Markdown."
+)
+
+
 PROMPT_GAP = (
     "Welche {lang} Wörter liegen im Wörterbuch-alphabetisch SORTIERT "
     "zwischen \"{a}\" und \"{b}\"? Nenne genau {n} Treffer (Grundformen, "
     "Gemeinsprache, nur tatsächlich gebräuchliche Wörter dieser Sprache, "
     "korrekte Rechtschreibung). Antworte NUR mit einem JSON-Array von Strings."
 )
+
+
+def _gap_prompt(lang: str, language: str, a: str, b: str,
+                per_round: int) -> str:
+    """Gap-Prompt: für Arabisch/Tunesisch auf Arabisch fragen — Jais denkt
+    bei deutschsprachigen Meta-Fragen zu lange nach und bricht ab."""
+    if language in ("ar", "tn"):
+        return _with_script(
+            PROMPT_GAP_AR.format(lang=lang, a=a, b=b, n=per_round),
+            language)
+    return _with_script(
+        PROMPT_GAP.format(lang=lang, a=a, b=b, n=per_round), language)
 
 PROMPT_DEFINE = (
     "Definiere die folgenden {lang} Wörter jeweils in höchstens 15 Wörtern "
@@ -434,9 +454,7 @@ def harvest_gap(language, letters, max_rounds, per_round, temperature, delay, pa
             new_total = 0
             for i in sorted(idx):
                 a, b = words[i], words[i + 1]
-                prompt = _with_script(
-                    PROMPT_GAP.format(lang=lang, a=a, b=b, n=per_round),
-                    language)
+                prompt = _gap_prompt(lang, language, a, b, per_round)
                 try:
                     cand = parse_words(chat(prompt, temperature))
                 except Exception as e:
