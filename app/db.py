@@ -1,9 +1,24 @@
-"""SQLite-Zugriff für das Wörterbuch. Eine Datei, kein ORM — bewusst simpel."""
+"""Datenbankzugriff für das Wörterbuch. Eine Datei, kein ORM — bewusst simpel.
+
+Zwei Backends über WB_DB (Default: sqlite):
+  sqlite  — lokale Datei, Standalone/Tests
+  mysql   — MariaDB auf dem Pi (Produktion); parallele Schreiber ohne
+            Serialisierung. Verbindung via WB_MYSQL_PW (Unix-Socket).
+
+Das MySQL-Backend stellt eine sqlite-ähnliche Schnittstelle bereit
+(execute/fetchone/fetchall/rowcount/lastrowid, dict-Zeilen), damit
+main.py unverändert bleibt. SQL-Übersetzung: ? → %s, ULOWER → LOWER
+(MariaDB foldet utf8mb4 nativ Unicode), datetime('now') → NOW(),
+INSERT OR IGNORE → INSERT IGNORE.
+"""
+import os
+import re
 import sqlite3
 from pathlib import Path
 from typing import Any
 
-DB_PATH = Path(__file__).resolve().parent.parent / "woerterbuch.db"
+DB_PATH = Path(__file__).resolve().parent.parent / "data" / "woerterbuch.db"
+BACKEND = os.environ.get("WB_DB", "sqlite")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS entries (
@@ -188,7 +203,195 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "ON speaker_ratings (language, voice)")
 
 
-def get_conn() -> sqlite3.Connection:
+# ---------- MariaDB-Backend (Produktion) ----------
+
+SCHEMA_MYSQL = """
+CREATE TABLE IF NOT EXISTS entries (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    word TEXT NOT NULL,
+    language TEXT NOT NULL,
+    definition TEXT,
+    image TEXT,
+    source TEXT NOT NULL DEFAULT 'manual',
+    created_at TEXT NOT NULL DEFAULT (NOW()),
+    lemma TEXT,
+    form TEXT,
+    confidence REAL,
+    evidence TEXT,
+    sprache_unsicher INT NOT NULL DEFAULT 0,
+    UNIQUE (word, language)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX idx_entries_prefix ON entries (language, word);
+CREATE TABLE IF NOT EXISTS ratings (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    entry_id INT NOT NULL REFERENCES entries (id),
+    understood INT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (NOW()),
+    image TEXT,
+    kind TEXT NOT NULL DEFAULT 'image',
+    session_id TEXT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX idx_ratings_entry ON ratings (entry_id);
+CREATE INDEX idx_ratings_session ON ratings (session_id);
+CREATE TABLE IF NOT EXISTS word_ratings (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    entry_id INT NOT NULL REFERENCES entries (id),
+    fits INT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (NOW()),
+    kind TEXT NOT NULL DEFAULT 'dazu'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX idx_word_ratings_entry ON word_ratings (entry_id);
+CREATE TABLE IF NOT EXISTS entry_images (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    entry_id INT NOT NULL REFERENCES entries (id),
+    filename TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (NOW()),
+    UNIQUE (entry_id, filename)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX idx_entry_images_entry ON entry_images (entry_id);
+CREATE TABLE IF NOT EXISTS search_stats (
+    term TEXT NOT NULL,
+    language TEXT NOT NULL,
+    count INT NOT NULL DEFAULT 0,
+    UNIQUE (term, language)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS rating_sessions (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL DEFAULT (NOW()),
+    last_seen TEXT NOT NULL DEFAULT (NOW())
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS rating_nonces (
+    nonce TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    entry_id INT NOT NULL REFERENCES entries (id),
+    created_at TEXT NOT NULL DEFAULT (NOW()),
+    expires_at TEXT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX idx_rating_nonces_session ON rating_nonces (session_id);
+CREATE TABLE IF NOT EXISTS image_moves (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    filename TEXT NOT NULL,
+    from_entry_id INT NOT NULL REFERENCES entries (id),
+    target_word TEXT NOT NULL,
+    language TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'offen',
+    note TEXT,
+    created_at TEXT NOT NULL DEFAULT (NOW()),
+    decided_at TEXT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX idx_image_moves_status ON image_moves (status);
+CREATE TABLE IF NOT EXISTS grammar (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    language TEXT NOT NULL,
+    lemma TEXT NOT NULL,
+    word_class TEXT,
+    gender TEXT,
+    article TEXT,
+    flexion TEXT,
+    source TEXT NOT NULL DEFAULT 'model',
+    created_at TEXT NOT NULL DEFAULT (NOW()),
+    UNIQUE (language, lemma)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX idx_grammar_lemma ON grammar (language, lemma);
+CREATE TABLE IF NOT EXISTS speaker_ratings (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    language TEXT NOT NULL,
+    voice TEXT NOT NULL,
+    gut INT NOT NULL,
+    session_id TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (NOW()),
+    UNIQUE (language, voice, session_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX idx_speaker_ratings_voice ON speaker_ratings (language, voice);
+"""
+
+_TRANSLATE = [
+    (re.compile(r"INSERT OR IGNORE", re.I), "INSERT IGNORE"),
+    (re.compile(r"INSERT OR REPLACE", re.I), "REPLACE"),
+    (re.compile(r"ULOWER", re.I), "LOWER"),
+    (re.compile(r"datetime\('now'\)"), "NOW()"),
+    (re.compile(r"\?"), "%s"),
+]
+
+
+def _translate(sql: str) -> str:
+    for pat, rep in _TRANSLATE:
+        sql = pat.sub(rep, sql)
+    return sql
+
+
+class _MyCursor:
+    """sqlite-Cursor-Emulation über PyMySQL (Dict-Zeilen)."""
+
+    def __init__(self, cur: Any) -> None:
+        self._cur = cur
+
+    def fetchone(self) -> dict | None:
+        return self._cur.fetchone()
+
+    def fetchall(self) -> list[dict]:
+        return list(self._cur.fetchall())
+
+    @property
+    def rowcount(self) -> int:
+        return max(self._cur.rowcount, 0)
+
+    @property
+    def lastrowid(self) -> int:
+        return self._cur.lastrowid
+
+
+class MyConn:
+    """sqlite-Connection-Emulation über PyMySQL (Unix-Socket)."""
+
+    def __init__(self) -> None:
+        import pymysql  # lazy: sqlite-Nutzer brauchen es nicht
+        kwargs: dict[str, Any] = dict(
+            user=os.environ.get("WB_MYSQL_USER", "woerterbuch"),
+            password=os.environ["WB_MYSQL_PW"],
+            database=os.environ.get("WB_MYSQL_DB", "woerterbuch"),
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
+            autocommit=False,
+        )
+        host = os.environ.get("WB_MYSQL_HOST")
+        if host:
+            # Fernzugriff (z. B. Test via SSH-Tunnel)
+            kwargs.update(host=host,
+                          port=int(os.environ.get("WB_MYSQL_PORT", "3306")))
+        else:
+            kwargs.update(unix_socket="/run/mysqld/mysqld.sock")
+        self._conn = pymysql.connect(**kwargs)
+
+    def execute(self, sql: str, params: Any = ()) -> _MyCursor:
+        cur = self._conn.cursor()
+        cur.execute(_translate(sql), params or ())
+        return _MyCursor(cur)
+
+    def executescript(self, script: str) -> None:
+        for stmt in script.split(";"):
+            stmt = stmt.strip()
+            if stmt:
+                self.execute(stmt)
+
+    def commit(self) -> None:
+        self._conn.commit()
+
+    def rollback(self) -> None:
+        self._conn.rollback()
+
+    def close(self) -> None:
+        self._conn.close()
+
+
+def get_conn():
+    """Backend-Auswahl: WB_DB=mysql → MariaDB, sonst SQLite."""
+    if BACKEND == "mysql":
+        return MyConn()
+    return _get_sqlite_conn()
+
+
+def _get_sqlite_conn() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
