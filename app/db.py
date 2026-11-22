@@ -311,6 +311,7 @@ _TRANSLATE = [
     (re.compile(r"ON CONFLICT\s*\([^)]*\)\s*DO UPDATE\s+SET",
                 re.I), "ON DUPLICATE KEY UPDATE"),
     (re.compile(r"ULOWER", re.I), "LOWER"),
+    (re.compile(r"\bRANDOM\s*\(", re.I), "RAND("),
     (re.compile(r"datetime\('now'\)"), "NOW()"),
     (re.compile(r"\?"), "%s"),
 ]
