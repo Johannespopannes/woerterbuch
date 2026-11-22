@@ -706,18 +706,20 @@ def formen(word: str, language: str):
     conn = get_conn()
     try:
         row = conn.execute(
-            "SELECT word, lemma, form FROM entries WHERE word = ? AND language = ?",
+            "SELECT word, lemma, form, script FROM entries "
+            "WHERE word = ? AND language = ?",
             (word.strip(), lang),
         ).fetchone()
         if not row:
             raise HTTPException(404, f"'{word}' nicht gefunden ({lang})")
         lemma = row["lemma"] or row["word"]
         rows = conn.execute(
-            "SELECT word, form FROM entries "
+            "SELECT word, form, script FROM entries "
             "WHERE language = ? AND (lemma = ? OR word = ?) ORDER BY word",
             (lang, lemma, lemma),
         ).fetchall()
-        forms = [{"word": r["word"], "form": r["form"] or ""} for r in rows]
+        forms = [{"word": r["word"], "form": r["form"] or "",
+                  "script": r["script"] or ""} for r in rows]
         return {"word": row["word"], "lemma": lemma, "forms": forms}
     finally:
         conn.close()

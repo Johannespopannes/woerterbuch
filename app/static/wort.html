@@ -23,6 +23,14 @@
   .wortkopf h1 { font-size: clamp(1.9rem, 5vw, 2.6rem); font-weight: normal;
                  margin: 0 0 .2rem; }
   .wsub { color: var(--muted); letter-spacing: .06em; font-size: .85rem; }
+  .schriften { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0 .25rem; }
+  .schriften a {
+    display: inline-block; padding: .18rem .7rem; border-radius: 999px;
+    border: 1px solid var(--accent); color: var(--accent); font-size: .85rem;
+    text-decoration: none; transition: background .15s, color .15s;
+  }
+  .schriften a:hover { background: var(--accent); color: #fff; }
+  .schriften a.aktiv { background: var(--accent); color: #fff; font-weight: 700; cursor: default; }
   #ton { font: inherit; font-size: .85rem; margin-top: .5rem;
          padding: .3rem .9rem; border-radius: 999px; cursor: pointer;
          border: 1px solid var(--line); background: var(--card); color: var(--ink); }
@@ -151,6 +159,7 @@
   <div class="wortkopf">
     <h1 id="wort">…</h1>
     <div class="wsub" id="wsub"></div>
+    <div class="schriften" id="schriften" style="display:none"></div>
     <button id="ton" title="Wort anhören">🔊 Anhören</button>
     <div class="stimmezeile" id="stimmezeile" style="display:none">
       <span class="frage-klein">Sprecher:</span>
@@ -358,6 +367,11 @@ async function load() {
     if (f && f.forms && f.forms.length > 1) {
       show(document.getElementById('famcard'), true);
       const ul = document.getElementById('fam');
+      const box = document.getElementById('schriften');
+      const seen = new Set();
+      // Chips nur bei gemischten Schriften (z. B. Arabisch + Franco), nicht bei reinen Flexionsformen
+      const gemischt = f.forms.some(x => x.script === 'latn') &&
+                       f.forms.some(x => x.script !== 'latn');
       for (const fo of f.forms) {
         const li = document.createElement('li');
         const a = document.createElement('a');
@@ -370,7 +384,18 @@ async function load() {
           li.appendChild(s);
         }
         ul.appendChild(li);
+        // Schrift-Chip: jede abweichende Schreibform (z. B. Arabisch / Franco)
+        if (gemischt && !seen.has(fo.word)) {
+          seen.add(fo.word);
+          const chip = document.createElement('a');
+          chip.textContent = fo.script === 'latn' ? 'Franco · ' + fo.word : 'ع · ' + fo.word;
+          chip.title = fo.form ? 'Wortform: ' + fo.form : fo.word;
+          chip.href = '/worteintrag?' + new URLSearchParams({ word: fo.word, lang });
+          if (fo.word === word) chip.className = 'aktiv';
+          box.appendChild(chip);
+        }
       }
+      if (box.children.length > 1) show(box, true);
     }
   } catch (_) {}
 
