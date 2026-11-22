@@ -17,7 +17,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-DB_PATH = Path(__file__).resolve().parent.parent / "data" / "woerterbuch.db"
+DB_PATH = Path(__file__).resolve().parent.parent / "woerterbuch.db"
 BACKEND = os.environ.get("WB_DB", "sqlite")
 
 SCHEMA = """
