@@ -127,9 +127,11 @@ COMMIT;
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true")
-    ap.add_argument("--language", action="append",
-                    default=["ar", "tn"])
+    ap.add_argument("--language", action="append", default=None,
+                    help="Standard: ar und tn")
     args = ap.parse_args()
+    if not args.language:
+        args.language = ["ar", "tn"]
 
     for language in args.language:
         entries: list[dict] = []
