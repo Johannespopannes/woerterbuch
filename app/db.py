@@ -308,7 +308,7 @@ CREATE INDEX IF NOT EXISTS idx_speaker_ratings_voice ON speaker_ratings (languag
 _TRANSLATE = [
     (re.compile(r"INSERT OR IGNORE", re.I), "INSERT IGNORE"),
     (re.compile(r"INSERT OR REPLACE", re.I), "REPLACE"),
-    (re.compile(r"ON CONFLICT\s*\([^)]*\)\s*DO UPDATE",
+    (re.compile(r"ON CONFLICT\s*\([^)]*\)\s*DO UPDATE\s+SET",
                 re.I), "ON DUPLICATE KEY UPDATE"),
     (re.compile(r"ULOWER", re.I), "LOWER"),
     (re.compile(r"datetime\('now'\)"), "NOW()"),
