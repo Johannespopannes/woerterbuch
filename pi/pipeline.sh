@@ -33,6 +33,7 @@ kette() {
   run harvester.py --mode suggest --language "$lang" --letters all --rounds 1 --per-round 60 --delay 0.5
   run harvester.py --mode gap     --language "$lang" --letters all --rounds 1 --per-round 15 --pairs 4 --delay 0.5
   run harvester.py --mode define  --language "$lang" --per-round 30 --delay 0.3
+  run define_langs.py --mode own --language "$lang" --limit 300 --batch 20 --delay 0.4
   run "$audit" --language "$lang"
 }
 
@@ -49,7 +50,18 @@ while true; do
 
   # --- ar/tn: Ernte/Audit/Franco laufen auf dem LAPTOP via Jais (Sonder-
   # modelle, staerkste Arabisch-Qualitaet) — siehe ar-tn-loop.sh/franco-loop.sh.
-  # Der Pi rendert hier nur die Bilder (Wan-Cloudrender).
+  # Der Pi rendert hier nur die Bilder (Wan-Cloudrender) und uebersetzt
+  # ar/tn ueber die Cloud (Ziel-Rotation unten).
+
+  # --- Bedeutungs-Matrix: je Zyklus ein Ziel rotieren (de+en zuerst) ---
+  TARGETS=(de en it fr es ru zh ja hi ar tn)
+  T=${TARGETS[$(( (zyklen - 1) % ${#TARGETS[@]} ))]}
+  case "$T" in
+    zh|ja|hi|ru) export MODEL_NAME=$QWEN ;;
+    *)           export MODEL_NAME=$MISTRAL ;;
+  esac
+  log "Bedeutungs-Übersetzung -> $T via $MODEL_NAME"
+  run define_langs.py --mode translate --target "$T" --limit 400 --batch 15 --delay 0.5
 
   # --- Bilder (Wan-Cloudrender, Vision-Pick via ModelHub) ---
   log "Bilder-Runde"

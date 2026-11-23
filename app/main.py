@@ -285,6 +285,13 @@ class DefinitionIn(BaseModel):
     definition: str = Field(min_length=1, max_length=1000)
 
 
+class DefLangIn(BaseModel):
+    """Bedeutung in einer bestimmten Sprache setzen (Upsert)."""
+    lang: str = Field(min_length=2, max_length=8)
+    text: str = Field(min_length=1, max_length=1000)
+    source: str = Field(default="model", max_length=40)
+
+
 class WordIn(BaseModel):
     """Wort eines Eintrags korrigieren (Tippfehler, Kodier-Müll)."""
     word: str = Field(min_length=1, max_length=100)
@@ -536,6 +543,10 @@ def list_entries(
                                 description="Evidenz-JSON mit ausgeben"),
     neu: bool = Query(default=False,
                       description="neueste Einträge zuerst (nach Anlage)"),
+    no_def: str | None = Query(
+        default=None,
+        description="nur Einträge ohne Definition in dieser Sprache ('de' = "
+                    "entries.definition, sonst definitions-Tabelle)"),
     limit: int = Query(default=100, le=1000),
     offset: int = 0,
 ):
@@ -567,6 +578,14 @@ def list_entries(
         sql += " AND (image IS NULL OR image = '')"
     if nolemma:
         sql += " AND (lemma IS NULL OR lemma = '')"
+    if no_def:
+        dl = no_def.lower()
+        if dl == "de":
+            sql += " AND (definition IS NULL OR definition = '')"
+        else:
+            sql += (" AND id NOT IN (SELECT entry_id FROM definitions"
+                    " WHERE lang = ?)")
+            params.append(dl)
     sql += " ORDER BY id DESC" if neu else " ORDER BY word"
     sql += " LIMIT ? OFFSET ?"
     params += [limit, offset]
@@ -899,20 +918,82 @@ def suchen_top(limit: int = Query(default=10, le=50)):
 
 @app.patch("/entries/{entry_id}", response_model=EntryOut)
 def set_definition(entry_id: int, body: DefinitionIn, _=Depends(require_api_key)):
-    """Definition eines Eintrags setzen/überschreiben (z. B. Harvester define)."""
+    """Definition eines Eintrags setzen/überschreiben (z. B. Harvester define).
+
+    Schreibt gleichzeitig den 'de'-Eintrag der definitions-Tabelle (die
+    kanonische deutsche Bedeutung spiegelt entries.definition)."""
     conn = get_conn()
     try:
         cur = conn.execute(
             "UPDATE entries SET definition = ? WHERE id = ?",
             (body.definition.strip(), entry_id),
         )
-        conn.commit()
         if cur.rowcount == 0:
             raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        conn.execute(
+            "INSERT OR REPLACE INTO definitions (entry_id, lang, text, source)"
+            " VALUES (?, 'de', ?, 'harvester')",
+            (entry_id, body.definition.strip()),
+        )
+        conn.commit()
         row = conn.execute(
             "SELECT * FROM entries WHERE id = ?", (entry_id,)
         ).fetchone()
         return _entry(row)
+    finally:
+        conn.close()
+
+
+@app.get("/entries/{entry_id}/definitions")
+def get_definitions(entry_id: int):
+    """Bedeutungen eines Eintrags in allen vorhandenen Sprachen.
+
+    Rückgabe: {"definitions": {"de": "...", "it": "...", ...}} — 'de'
+    stammt aus entries.definition, der Rest aus der definitions-Tabelle.
+    Fehlt der Eintrag: 404."""
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT id, definition FROM entries WHERE id = ?", (entry_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        out: dict[str, str] = {}
+        if row["definition"]:
+            out["de"] = row["definition"]
+        for r in conn.execute(
+                "SELECT lang, text FROM definitions WHERE entry_id = ?"
+                " ORDER BY lang", (entry_id,)).fetchall():
+            out[r["lang"]] = r["text"]
+        return {"definitions": out}
+    finally:
+        conn.close()
+
+
+@app.put("/entries/{entry_id}/definitions")
+def put_definition(entry_id: int, body: DefLangIn,
+                   _=Depends(require_api_key)):
+    """Bedeutung in einer Sprache setzen (Upsert; Pipeline/Übersetzung).
+
+    lang = Sprache DES Textes. 'de' spiegelt zusätzlich entries.definition.
+    """
+    lang = body.lang.lower()
+    text = body.text.strip()
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT id FROM entries WHERE id = ?",
+                           (entry_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        conn.execute(
+            "INSERT OR REPLACE INTO definitions (entry_id, lang, text, source)"
+            " VALUES (?, ?, ?, ?)",
+            (entry_id, lang, text, body.source))
+        if lang == "de":
+            conn.execute("UPDATE entries SET definition = ? WHERE id = ?",
+                         (text, entry_id))
+        conn.commit()
+        return {"ok": True, "entry_id": entry_id, "lang": lang}
     finally:
         conn.close()
 

@@ -193,6 +193,7 @@
     <div>
       <div id="defcard" style="display:none">
         <h2 class="sec">Bedeutung</h2>
+        <div class="schriften" id="defsprachen" style="margin-top:.25rem"></div>
         <div class="def" id="def"></div>
       </div>
 
@@ -353,11 +354,47 @@ async function load() {
       (un ? ` · ${un}× Wort unbekannt` : '');
   }
 
-  if (ev.definition) {
-    // Wortart-Präfix nicht wiederholen — reiner Text folgt dem Doppelpunkt
-    const m = ev.definition.match(/^\s*[\p{L}]+\s*:\s*(.*)$/us);
-    show(document.getElementById('defcard'), true);
-    linkify(document.getElementById('def'), m ? m[1] : ev.definition);
+  // Bedeutung — in allen verfügbaren Sprachen (Eintragssprache bevorzugt)
+  try {
+    const defs = await fetch(`/entries/${e.id}/definitions`)
+      .then(r => r.ok ? r.json() : null);
+    const dmap = (defs && defs.definitions)
+      || (ev.definition ? { de: ev.definition } : {});
+    const codes = Object.keys(dmap);
+    if (codes.length) {
+      show(document.getElementById('defcard'), true);
+      // Wortart-Präfix («Substantiv, m: …») nicht wiederholen
+      const strip = t => {
+        const m = t.match(/^\s*[\p{L}][\p{L}\s,()]{0,30}?:\s+(.*)$/us);
+        return m ? m[1] : t;
+      };
+      const chips = document.getElementById('defsprachen');
+      chips.innerHTML = '';
+      let aktuell = codes.includes(lang) ? lang
+        : (codes.includes('de') ? 'de' : codes[0]);
+      const render = () => {
+        linkify(document.getElementById('def'), strip(dmap[aktuell]));
+        for (const c of chips.children)
+          c.classList.toggle('aktiv', c.dataset.l === aktuell);
+      };
+      for (const c of codes) {
+        const a = document.createElement('a');
+        a.textContent = WB.sprachName(c) || c;
+        a.dataset.l = c;
+        a.href = '#defcard';
+        a.addEventListener('click', ev2 => {
+          ev2.preventDefault(); aktuell = c; render();
+        });
+        chips.appendChild(a);
+      }
+      render();
+    }
+  } catch (_) {
+    if (ev.definition) {
+      const m = ev.definition.match(/^\s*[\p{L}]+\s*:\s*(.*)$/us);
+      show(document.getElementById('defcard'), true);
+      linkify(document.getElementById('def'), m ? m[1] : ev.definition);
+    }
   }
 
   // Wortfamilie

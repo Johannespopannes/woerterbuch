@@ -207,6 +207,31 @@ def _migrate(conn: sqlite3.Connection) -> None:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_speaker_ratings_voice "
         "ON speaker_ratings (language, voice)")
+    # Bedeutungen in beliebigen Sprachen: pro Eintrag und Definitions-
+    # Sprache eine Zeile. lang = Sprache DES Textes ('de' = kanonische
+    # deutsche Definition, spiegelt entries.definition; 'it' = italienische
+    # Bedeutung eines italienischen Worts usw.).
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS definitions ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " entry_id INTEGER NOT NULL REFERENCES entries (id),"
+        " lang TEXT NOT NULL,"
+        " text TEXT NOT NULL,"
+        " source TEXT NOT NULL DEFAULT 'model',"
+        " created_at TEXT NOT NULL DEFAULT (datetime('now')),"
+        " UNIQUE (entry_id, lang)"
+        ")")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_definitions_entry "
+        "ON definitions (entry_id)")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_definitions_lang "
+        "ON definitions (lang)")
+    # Bestand uebernehmen: entries.definition ist die deutsche Definition
+    conn.execute(
+        "INSERT OR IGNORE INTO definitions (entry_id, lang, text, source) "
+        "SELECT id, 'de', definition, 'legacy' FROM entries "
+        "WHERE definition IS NOT NULL AND definition != ''")
 
 
 # ---------- MariaDB-Backend (Produktion) ----------
@@ -310,6 +335,17 @@ CREATE TABLE IF NOT EXISTS speaker_ratings (
     UNIQUE (language(8), voice(64), session_id(64))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE INDEX IF NOT EXISTS idx_speaker_ratings_voice ON speaker_ratings (language(8), voice(64));
+CREATE TABLE IF NOT EXISTS definitions (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    entry_id INT NOT NULL REFERENCES entries (id),
+    lang TEXT NOT NULL,
+    text TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'model',
+    created_at TEXT NOT NULL DEFAULT (NOW()),
+    UNIQUE (entry_id, lang(8))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX IF NOT EXISTS idx_definitions_entry ON definitions (entry_id);
+CREATE INDEX IF NOT EXISTS idx_definitions_lang ON definitions (lang(8));
 """
 
 _TRANSLATE = [
