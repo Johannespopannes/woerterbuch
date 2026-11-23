@@ -242,6 +242,9 @@ def main() -> None:
             if not aussage:
                 stat["ohne_beleg"] += 1
                 continue
+            # Wikitext-Reste aus der Aussage entfernen ([[x|y]] -> y)
+            aussage = re.sub(r"\[\[([^]|]*\|)?([^]]*)\]\]", r"\2", aussage)
+            aussage = aussage.replace("''", "").strip()
             api_post(f"/senses/{sid}/links", {
                 "kind": "etymologie",
                 "url": seite.format(lang, urllib.parse.quote(r["word"])),
