@@ -1,0 +1,17 @@
+[Unit]
+Description=Woerterbuch Pi-Pipeline (Ernte, Definitionen, Audits, Bilder)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=johannes
+WorkingDirectory=/home/johannes/woerterbuch
+ExecStart=/bin/bash /home/johannes/woerterbuch/pi/pipeline.sh
+Restart=always
+RestartSec=60
+# Sanftes Stoppen: laufende Runde darf zuende schreiben
+TimeoutStopSec=90
+
+[Install]
+WantedBy=multi-user.target
