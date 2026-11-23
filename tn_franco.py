@@ -69,7 +69,7 @@ def main() -> None:
                  if e.get("script") == "latn" and e.get("lemma")}
     todo = [e for e in entries
             if not e.get("script") and e["word"] not in abgedeckt]
-    print(f"{len(entries)} tn-Einträge, {len(todo)} ohne script-Angabe",
+    print(f"{len(entries)} tn-Einträge, {len(todo)} ohne Franco-Abdeckung",
           flush=True)
     created = linked = failed = 0
     for e in todo:
