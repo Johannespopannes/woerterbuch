@@ -42,7 +42,10 @@ def uebersetzungen_holen(model: str, ziel: str, zeilen: list[str]) -> dict:
         "model": model,
         "messages": [{"role": "user",
                       "content": PROMPT.format(ziel=ziel) + nummeriert}],
-        "max_tokens": 800,
+        # Achtung: ModelHub kappt mistral-large-4 bei 2560 Completion-
+        # Tokens — bei abgeschnittenem JSON geht der ganze Chunk verloren.
+        # Batch + Textlaenge muessen sicher darunter bleiben.
+        "max_tokens": 4000,
         "temperature": 0,
     }
     req = urllib.request.Request(
@@ -72,7 +75,7 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=120)
     ap.add_argument("--model", default=os.environ.get(
         "MODEL_NAME", "mistral-large-4:cloud"))
-    ap.add_argument("--batch", type=int, default=10)
+    ap.add_argument("--batch", type=int, default=5)
     ap.add_argument("--delay", type=float, default=0.5)
     a = ap.parse_args()
     frm, to = a.frm.lower(), a.to.lower()
@@ -89,7 +92,7 @@ def main() -> None:
     for i in range(0, len(rows), a.batch):
         chunk = rows[i:i + a.batch]
         zeilen = [f"{r['word']} — {r['label']}: "
-                  f"{str(r.get('text') or '')[:250]}" for r in chunk]
+                  f"{str(r.get('text') or '')[:180]}" for r in chunk]
         uebers = uebersetzungen_holen(a.model, to, zeilen)
         for n, r in enumerate(chunk, 1):
             txt = uebers.get(str(n))
