@@ -47,26 +47,9 @@ while true; do
   # --- zh/ja/hi/ru ---
   for L in zh ja hi ru; do kette "$L" "$QWEN" audit_eu.py; done
 
-  # --- Arabisch/Tunesisch (Franco-Qualität von Mistral-Cloud geprüft) ---
-  export MODEL_NAME=$MISTRAL
-  log "Kette ar via $MISTRAL"
-  run harvester.py --seed --language ar
-  run harvester.py --mode free    --language ar --letters ar --rounds 2 --per-round 25 --delay 0.3
-  run harvester.py --mode suggest --language ar --letters ar --rounds 1 --per-round 25 --delay 0.3
-  run harvester.py --mode gap     --language ar --letters ar --rounds 1 --per-round 8  --pairs 4 --delay 0.3
-  run harvester.py --mode define  --language ar --per-round 15 --delay 0.2
-  run audit_ar.py --language ar
-  run merge_ar_dupes.py --apply --language ar
-
-  log "Kette tn via $MISTRAL"
-  run harvester.py --seed --language tn
-  run harvester.py --mode free    --language tn --letters ar --rounds 1 --per-round 20 --delay 0.3
-  run harvester.py --mode suggest --language tn --letters ar --rounds 1 --per-round 20 --delay 0.3
-  run harvester.py --mode gap     --language tn --letters ar --rounds 1 --per-round 6  --pairs 4 --delay 0.3
-  run harvester.py --mode define  --language tn --per-round 12 --delay 0.2
-  run audit_ar.py --language tn
-  run merge_ar_dupes.py --apply --language tn
-  run tn_franco.py   # Franco-Formen nachreichen (Abdeckungskriterium)
+  # --- ar/tn: Ernte/Audit/Franco laufen auf dem LAPTOP via Jais (Sonder-
+  # modelle, staerkste Arabisch-Qualitaet) — siehe ar-tn-loop.sh/franco-loop.sh.
+  # Der Pi rendert hier nur die Bilder (Wan-Cloudrender).
 
   # --- Bilder (Wan-Cloudrender, Vision-Pick via ModelHub) ---
   log "Bilder-Runde"
