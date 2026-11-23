@@ -11,7 +11,7 @@
 set -u
 cd "$(dirname "$0")/.."   # /home/johannes/woerterbuch
 
-export DICT_API_URL=http://127.0.0.1:8000
+export DICT_API_URL=http://127.0.0.1:8805
 export DICT_API_KEY="VHixW4pMVFCX_aaVD6TwTsbECZkqDPcM"
 export MODEL_BASE_URL=https://modelhub.tassekaffee.com/v1 MODEL_API_KEY=dummy
 export WB_RENDER_CLOUD=1
