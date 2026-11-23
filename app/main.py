@@ -1097,6 +1097,256 @@ def audit_definition(entry_id: int, body: DefAuditIn,
         conn.close()
 
 
+# ---------- Sinn-Ebene: Wort -> Bedeutung -> Übersetzung ----------
+
+class SenseIn(BaseModel):
+    label: str = Field(min_length=1, max_length=200)
+    source: str = Field(default="manual", max_length=40)
+
+
+class SenseDefIn(BaseModel):
+    lang: str = Field(min_length=2, max_length=8)
+    text: str = Field(min_length=1, max_length=1000)
+    source: str = Field(default="model", max_length=40)
+
+
+class SenseTransIn(BaseModel):
+    entry_id: int
+    source: str = Field(default="model", max_length=40)
+
+
+class SenseLinkIn(BaseModel):
+    kind: str = Field(min_length=2, max_length=16)
+    url: str
+    claim: str = Field(default="", max_length=190)
+    source: str = Field(default="manual", max_length=40)
+
+
+def _senses_fuer_eintrag(conn, entry_id: int) -> list[dict]:
+    """Alle Sinne eines Eintrags, verschachtelt mit Definitionen,
+    Übersetzungszielen und Belegen."""
+    sinne = conn.execute(
+        "SELECT id, label, source FROM senses WHERE entry_id = ?"
+        " ORDER BY id", (entry_id,)).fetchall()
+    out = []
+    for s in sinne:
+        sid = s["id"]
+        defs = conn.execute(
+            "SELECT lang, text, source FROM sense_definitions"
+            " WHERE sense_id = ?", (sid,)).fetchall()
+        trans = conn.execute(
+            "SELECT t.entry_id AS entry_id, e.word AS word,"
+            " e.language AS language, t.source AS source"
+            " FROM sense_translations t JOIN entries e ON e.id = t.entry_id"
+            " WHERE t.sense_id = ? ORDER BY e.language, e.word",
+            (sid,)).fetchall()
+        links = conn.execute(
+            "SELECT kind, url, claim, source FROM sense_links"
+            " WHERE sense_id = ? ORDER BY kind, claim", (sid,)).fetchall()
+        out.append({
+            "id": sid, "label": s["label"], "source": s["source"],
+            "definitions": {d["lang"]: d["text"] for d in defs},
+            "def_sources": {d["lang"]: d["source"] for d in defs},
+            "translations": [dict(t) for t in trans],
+            "links": [dict(l) for l in links],
+        })
+    return out
+
+
+@app.post("/entries/{entry_id}/senses", status_code=201)
+def add_sense(entry_id: int, body: SenseIn, _=Depends(require_api_key)):
+    """Bedeutung (Sinn) zu einem Eintrag anlegen."""
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT id FROM entries WHERE id = ?",
+                           (entry_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        cur = conn.execute(
+            "INSERT INTO senses (entry_id, label, source) VALUES (?, ?, ?)",
+            (entry_id, body.label.strip(), body.source))
+        conn.commit()
+        return {"ok": True, "entry_id": entry_id,
+                "sense_id": cur.lastrowid}
+    finally:
+        conn.close()
+
+
+@app.get("/entries/{entry_id}/senses")
+def get_senses(entry_id: int):
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT id FROM entries WHERE id = ?",
+                           (entry_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        return {"senses": _senses_fuer_eintrag(conn, entry_id)}
+    finally:
+        conn.close()
+
+
+@app.get("/senses/queue")
+def senses_queue(language: str = Query(min_length=2, max_length=8),
+                 limit: int = Query(default=50, le=200)):
+    """Einträge mit Definition, aber noch ohne Sinn-Ebenen — Futter für
+    die autonome Sinntrennung."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT e.id AS id, e.word AS word, e.language AS language,"
+            " e.definition AS definition"
+            " FROM entries e"
+            " WHERE e.language = ?"
+            " AND (e.definition IS NOT NULL AND e.definition != '')"
+            " AND NOT EXISTS (SELECT 1 FROM senses s WHERE s.entry_id = e.id)"
+            " ORDER BY e.id LIMIT ?", (language.lower(), limit)).fetchall()
+        return {"rows": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.get("/senses/translate-queue")
+def senses_translate_queue(frm: str = Query(min_length=2, max_length=8,
+                                            alias="from"),
+                           to: str = Query(min_length=2, max_length=8),
+                           limit: int = Query(default=50, le=200)):
+    """Sinne mit Definition in der Ausgangssprache, die noch KEINE
+    Übersetzungsverbindung zu einem Wort der Zielsprache haben."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT s.id AS sense_id, s.label AS label,"
+            " sd.text AS text,"
+            " e.id AS entry_id, e.word AS word, e.language AS language"
+            " FROM senses s"
+            " JOIN entries e ON e.id = s.entry_id"
+            " JOIN sense_definitions sd ON sd.sense_id = s.id"
+            "  AND sd.lang = ?"
+            " WHERE e.language = ?"
+            " AND NOT EXISTS ("
+            "  SELECT 1 FROM sense_translations st"
+            "  JOIN entries te ON te.id = st.entry_id"
+            "  WHERE st.sense_id = s.id AND te.language = ?)"
+            " ORDER BY s.id LIMIT ?",
+            (frm.lower(), frm.lower(), to.lower(), limit)).fetchall()
+        return {"rows": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.put("/senses/{sense_id}/definitions")
+def put_sense_definition(sense_id: int, body: SenseDefIn,
+                         _=Depends(require_api_key)):
+    """Definition für einen Sinn in einer bestimmten Sprache (Upsert)."""
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT id FROM senses WHERE id = ?",
+                           (sense_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, f"Sinn {sense_id} nicht gefunden")
+        conn.execute(
+            "INSERT OR REPLACE INTO sense_definitions"
+            " (sense_id, lang, text, source) VALUES (?, ?, ?, ?)",
+            (sense_id, body.lang.lower(), body.text.strip(), body.source))
+        conn.commit()
+        return {"ok": True, "sense_id": sense_id, "lang": body.lang.lower()}
+    finally:
+        conn.close()
+
+
+@app.post("/senses/{sense_id}/translations", status_code=201)
+def add_sense_translation(sense_id: int, body: SenseTransIn,
+                          _=Depends(require_api_key)):
+    """Übersetzungsverbindung: Sinn <-> passender Eintrag (anderer Sprache).
+
+    Ein Wort-Paar pro Sinn — Mehrdeutigkeiten gehören auf mehrere Sinne.
+    """
+    conn = get_conn()
+    try:
+        s = conn.execute("SELECT id FROM senses WHERE id = ?",
+                         (sense_id,)).fetchone()
+        if not s:
+            raise HTTPException(404, f"Sinn {sense_id} nicht gefunden")
+        t = conn.execute("SELECT id, language FROM entries WHERE id = ?",
+                         (body.entry_id,)).fetchone()
+        if not t:
+            raise HTTPException(404, f"Eintrag {body.entry_id} nicht gefunden")
+        dup = conn.execute(
+            "SELECT id FROM sense_translations"
+            " WHERE sense_id = ? AND entry_id = ?",
+            (sense_id, body.entry_id)).fetchone()
+        if dup:
+            raise HTTPException(409, "Übersetzungsverbindung existiert bereits")
+        conn.execute(
+            "INSERT INTO sense_translations (sense_id, entry_id, source)"
+            " VALUES (?, ?, ?)",
+            (sense_id, body.entry_id, body.source))
+        conn.commit()
+        return {"ok": True, "sense_id": sense_id,
+                "entry_id": body.entry_id}
+    finally:
+        conn.close()
+
+
+@app.delete("/senses/{sense_id}/translations/{entry_id}", status_code=204)
+def delete_sense_translation(sense_id: int, entry_id: int,
+                             _=Depends(require_api_key)):
+    conn = get_conn()
+    try:
+        cur = conn.execute(
+            "DELETE FROM sense_translations"
+            " WHERE sense_id = ? AND entry_id = ?",
+            (sense_id, entry_id))
+        conn.commit()
+    finally:
+        conn.close()
+    if cur.rowcount == 0:
+        raise HTTPException(404, "Übersetzungsverbindung nicht gefunden")
+
+
+@app.post("/senses/{sense_id}/links")
+def put_sense_link(sense_id: int, body: SenseLinkIn,
+                   _=Depends(require_api_key)):
+    """Beleg pro Sinn UND Aussage (claim): Wortgeschichte nachvollziehbar."""
+    kind = body.kind.strip().lower()
+    url = body.url.strip()
+    if not url.startswith("https://"):
+        raise HTTPException(400, "Nur https-URLs erlaubt")
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT id FROM senses WHERE id = ?",
+                           (sense_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, f"Sinn {sense_id} nicht gefunden")
+        conn.execute(
+            "INSERT OR REPLACE INTO sense_links"
+            " (sense_id, kind, url, claim, source)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (sense_id, kind, url, body.claim.strip(), body.source))
+        conn.commit()
+        return {"ok": True, "sense_id": sense_id, "kind": kind}
+    finally:
+        conn.close()
+
+
+@app.delete("/senses/{sense_id}", status_code=204)
+def delete_sense(sense_id: int, _=Depends(require_api_key)):
+    """Sinn samt Definitionen, Übersetzungen und Belegen entfernen
+    (Pipeline-Korrekturen, Merge falscher Dubletten)."""
+    conn = get_conn()
+    try:
+        for tbl in ("sense_definitions", "sense_translations",
+                    "sense_links"):
+            conn.execute(f"DELETE FROM {tbl} WHERE sense_id = ?",
+                         (sense_id,))
+        cur = conn.execute("DELETE FROM senses WHERE id = ?", (sense_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    if cur.rowcount == 0:
+        raise HTTPException(404, f"Sinn {sense_id} nicht gefunden")
+
+
 @app.post("/entries/{entry_id}/source-links")
 def put_source_link(entry_id: int, body: SourceLinkIn,
                     _=Depends(require_api_key)):

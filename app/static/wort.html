@@ -197,6 +197,11 @@
         <div class="def" id="def"></div>
       </div>
 
+      <div id="sinncard" style="display:none">
+        <h2 class="sec">Bedeutungen</h2>
+        <div id="sinne"></div>
+      </div>
+
       <div class="neben" id="gramcard" style="display:none">
         <h2 class="sec">Grammatik</h2>
         <div class="gramzeile" id="gramzeile"></div>
@@ -426,6 +431,70 @@ async function load() {
       linkify(document.getElementById('def'), m ? m[1] : ev.definition);
     }
   }
+
+  // Sinn-Ebene: getrennte Bedeutungen mit eigenen Definitionen,
+  // bedeutungsgerechten Übersetzungen und Belegen pro Aussage
+  try {
+    const senses = await fetch(`/entries/${e.id}/senses`)
+      .then(r => r.ok ? r.json() : null);
+    const sinne = (senses && senses.senses) || [];
+    if (sinne.length) {
+      show(document.getElementById('sinncard'), true);
+      const box = document.getElementById('sinne');
+      box.innerHTML = '';
+      for (const s of sinne) {
+        const d = document.createElement('div');
+        d.className = 'sinn';
+        const h = document.createElement('h3');
+        h.textContent = s.label;
+        d.appendChild(h);
+        const sd = s.definitions || {};
+        const p = document.createElement('p');
+        p.className = 'def';
+        const strip = t => {
+          const m2 = String(t).match(/^\s*[\p{L}][\p{L}\s,()]{0,30}?:\s+(.*)$/us);
+          return m2 ? m2[1] : t;
+        };
+        // Eintragssprache bevorzugen, dann de, dann erste verfügbare
+        const txt = sd[lang] || sd.de || sd[Object.keys(sd)[0]];
+        if (txt) linkify(p, strip(txt));
+        d.appendChild(p);
+        if (s.translations && s.translations.length) {
+          const tdiv = document.createElement('div');
+          tdiv.className = 'schriften';
+          for (const t of s.translations) {
+            const a = document.createElement('a');
+            a.textContent = t.word + ' ' + t.language.toUpperCase();
+            a.href = '/worteintrag?' + new URLSearchParams(
+              { word: t.word, lang: t.language });
+            if (t.source && t.source.startsWith('verify:'))
+              a.title = 'Modell-Vorschlag, noch nicht gegengeprüft';
+            tdiv.appendChild(a);
+          }
+          d.appendChild(tdiv);
+        }
+        if (s.links && s.links.length) {
+          const ul = document.createElement('ul');
+          ul.className = 'evi';
+          const namen = { wiktionary: 'Wiktionary', wikipedia: 'Wikipedia',
+                          dwds: 'DWDS' };
+          for (const l of s.links) {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.href = l.url;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.textContent = namen[l.kind] || l.kind;
+            if (l.claim) a.title = 'Belegt: ' + l.claim;
+            li.appendChild(a);
+            ul.appendChild(li);
+          }
+          d.appendChild(ul);
+        }
+        box.appendChild(d);
+      }
+    }
+  } catch (_) {}
 
   // Wortfamilie
   try {

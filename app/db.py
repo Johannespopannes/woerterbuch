@@ -218,6 +218,65 @@ def _migrate(conn: sqlite3.Connection) -> None:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_source_links_entry "
         "ON source_links (entry_id)")
+    # Sinn-Ebene: ein Wort, mehrere Bedeutungen (Bank = Finanzinstitut
+    # vs. Sitzmoebel). Sinne tragen eigene Definitionen, Uebersetzungs-
+    # verbindungen zu Woertern ANDERER Sprachen (bedeutungsgerecht!) und
+    # belegte Quellen pro Aussage (Wortgeschichte). Der Altbestand auf
+    # Wortebene (definitions, Bilder, Bewertungen) bleibt unveraendert.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS senses ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " entry_id INTEGER NOT NULL REFERENCES entries (id),"
+        " label TEXT NOT NULL,"
+        " source TEXT NOT NULL DEFAULT 'manual',"
+        " created_at TEXT NOT NULL DEFAULT (datetime('now'))"
+        ")")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_senses_entry ON senses (entry_id)")
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS sense_definitions ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " sense_id INTEGER NOT NULL REFERENCES senses (id),"
+        " lang TEXT NOT NULL,"
+        " text TEXT NOT NULL,"
+        " source TEXT NOT NULL DEFAULT 'model',"
+        " created_at TEXT NOT NULL DEFAULT (datetime('now')),"
+        " UNIQUE (sense_id, lang)"
+        ")")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sense_definitions_sense "
+        "ON sense_definitions (sense_id)")
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS sense_translations ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " sense_id INTEGER NOT NULL REFERENCES senses (id),"
+        " entry_id INTEGER NOT NULL REFERENCES entries (id),"
+        " source TEXT NOT NULL DEFAULT 'model',"
+        " created_at TEXT NOT NULL DEFAULT (datetime('now')),"
+        " UNIQUE (sense_id, entry_id)"
+        ")")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sense_translations_sense "
+        "ON sense_translations (sense_id)")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sense_translations_entry "
+        "ON sense_translations (entry_id)")
+    # Herkunfts-/Gebrauchsbelege: pro Sinn, mit der konkreten Aussage,
+    # die die Quelle stuetzt (kein bloßer Existenznachweis).
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS sense_links ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " sense_id INTEGER NOT NULL REFERENCES senses (id),"
+        " kind TEXT NOT NULL,"
+        " url TEXT NOT NULL,"
+        " claim TEXT NOT NULL DEFAULT '',"
+        " source TEXT NOT NULL DEFAULT 'manual',"
+        " created_at TEXT NOT NULL DEFAULT (datetime('now')),"
+        " UNIQUE (sense_id, kind, claim)"
+        ")")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sense_links_sense "
+        "ON sense_links (sense_id)")
     # Bedeutungen in beliebigen Sprachen: pro Eintrag und Definitions-
     # Sprache eine Zeile. lang = Sprache DES Textes ('de' = kanonische
     # deutsche Definition, spiegelt entries.definition; 'it' = italienische
@@ -366,6 +425,45 @@ CREATE TABLE IF NOT EXISTS source_links (
     UNIQUE (entry_id, kind(16))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE INDEX IF NOT EXISTS idx_source_links_entry ON source_links (entry_id);
+CREATE TABLE IF NOT EXISTS senses (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    entry_id INT NOT NULL REFERENCES entries (id),
+    label TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'manual',
+    created_at TEXT NOT NULL DEFAULT (NOW())
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX IF NOT EXISTS idx_senses_entry ON senses (entry_id);
+CREATE TABLE IF NOT EXISTS sense_definitions (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    sense_id INT NOT NULL REFERENCES senses (id),
+    lang TEXT NOT NULL,
+    text TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'model',
+    created_at TEXT NOT NULL DEFAULT (NOW()),
+    UNIQUE (sense_id, lang(8))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX IF NOT EXISTS idx_sense_definitions_sense ON sense_definitions (sense_id);
+CREATE TABLE IF NOT EXISTS sense_translations (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    sense_id INT NOT NULL REFERENCES senses (id),
+    entry_id INT NOT NULL REFERENCES entries (id),
+    source TEXT NOT NULL DEFAULT 'model',
+    created_at TEXT NOT NULL DEFAULT (NOW()),
+    UNIQUE (sense_id, entry_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX IF NOT EXISTS idx_sense_translations_sense ON sense_translations (sense_id);
+CREATE INDEX IF NOT EXISTS idx_sense_translations_entry ON sense_translations (entry_id);
+CREATE TABLE IF NOT EXISTS sense_links (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    sense_id INT NOT NULL REFERENCES senses (id),
+    kind TEXT NOT NULL,
+    url TEXT NOT NULL,
+    claim VARCHAR(191) NOT NULL DEFAULT '',
+    source TEXT NOT NULL DEFAULT 'manual',
+    created_at TEXT NOT NULL DEFAULT (NOW()),
+    UNIQUE (sense_id, kind(16), claim)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX IF NOT EXISTS idx_sense_links_sense ON sense_links (sense_id);
 """
 
 _TRANSLATE = [

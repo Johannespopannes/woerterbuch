@@ -34,6 +34,7 @@ kette() {
   run harvester.py --mode gap     --language "$lang" --letters all --rounds 1 --per-round 15 --pairs 4 --delay 0.5
   run harvester.py --mode define  --language "$lang" --per-round 30 --delay 0.3
   run define_langs.py --mode own --language "$lang" --limit 300 --batch 20 --delay 0.4
+  run sense_split.py --language "$lang" --limit 150 --batch 5
   run source_links.py --language "$lang" --limit 400
   run "$audit" --language "$lang"
 }
@@ -67,6 +68,11 @@ while true; do
   esac
   log "Bedeutungs-Übersetzung -> $T via $MODEL_NAME"
   run define_langs.py --mode translate --target "$T" --limit 400 --batch 15 --delay 0.5
+
+  # --- Sinn-Ebene: Übersetzungsverbindungen bedeutungsgerecht über die
+  # Sinne (Bank=Finanzinstitut -> bank, Bank=Sitzmöbel -> bench) ---
+  log "Sinn-Übersetzung de -> $T"
+  run sense_translate.py --from de --to "$T" --limit 100
 
   # --- Definitions-Sprachaudit: pauschal als 'de' übernommene Legacy-
   # Texte per Modell prüfen, falsch zugeordnete in die richtige Sprache
