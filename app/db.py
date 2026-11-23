@@ -228,6 +228,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         " id INTEGER PRIMARY KEY AUTOINCREMENT,"
         " entry_id INTEGER NOT NULL REFERENCES entries (id),"
         " label TEXT NOT NULL,"
+        " word_class TEXT NOT NULL DEFAULT '',"
         " source TEXT NOT NULL DEFAULT 'manual',"
         " created_at TEXT NOT NULL DEFAULT (datetime('now'))"
         ")")
@@ -251,6 +252,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         " id INTEGER PRIMARY KEY AUTOINCREMENT,"
         " sense_id INTEGER NOT NULL REFERENCES senses (id),"
         " entry_id INTEGER NOT NULL REFERENCES entries (id),"
+        " approx INTEGER NOT NULL DEFAULT 0,"
         " source TEXT NOT NULL DEFAULT 'model',"
         " created_at TEXT NOT NULL DEFAULT (datetime('now')),"
         " UNIQUE (sense_id, entry_id)"
@@ -302,6 +304,13 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "INSERT OR IGNORE INTO definitions (entry_id, lang, text, source) "
         "SELECT id, 'de', definition, 'legacy' FROM entries "
         "WHERE definition IS NOT NULL AND definition != ''")
+    # Sinn-Ebene nachruesten (Spalten fuer bestehende Tabellen)
+    sc = {r["name"] for r in conn.execute("PRAGMA table_info (senses)")}
+    if "word_class" not in sc:
+        conn.execute("ALTER TABLE senses ADD COLUMN word_class TEXT NOT NULL DEFAULT ''")
+    tc = {r["name"] for r in conn.execute("PRAGMA table_info (sense_translations)")}
+    if "approx" not in tc:
+        conn.execute("ALTER TABLE sense_translations ADD COLUMN approx INTEGER NOT NULL DEFAULT 0")
 
 
 # ---------- MariaDB-Backend (Produktion) ----------
@@ -429,6 +438,7 @@ CREATE TABLE IF NOT EXISTS senses (
     id INT PRIMARY KEY AUTO_INCREMENT,
     entry_id INT NOT NULL REFERENCES entries (id),
     label TEXT NOT NULL,
+    word_class TEXT NOT NULL DEFAULT '',
     source TEXT NOT NULL DEFAULT 'manual',
     created_at TEXT NOT NULL DEFAULT (NOW())
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -447,6 +457,7 @@ CREATE TABLE IF NOT EXISTS sense_translations (
     id INT PRIMARY KEY AUTO_INCREMENT,
     sense_id INT NOT NULL REFERENCES senses (id),
     entry_id INT NOT NULL REFERENCES entries (id),
+    approx INT NOT NULL DEFAULT 0,
     source TEXT NOT NULL DEFAULT 'model',
     created_at TEXT NOT NULL DEFAULT (NOW()),
     UNIQUE (sense_id, entry_id)

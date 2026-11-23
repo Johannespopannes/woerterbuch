@@ -385,6 +385,23 @@ def chat(prompt: str, temperature: float) -> str:
     else:
         raise last_err or RuntimeError("chat unbekannter Fehler")
     content = data["choices"][0]["message"]["content"]
+    # Jais & Co. denken trotz enable_thinking und können bei kniffligen
+    # Prompts das komplette Budget verbrauchen — dann ist content leer.
+    # Strategisch nachladen: zweiter Versuch mit doppeltem Budget.
+    for faktor in (2, 4):
+        if content and content.strip():
+            break
+        body = json.loads(req.data.decode())
+        body["max_tokens"] = 8000 * faktor
+        req2 = urllib.request.Request(
+            req.full_url, data=json.dumps(body).encode(),
+            headers=dict(req.header_items()))
+        try:
+            with urllib.request.urlopen(req2, timeout=300) as resp:
+                data = json.loads(resp.read())
+            content = data["choices"][0]["message"]["content"]
+        except Exception:
+            break
     if not content or not content.strip():
         raise RuntimeError("Leere Antwort (Reasoning-Budget aufgebraucht?) — Retry")
     return content

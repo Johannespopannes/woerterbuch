@@ -30,12 +30,12 @@ MODEL_API_KEY = os.environ.get("MODEL_API_KEY", "dummy")
 
 PROMPT = (
     "Wörterbuch-Einträge. Zerlege jedes Wort in seine BEDEUTUNGEN "
-    "(Sinne). Mehrdeutige Wörter bekommen mehrere Sinne (z. B. Bank = "
-    "Finanzinstitut und Sitzmöbel), eindeutige genau einen. Pro Sinn "
-    "eine kurze Glosse (label) und eine eigenständige Beschreibung in "
-    "einem Satz (beschreibung, Sprache des Eintrags). Antworte NUR mit "
-    'einem JSON-Objekt {"1":[{"label":"...","beschreibung":"..."}],"2":'
-    '[...],...}.\n\n'
+    "(Sinne). Homonyme (gleiche Schreibung, verschiedene Ursprünge) "
+    "und verschiedene Wortarten bekommen eigene Sinne. Pro Sinn: "
+    "label (kurze Glosse), wortart (Substantiv/Verb/Adjektiv/... oder "
+    "leer), beschreibung (ein Satz, Sprache des Eintrags). Antworte "
+    'NUR mit einem JSON-Objekt {"1":[{"label":"...","wortart":"...",'
+    '"beschreibung":"..."}],"2":[...],...}.\n\n'
 )
 
 
@@ -72,6 +72,7 @@ def sinne_bilden(model: str, zeilen: list[str]) -> dict:
                 if isinstance(s, dict) and s.get("label"):
                     sinne.append({
                         "label": str(s["label"])[:200],
+                        "wortart": str(s.get("wortart", ""))[:40],
                         "beschreibung": str(s.get("beschreibung", ""))[:1000],
                     })
             if sinne:
@@ -111,6 +112,7 @@ def main() -> None:
             for s in sinne:
                 resp = api_post(f"/entries/{r['id']}/senses",
                                 {"label": s["label"],
+                                 "word_class": s.get("wortart", ""),
                                  "source": "sense-split"})
                 sid = resp["sense_id"]
                 if s["beschreibung"]:

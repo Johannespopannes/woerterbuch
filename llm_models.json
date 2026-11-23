@@ -1,0 +1,81 @@
+{
+  "llama_server": "C:\\Users\\johan\\Bonsai-demo\\bin\\mainline-vulkan\\llama-server.exe",
+  "log_dir": "C:\\Repos\\_scratch\\woerterbuch-chain",
+  "idle_minutes": 20,
+  "ram_reserve_gb": 8,
+  "autostart": ["jais-3-ar"],
+  "models": [
+    {
+      "id": "jais-3-ar",
+      "alias": "jais-3-ar",
+      "port": 8083,
+      "gguf": ["C:\\Models\\llm\\jais\\Jais-3-MoVA-36B-A4B\\Jais-3-MoVA-36B-A4B.Q4_K_M.gguf"],
+      "ctx": 16384,
+      "keep_loaded": true,
+      "sprachen": ["ar", "tn"]
+    },
+    {
+      "id": "gemma-4-vision",
+      "alias": "gemma-4-vision",
+      "port": 8082,
+      "gguf": ["C:\\Models\\llm\\google\\gemma-4-E4B-it-qat-q4_0-gguf\\gemma-4-E4B_q4_0-it.gguf"],
+      "mmproj": "C:\\Models\\llm\\google\\gemma-4-E4B-it-qat-q4_0-gguf\\gemma-4-E4B-it-mmproj.gguf",
+      "ctx": 8192,
+      "keep_loaded": false,
+      "sprachen": ["de", "en"]
+    },
+    {
+      "id": "kolibri",
+      "alias": "kolibri",
+      "port": 8084,
+      "gguf": ["C:\\Models\\llm\\kolibri\\Kolibri-1-Q4_K_XL.gguf"],
+      "ctx": 8192,
+      "keep_loaded": false,
+      "sprachen": ["de", "en", "fr", "es", "it", "nl", "sv", "da"]
+    },
+    {
+      "id": "qwen3-32b",
+      "alias": "qwen3-32b",
+      "port": 8085,
+      "gguf": ["C:\\Models\\llm\\qwen\\Qwen3-32B\\Qwen3-32B-Q4_K_M.gguf"],
+      "ctx": 8192,
+      "keep_loaded": false,
+      "sprachen": ["zh", "ja", "ru", "de", "en"]
+    },
+    {
+      "id": "mistral-small-4",
+      "alias": "mistral-small-4",
+      "port": 8081,
+      "gguf": ["C:\\Models\\llm\\mistralai\\Mistral-Small-4-119B-2603\\mistralai_Mistral-Small-4-119B-2603-Q4_K_M-00001-of-00002.gguf",
+               "C:\\Models\\llm\\mistralai\\Mistral-Small-4-119B-2603\\mistralai_Mistral-Small-4-119B-2603-Q4_K_M-00002-of-00002.gguf"],
+      "ctx": 8192,
+      "keep_loaded": false,
+      "extra_args": ["--jinja"],
+      "sprachen": ["de", "en", "fr", "es", "it", "pt"]
+    },
+    {
+      "id": "llm-jp-4.1-33b",
+      "port": 8086,
+      "offline": true,
+      "hf_repo": "llm-jp/llm-jp-4.1-33b-instruct",
+      "sprachen": ["ja"],
+      "notiz": "Japanisch-Spezialist, Kandidat aus dem Katalog 22.11."
+    },
+    {
+      "id": "t-pro-it-33b",
+      "port": 8087,
+      "offline": true,
+      "hf_repo": "T-Pro-AI/T-pro-it-2.0-33b",
+      "sprachen": ["ru"],
+      "notiz": "Russisch-Spezialist (Qwen3-Fine-Tune), Kandidat 22.11."
+    },
+    {
+      "id": "exaone-3.5-32b",
+      "port": 8088,
+      "offline": true,
+      "hf_repo": "LGAI-EXAONE/EXAONE-3.5-32B-Instruct",
+      "sprachen": ["ko"],
+      "notiz": "Koreanisch/Englisch, Kandidat 22.11."
+    }
+  ]
+}

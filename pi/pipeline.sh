@@ -75,6 +75,11 @@ while true; do
   log "Sinn-Übersetzung de -> $T"
   run sense_translate.py --from de --to "$T" --limit 100
 
+  # --- Sinn-Beschreibungs-Matrix: jede Bedeutung zusätzlich in $T
+  # erklärt (an den Sinn gebunden, nicht nur am Wort) ---
+  log "Sinnbeschreibungen de -> $T"
+  run sense_def_translate.py --from de --to "$T" --limit 120
+
   # --- Definitions-Sprachaudit: pauschal als 'de' übernommene Legacy-
   # Texte per Modell prüfen, falsch zugeordnete in die richtige Sprache
   # verschieben (entries.definition-Cache wird dabei sauber frei) ---

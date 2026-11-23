@@ -596,8 +596,10 @@ def list_entries(
                     " WHERE lang = ?)")
             params.append(dl)
     if nolinks:
-        # Vollständig = alle Wikis (+ DWDS bei de). Unvollständige nachrüsten.
-        erwartet = 3 if (language or "").lower() == "de" else 2
+        # Vollständig = alle Wikis + Wikidata (+ DWDS bei de). Unvollständige
+        # nachrüsten. tn hat kein Wiki/Wikidata -> 0 erwartet.
+        l = (language or "").lower()
+        erwartet = 4 if l == "de" else (0 if l == "tn" else 3)
         sql += (" AND (SELECT COUNT(*) FROM source_links s"
                 " WHERE s.entry_id = entries.id) < ?")
         params.append(erwartet)
@@ -1101,6 +1103,7 @@ def audit_definition(entry_id: int, body: DefAuditIn,
 
 class SenseIn(BaseModel):
     label: str = Field(min_length=1, max_length=200)
+    word_class: str = Field(default="", max_length=40)
     source: str = Field(default="manual", max_length=40)
 
 
@@ -1112,6 +1115,7 @@ class SenseDefIn(BaseModel):
 
 class SenseTransIn(BaseModel):
     entry_id: int
+    approx: bool = False  # ungefähre Entsprechung (kein 1:1-Äquivalent)
     source: str = Field(default="model", max_length=40)
 
 
@@ -1126,8 +1130,8 @@ def _senses_fuer_eintrag(conn, entry_id: int) -> list[dict]:
     """Alle Sinne eines Eintrags, verschachtelt mit Definitionen,
     Übersetzungszielen und Belegen."""
     sinne = conn.execute(
-        "SELECT id, label, source FROM senses WHERE entry_id = ?"
-        " ORDER BY id", (entry_id,)).fetchall()
+        "SELECT id, label, word_class, source FROM senses"
+        " WHERE entry_id = ? ORDER BY id", (entry_id,)).fetchall()
     out = []
     for s in sinne:
         sid = s["id"]
@@ -1136,7 +1140,8 @@ def _senses_fuer_eintrag(conn, entry_id: int) -> list[dict]:
             " WHERE sense_id = ?", (sid,)).fetchall()
         trans = conn.execute(
             "SELECT t.entry_id AS entry_id, e.word AS word,"
-            " e.language AS language, t.source AS source"
+            " e.language AS language, t.approx AS approx,"
+            " t.source AS source"
             " FROM sense_translations t JOIN entries e ON e.id = t.entry_id"
             " WHERE t.sense_id = ? ORDER BY e.language, e.word",
             (sid,)).fetchall()
@@ -1144,7 +1149,9 @@ def _senses_fuer_eintrag(conn, entry_id: int) -> list[dict]:
             "SELECT kind, url, claim, source FROM sense_links"
             " WHERE sense_id = ? ORDER BY kind, claim", (sid,)).fetchall()
         out.append({
-            "id": sid, "label": s["label"], "source": s["source"],
+            "id": sid, "label": s["label"],
+            "word_class": s["word_class"],
+            "source": s["source"],
             "definitions": {d["lang"]: d["text"] for d in defs},
             "def_sources": {d["lang"]: d["source"] for d in defs},
             "translations": [dict(t) for t in trans],
@@ -1163,8 +1170,10 @@ def add_sense(entry_id: int, body: SenseIn, _=Depends(require_api_key)):
         if not row:
             raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
         cur = conn.execute(
-            "INSERT INTO senses (entry_id, label, source) VALUES (?, ?, ?)",
-            (entry_id, body.label.strip(), body.source))
+            "INSERT INTO senses (entry_id, label, word_class, source)"
+            " VALUES (?, ?, ?, ?)",
+            (entry_id, body.label.strip(), body.word_class.strip(),
+             body.source))
         conn.commit()
         return {"ok": True, "entry_id": entry_id,
                 "sense_id": cur.lastrowid}
@@ -1223,10 +1232,9 @@ def senses_translate_queue(frm: str = Query(min_length=2, max_length=8,
             " JOIN sense_definitions sd ON sd.sense_id = s.id"
             "  AND sd.lang = ?"
             " WHERE e.language = ?"
-            " AND NOT EXISTS ("
-            "  SELECT 1 FROM sense_translations st"
-            "  JOIN entries te ON te.id = st.entry_id"
-            "  WHERE st.sense_id = s.id AND te.language = ?)"
+            " AND (SELECT COUNT(*) FROM sense_translations st"
+            "      JOIN entries te ON te.id = st.entry_id"
+            "      WHERE st.sense_id = s.id AND te.language = ?) < 3"
             " ORDER BY s.id LIMIT ?",
             (frm.lower(), frm.lower(), to.lower(), limit)).fetchall()
         return {"rows": [dict(r) for r in rows]}
@@ -1254,6 +1262,34 @@ def senses_etym_queue(language: str = Query(min_length=2, max_length=8),
             "  SELECT 1 FROM sense_links sl"
             "  WHERE sl.sense_id = s.id AND sl.kind = 'etymologie')"
             " ORDER BY s.id LIMIT ?", (language.lower(), limit)).fetchall()
+        return {"rows": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.get("/senses/def-queue")
+def senses_def_queue(frm: str = Query(min_length=2, max_length=8,
+                                      alias="from"),
+                     to: str = Query(min_length=2, max_length=8),
+                     limit: int = Query(default=50, le=200)):
+    """Sinne mit Beschreibung in der Ausgangssprache, aber noch ohne
+    Beschreibung in der Zielsprache — Futter für die Sinn-Beschreibungs-
+    Matrix (jede Bedeutung in jeder Sprache erklärt)."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT s.id AS sense_id, s.label AS label,"
+            " sd.text AS text,"
+            " e.word AS word, e.language AS language"
+            " FROM senses s"
+            " JOIN entries e ON e.id = s.entry_id"
+            " JOIN sense_definitions sd ON sd.sense_id = s.id"
+            "  AND sd.lang = ?"
+            " WHERE NOT EXISTS ("
+            "  SELECT 1 FROM sense_definitions zd"
+            "  WHERE zd.sense_id = s.id AND zd.lang = ?)"
+            " ORDER BY s.id LIMIT ?",
+            (frm.lower(), to.lower(), limit)).fetchall()
         return {"rows": [dict(r) for r in rows]}
     finally:
         conn.close()
@@ -1302,10 +1338,21 @@ def add_sense_translation(sense_id: int, body: SenseTransIn,
             (sense_id, body.entry_id)).fetchone()
         if dup:
             raise HTTPException(409, "Übersetzungsverbindung existiert bereits")
+        pro_sprache = conn.execute(
+            "SELECT COUNT(*) AS n FROM sense_translations t"
+            " JOIN entries e ON e.id = t.entry_id"
+            " WHERE t.sense_id = ? AND e.language = ?",
+            (sense_id, t["language"])).fetchone()
+        if pro_sprache["n"] >= 3:
+            raise HTTPException(
+                400,
+                f"Bereits 3 Übersetzungen für Sprache {t['language']}"
+                " an diesem Sinn — Mehrdeutigkeit gehört auf mehrere Sinne")
         conn.execute(
-            "INSERT INTO sense_translations (sense_id, entry_id, source)"
-            " VALUES (?, ?, ?)",
-            (sense_id, body.entry_id, body.source))
+            "INSERT INTO sense_translations (sense_id, entry_id, approx,"
+            " source) VALUES (?, ?, ?, ?)",
+            (sense_id, body.entry_id, 1 if body.approx else 0,
+             body.source))
         conn.commit()
         return {"ok": True, "sense_id": sense_id,
                 "entry_id": body.entry_id}

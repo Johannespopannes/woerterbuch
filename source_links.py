@@ -28,7 +28,10 @@ DICT_API_KEY = os.environ["DICT_API_KEY"]
 UA = {"User-Agent": "woerterbuch-tassekaffee-sourcecheck/1.0 "
                     "(woerterbuch@tassekaffee.com)"}
 # tn hat kein eigenes Wiktionary/Wikipedia — keine Wiki-Pruefung.
+# Wikidata kennt kein tunesisches Label -> nur diese Sprachen.
 WIKIS = ["wiktionary", "wikipedia"]
+WIKIDATA_SPRACHEN = ["de", "en", "fr", "it", "es", "ru", "zh", "ja", "hi",
+                     "ar"]
 
 
 def post_link(entry_id: int, kind: str, url: str) -> bool:
@@ -98,6 +101,27 @@ def dwds_check(words: list[str]) -> dict:
     return found
 
 
+def wikidata_check(language: str, words: list[str]) -> dict:
+    """Wikidata-Entities per wbsearchentities suchen. {wort: url}."""
+    found = {}
+    api = "https://www.wikidata.org/w/api.php"
+    for w in words:
+        qs = urllib.parse.urlencode({
+            "action": "wbsearchentities", "search": w,
+            "language": language, "format": "json", "limit": "1"})
+        req = urllib.request.Request(api + "?" + qs, headers=UA)
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                data = json.load(r)
+            treffer = data.get("search") or []
+            if treffer:
+                found[w] = "https://www.wikidata.org/wiki/" + treffer[0]["id"]
+        except Exception:
+            pass
+        time.sleep(0.3)
+    return found
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--language", required=True)
@@ -139,6 +163,12 @@ def main() -> None:
             g = dwds_check(titles)
             for e in chunk:
                 if e["word"] in g and post_link(e["id"], "dwds",
+                                                g[e["word"]]):
+                    total += 1
+        if lang in WIKIDATA_SPRACHEN:
+            g = wikidata_check(lang, titles)
+            for e in chunk:
+                if e["word"] in g and post_link(e["id"], "wikidata",
                                                 g[e["word"]]):
                     total += 1
         print(f"  {min(i + 40, len(out))}/{len(out)}: {total} Links "

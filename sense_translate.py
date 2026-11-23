@@ -31,9 +31,12 @@ MODEL_API_KEY = os.environ.get("MODEL_API_KEY", "dummy")
 PROMPT = (
     "Übersetze die folgenden Wörterbuch-BEDEUTUNGEN ins {ziel}. "
     "Achtung: Es geht um den konkreten Sinn, nicht das Stichwort. "
-    "Antworte NUR mit einem JSON-Objekt "
-    '{{"1":"übersetztes Wort","2":...}} — genau ein Wort pro Sinn, '
-    '"?" wenn es keine gängige Entsprechung gibt.\n\n'
+    "Mehrere gültige Übersetzungen sind erlaubt (max. 3). Ungefähre "
+    "Entsprechungen bekommen ungefaehr=true — nichts erfinden: wenn "
+    "keine Entsprechung existiert, leere Liste. Antworte NUR mit einem "
+    'JSON-Objekt {"1":[{"wort":"...","ungefaehr":false}],"2":[],...}.
+
+"
 )
 
 
@@ -63,8 +66,20 @@ def uebersetzungen_holen(model: str, ziel: str,
         roh = json.loads(m.group(0)) if m else {}
     except Exception:
         roh = {}
-    return {str(k): str(v).strip().lower()
-            for k, v in roh.items() if str(v).strip()}
+    erg = {}
+    for k, v in roh.items():
+        eintraege = v if isinstance(v, list) else ([v] if v else [])
+        liste = []
+        for e in eintraege[:3]:
+            if isinstance(e, dict) and e.get("wort"):
+                liste.append({"wort": str(e["wort"]).strip().lower(),
+                              "ungefaehr": bool(e.get("ungefaehr"))})
+            elif isinstance(e, str) and e.strip() and e.strip() != "?":
+                liste.append({"wort": e.strip().lower(),
+                              "ungefaehr": False})
+        if liste:
+            erg[str(k)] = liste
+    return erg
 
 
 def main() -> None:
@@ -94,24 +109,24 @@ def main() -> None:
                   for r in chunk]
         uebers = uebersetzungen_holen(a.model, to, zeilen)
         for n, r in enumerate(chunk, 1):
-            wort = uebers.get(str(n), "?")
-            if not wort or wort == "?":
-                continue
-            try:
-                lu = api_get("/lookup?" + urllib.parse.urlencode(
-                    {"word": wort, "language": to}))
-            except Exception:
-                stat["fehlend"] += 1
-                continue
-            if not lu:
-                stat["fehlend"] += 1
-                continue
-            try:
-                api_post(f"/senses/{r['sense_id']}/translations",
-                         {"entry_id": lu["id"], "source": "model"})
-                stat["verknuepft"] += 1
-            except Exception:
-                stat["doppelt"] += 1
+            for ziel in uebers.get(str(n), []):
+                try:
+                    lu = api_get("/lookup?" + urllib.parse.urlencode(
+                        {"word": ziel["wort"], "language": to}))
+                except Exception:
+                    stat["fehlend"] += 1
+                    continue
+                if not lu:
+                    stat["fehlend"] += 1
+                    continue
+                try:
+                    api_post(f"/senses/{r['sense_id']}/translations",
+                             {"entry_id": lu["id"],
+                              "approx": ziel["ungefaehr"],
+                              "source": "model"})
+                    stat["verknuepft"] += 1
+                except Exception:
+                    stat["doppelt"] += 1
         print(f"  {min(i + a.batch, len(rows))}/{len(rows)}: {stat}",
               flush=True)
         time.sleep(a.delay)

@@ -104,9 +104,72 @@ def test_translate_queue():
     bench = _eintrag("bankbench", "en", "seat")
     client.post(f"/senses/{s1}/translations",
                 json={"entry_id": bench}, headers=KEY)
+    # Lockerung: bis zu 3 Zielwoerter pro Zielsprache — mit 1 Verbindung
+    # bleibt der Sinn in der Queue
+    rows = client.get("/senses/translate-queue?from=de&to=en&limit=50"
+                      ).json()["rows"]
+    assert any(r["sense_id"] == s1 for r in rows)
+    # 2 weitere Verbindungen -> raus aus der Queue
+    for w in ("bankcorp", "bankhouse"):
+        e = _eintrag(w, "en", "x")
+        client.post(f"/senses/{s1}/translations",
+                    json={"entry_id": e}, headers=KEY)
     rows = client.get("/senses/translate-queue?from=de&to=en&limit=50"
                       ).json()["rows"]
     assert all(r["sense_id"] != s1 for r in rows)
+
+
+def test_word_class_und_approx():
+    eid = _eintrag("Wortarttest", "de", "x")
+    r = client.post(f"/entries/{eid}/senses",
+                    json={"label": "Gerät", "source": "test",
+                          "word_class": "Substantiv"}, headers=KEY)
+    assert r.status_code == 201, r.text
+    sid = r.json()["sense_id"]
+    en = _eintrag("devicetest", "en", "y")
+    r = client.post(f"/senses/{sid}/translations",
+                    json={"entry_id": en, "approx": True}, headers=KEY)
+    assert r.status_code == 201, r.text
+    s = client.get(f"/entries/{eid}/senses").json()["senses"][0]
+    assert s["word_class"] == "Substantiv"
+    assert s["translations"][0]["approx"] == 1
+
+
+def test_def_queue():
+    eid = _eintrag("Defq", "de", "x")
+    sid = _sinn(eid, "Sinn mit de")
+    client.put(f"/senses/{sid}/definitions",
+               json={"lang": "de", "text": "nur deutsch"}, headers=KEY)
+    rows = client.get("/senses/def-queue?from=de&to=en&limit=50"
+                      ).json()["rows"]
+    assert any(r["sense_id"] == sid for r in rows)
+    # Beschreibung auf EN nachliefern -> raus aus der Queue
+    client.put(f"/senses/{sid}/definitions",
+               json={"lang": "en", "text": "english only",
+                     "source": "translate:de"}, headers=KEY)
+    rows = client.get("/senses/def-queue?from=de&to=en&limit=50"
+                      ).json()["rows"]
+    assert all(r["sense_id"] != sid for r in rows)
+    # def-queue von en -> de ist jetzt leer fuer diesen Sinn
+    rows = client.get("/senses/def-queue?from=en&to=de&limit=50"
+                      ).json()["rows"]
+    assert all(r["sense_id"] != sid for r in rows)
+
+
+def test_mehrfachuebersetzungen_pro_sinn():
+    """Bis zu 3 Zielwoerter pro Zielsprache, Dubletten weiterhin 409."""
+    eid = _eintrag("Mehrtest", "de", "x")
+    sid = _sinn(eid, "Sinn")
+    ziele = [_eintrag(f"multi{i}", "en", "x") for i in range(3)]
+    for z in ziele:
+        r = client.post(f"/senses/{sid}/translations",
+                        json={"entry_id": z}, headers=KEY)
+        assert r.status_code == 201, r.text
+    # 4. Verbindung gleicher Sprache: 400 (Limit) statt Duplikat
+    viertes = _eintrag("multi3", "en", "x")
+    r = client.post(f"/senses/{sid}/translations",
+                    json={"entry_id": viertes}, headers=KEY)
+    assert r.status_code in (400, 409)
 
 
 def test_sinn_loeschen_kaskadiert():

@@ -446,28 +446,58 @@ async function load() {
         const d = document.createElement('div');
         d.className = 'sinn';
         const h = document.createElement('h3');
-        h.textContent = s.label;
+        h.textContent = s.label + (s.word_class ? ' · ' + s.word_class : '');
         d.appendChild(h);
         const sd = s.definitions || {};
-        const p = document.createElement('p');
-        p.className = 'def';
         const strip = t => {
           const m2 = String(t).match(/^\s*[\p{L}][\p{L}\s,()]{0,30}?:\s+(.*)$/us);
           return m2 ? m2[1] : t;
         };
-        // Eintragssprache bevorzugen, dann de, dann erste verfügbare
-        const txt = sd[lang] || sd.de || sd[Object.keys(sd)[0]];
-        if (txt) linkify(p, strip(txt));
-        d.appendChild(p);
+        // Sinnbeschreibung: verfügbare Sprachen als Chips umschalten
+        const codes = Object.keys(sd);
+        if (codes.length) {
+          const p = document.createElement('p');
+          p.className = 'def';
+          const chips = document.createElement('div');
+          chips.className = 'schriften';
+          let aktuell = sd[lang] ? lang : (sd.de ? 'de' : codes[0]);
+          const quellen = s.def_sources || {};
+          const render = () => {
+            linkify(p, strip(sd[aktuell]));
+            for (const c of chips.children)
+              c.classList.toggle('aktiv', c.dataset.l === aktuell);
+          };
+          for (const c of codes) {
+            const a = document.createElement('a');
+            a.textContent = WB.sprachName(c) || c;
+            a.dataset.l = c;
+            const src = quellen[c] || '';
+            a.title = src.startsWith('translate:')
+              ? 'Übersetzung aus ' + (WB.sprachName(src.slice(10)) || src.slice(10))
+              : (src || 'Beschreibung');
+            a.addEventListener('click', ev2 => {
+              ev2.preventDefault(); aktuell = c; render();
+            });
+            chips.appendChild(a);
+          }
+          d.appendChild(p);
+          d.appendChild(chips);
+          render();
+        }
         if (s.translations && s.translations.length) {
           const tdiv = document.createElement('div');
           tdiv.className = 'schriften';
           for (const t of s.translations) {
             const a = document.createElement('a');
-            a.textContent = t.word + ' ' + t.language.toUpperCase();
+            a.textContent = (t.approx ? '≈ ' : '') + t.word + ' ' +
+                            t.language.toUpperCase();
             a.href = '/worteintrag?' + new URLSearchParams(
               { word: t.word, lang: t.language });
-            if (t.source && t.source.startsWith('verify:'))
+            if (t.approx)
+              a.title = 'Ungefähre Entsprechung, keine 1:1-Übersetzung';
+            else if (t.source && t.source.startsWith('verify:'))
+              a.title = 'Gegengeprüfte Übersetzung';
+            else if (t.source)
               a.title = 'Modell-Vorschlag, noch nicht gegengeprüft';
             tdiv.appendChild(a);
           }
@@ -477,7 +507,7 @@ async function load() {
           const ul = document.createElement('ul');
           ul.className = 'evi';
           const namen = { wiktionary: 'Wiktionary', wikipedia: 'Wikipedia',
-                          dwds: 'DWDS' };
+                          dwds: 'DWDS', wortbildung: 'Wortbildung' };
           for (const l of s.links) {
             const li = document.createElement('li');
             const a = document.createElement('a');
@@ -485,7 +515,12 @@ async function load() {
             a.target = '_blank';
             a.rel = 'noopener';
             a.textContent = namen[l.kind] || l.kind;
-            if (l.claim) a.title = 'Belegt: ' + l.claim;
+            if (l.source && l.source.startsWith('vermutung:')) {
+              a.textContent = '⚠ ' + a.textContent;
+              a.title = 'Vermutung (unbelegt): ' + (l.claim || '');
+            } else if (l.claim) {
+              a.title = 'Belegt: ' + l.claim;
+            }
             li.appendChild(a);
             ul.appendChild(li);
           }
