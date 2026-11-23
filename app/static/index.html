@@ -472,8 +472,10 @@ document.getElementById('dnext').addEventListener('click', (e) => {
   loadDiscover();
 });
 
-// Neueste Bilder: Thumbnail-Streifen, wird mit dem Counter mitgepollt
-let nbBekannt = new Set();
+// Neueste Bilder: Thumbnail-Streifen, wird mit dem Counter mitgepollt.
+// Diff statt Komplett-Replace: bestehende <li> bleiben im DOM (kein
+// Nachladen/Flackern), es kommen nur wirklich neue hinzu und weg ist,
+// was nicht mehr geliefert wird.
 async function loadNeueBilder() {
   try {
     const rows = await fetch('/bilder/neu').then(r => r.ok ? r.json() : null);
@@ -483,22 +485,34 @@ async function loadNeueBilder() {
       return;
     }
     document.getElementById('neuebilder').style.display = '';
-    list.innerHTML = '';
+    const vorhanden = new Map();
+    for (const li of [...list.children]) {
+      if (li.dataset.f) vorhanden.set(li.dataset.f, li);
+    }
+    const gewuenscht = new Set();
     for (const b of rows) {
-      const li = document.createElement('li');
-      const a = document.createElement('a');
-      a.href = '/worteintrag?' + new URLSearchParams(
-        { word: b.word, lang: b.language });
-      a.title = b.word;
-      const img = document.createElement('img');
-      img.src = '/bilder/' + b.filename;
-      img.alt = b.word;
-      img.loading = 'lazy';
-      a.appendChild(img);
-      li.appendChild(a);
+      gewuenscht.add(b.filename);
+      let li = vorhanden.get(b.filename);
+      if (!li) {
+        li = document.createElement('li');
+        li.dataset.f = b.filename;
+        const a = document.createElement('a');
+        a.href = '/worteintrag?' + new URLSearchParams(
+          { word: b.word, lang: b.language });
+        a.title = b.word;
+        const img = document.createElement('img');
+        img.src = '/bilder/' + b.filename;
+        img.alt = b.word;
+        img.loading = 'lazy';
+        a.appendChild(img);
+        li.appendChild(a);
+      }
+      // appendChild verschiebt auch BESTEHENDE <li> an die aktuelle
+      // Position — so entsteht die Reihenfolge der API ohne Re-Render.
       list.appendChild(li);
     }
-    nbBekannt = new Set(rows.map(b => b.filename));
+    for (const [fn, li] of vorhanden)
+      if (!gewuenscht.has(fn)) li.remove();
   } catch { document.getElementById('neuebilder').style.display = 'none'; }
 }
 async function loadNeueste() {
@@ -511,27 +525,40 @@ async function loadNeueste() {
       document.getElementById('neueste').style.display = 'none';
       return;
     }
-    list.innerHTML = '';
+    const key = e => e.language + '|' + e.word;
+    const vorhanden = new Map();
+    for (const li of [...list.children]) {
+      if (li.dataset.w) vorhanden.set(li.dataset.w, li);
+    }
+    const gewuenscht = new Set();
     for (const e of rows) {
-      const li = document.createElement('li');
-      const a = document.createElement('a');
-      a.href = '/worteintrag?' + new URLSearchParams(
-        { word: e.word, lang: e.language });
-      if (e.image) {
-        const img = document.createElement('img');
-        img.src = '/bilder/' + e.image;
-        img.alt = '';
-        img.loading = 'lazy';
-        a.appendChild(img);
+      const k = key(e);
+      gewuenscht.add(k);
+      let li = vorhanden.get(k);
+      if (!li) {
+        li = document.createElement('li');
+        li.dataset.w = k;
+        const a = document.createElement('a');
+        a.href = '/worteintrag?' + new URLSearchParams(
+          { word: e.word, lang: e.language });
+        if (e.image) {
+          const img = document.createElement('img');
+          img.src = '/bilder/' + e.image;
+          img.alt = '';
+          img.loading = 'lazy';
+          a.appendChild(img);
+        }
+        a.append(e.word);
+        const tag = document.createElement('span');
+        tag.className = 'nl';
+        tag.textContent = e.language;
+        a.appendChild(tag);
+        li.appendChild(a);
       }
-      a.append(e.word);
-      const tag = document.createElement('span');
-      tag.className = 'nl';
-      tag.textContent = e.language;
-      a.appendChild(tag);
-      li.appendChild(a);
       list.appendChild(li);
     }
+    for (const [k, li] of vorhanden)
+      if (!gewuenscht.has(k)) li.remove();
   } catch { document.getElementById('neueste').style.display = 'none'; }
 }
 
