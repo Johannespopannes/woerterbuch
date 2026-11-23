@@ -22,6 +22,7 @@ import os
 import re
 import secrets
 import shutil
+import struct
 import subprocess
 import threading
 import time
@@ -56,12 +57,16 @@ IMAGE_NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,120}\.(png|webp)$")
 PIPER_DIR = Path(os.environ.get("PIPER_DIR", "/home/johannes/piper"))
 PIPER_VOICES: dict[str, dict[str, dict]] = {
     "de": {
-        "thorsten": {"model": "de_DE-thorsten-medium.onnx",
+        # thorsten HIGH statt medium — deutlich natürlicher. karlsson (low)
+        # und eva (x_low) ersetzt: x_low/low klingen roboterhaft/abgehackt
+        # (Beschwerde 23.11.). mls als dritte, ruhige Stimme.
+        "thorsten": {"model": "de_DE-thorsten-high.onnx",
                      "label": "Thorsten", "length_scale": 1.0},
-        "karlsson": {"model": "de_DE-karlsson-low.onnx",
-                     "label": "Karlsson", "length_scale": 1.0},
-        "eva": {"model": "de_DE-eva_k-x_low.onnx",
-                "label": "Eva", "length_scale": 1.0},
+        "thorsten_emotional": {
+                    "model": "de_DE-thorsten_emotional-medium.onnx",
+                    "label": "Thorsten (emotional)", "length_scale": 1.0},
+        "mls": {"model": "de_DE-mls-medium.onnx",
+                "label": "MLS", "length_scale": 1.0},
     },
     "en": {
         "alan": {"model": "en_GB-alan-medium.onnx",
@@ -1598,21 +1603,45 @@ def set_evidence(entry_id: int, body: EvidenceIn,
 # ---------- Anhören (Piper TTS) ----------
 
 def _trim_wav(src: Path, dst: Path) -> None:
-    """Stille am Anfang/Ende abschneiden (Piper röchelt sonst am Rand).
+    """Stille am Anfang/Ende kappen — mit Pre-Roll, damit weiche Anlaute
+    (z. B. «qu», «s») nicht abgehackt wirken.
 
-    ffmpeg silenceremove, beidseitig über areverse; Fallback: Kopie.
+    Reines Python (wave-Modul), kein ffmpeg nötig. Begründung: ffmpeg
+    silenceremove (-45 dB) hat den leisen Konsonanten-Anlaut mitgeschnitten
+    und das Wort abrupt auf Volllautstärke starten lassen (analysiert am
+    23.11. an Thorsten/«Quallenverseuchung»).
     """
     try:
-        proc = subprocess.run(
-            [FFMPEG, "-y", "-loglevel", "error", "-i", str(src),
-             "-af", "silenceremove=start_periods=1:start_duration=0.05"
-                    ":start_threshold=-45dB,areverse,"
-                    "silenceremove=start_periods=1:start_duration=0.05"
-                    ":start_threshold=-45dB,areverse",
-             "-ac", "1", str(dst)],
-            capture_output=True, timeout=30)
-        if proc.returncode != 0 or not dst.is_file():
-            shutil.copyfile(src, dst)
+        import wave
+        with wave.open(str(src), "rb") as w:
+            sr, sw, ch = (w.getframerate(), w.getsampwidth(),
+                          w.getnchannels())
+            if sw != 2 or ch != 1:
+                raise ValueError("unerwartetes WAV-Format")
+            n = w.getnframes()
+            samples = struct.unpack(f"<{n}h", w.readframes(n))
+        peak = max((abs(s) for s in samples), default=0)
+        if peak == 0:
+            raise ValueError("leere Synthese")
+        # Laut-Abfrage: Mittel-Amplitude > 1 % des Peaks (≈ -40 dB) im
+        # 10-ms-Fenster — weitaus sanfter als der alte -45-dB-Peak-Filter.
+        grenze = max(500, int(peak * 0.01))
+        win = max(1, sr // 100)
+
+        def laut(i: int) -> bool:
+            seg = samples[i:i + win]
+            return sum(abs(s) for s in seg) > grenze * len(seg)
+
+        start = next((i for i in range(0, max(n - win, 1), win) if laut(i)), 0)
+        ende = next((i for i in range(n, win - 1, -win) if laut(i - win)), n)
+        start = max(0, start - int(sr * 0.06))   # 60 ms Anlaut behalten
+        ende = min(n, ende + int(sr * 0.12))     # 120 ms Ausklingen lassen
+        with wave.open(str(dst), "wb") as o:
+            o.setnchannels(1)
+            o.setsampwidth(2)
+            o.setframerate(sr)
+            o.writeframes(struct.pack(f"<{ende - start}h",
+                                      *samples[start:ende]))
     except Exception:
         shutil.copyfile(src, dst)
 
