@@ -35,6 +35,7 @@ kette() {
   run harvester.py --mode define  --language "$lang" --per-round 30 --delay 0.3
   run define_langs.py --mode own --language "$lang" --limit 300 --batch 20 --delay 0.4
   run sense_split.py --language "$lang" --limit 150 --batch 5
+  run sense_etym.py --language "$lang" --limit 80 --batch 5
   run source_links.py --language "$lang" --limit 400
   run "$audit" --language "$lang"
 }

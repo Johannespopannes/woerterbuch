@@ -1234,6 +1234,31 @@ def senses_translate_queue(frm: str = Query(min_length=2, max_length=8,
         conn.close()
 
 
+@app.get("/senses/etym-queue")
+def senses_etym_queue(language: str = Query(min_length=2, max_length=8),
+                      limit: int = Query(default=50, le=200)):
+    """Sinne ohne Herkunftsbeleg — Futter für die autonome Belegung.
+    Liefert Wort, Glosse und Beschreibung gleich mit."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT s.id AS sense_id, s.label AS label,"
+            " sd.text AS text,"
+            " e.word AS word, e.language AS language"
+            " FROM senses s"
+            " JOIN entries e ON e.id = s.entry_id"
+            " LEFT JOIN sense_definitions sd ON sd.sense_id = s.id"
+            "  AND sd.lang = e.language"
+            " WHERE e.language = ?"
+            " AND NOT EXISTS ("
+            "  SELECT 1 FROM sense_links sl"
+            "  WHERE sl.sense_id = s.id AND sl.kind = 'etymologie')"
+            " ORDER BY s.id LIMIT ?", (language.lower(), limit)).fetchall()
+        return {"rows": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
 @app.put("/senses/{sense_id}/definitions")
 def put_sense_definition(sense_id: int, body: SenseDefIn,
                          _=Depends(require_api_key)):

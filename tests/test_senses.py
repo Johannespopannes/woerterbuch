@@ -128,3 +128,18 @@ def test_sense_link_nur_https():
                     json={"kind": "dwds", "url": "http://unsicher.example"},
                     headers=KEY)
     assert r.status_code == 400
+
+
+def test_etym_queue_nur_unbelegte():
+    eid = _eintrag("etymq", "de", "mehrdeutig")
+    sid = _sinn(eid, "Sinn ohne Beleg")
+    rows = client.get("/senses/etym-queue?language=de&limit=200"
+                      ).json()["rows"]
+    assert any(r["sense_id"] == sid for r in rows)
+    client.post(f"/senses/{sid}/links",
+                json={"kind": "etymologie",
+                      "url": "https://de.wiktionary.org/wiki/etymq",
+                      "claim": "belegt", "source": "test"}, headers=KEY)
+    rows = client.get("/senses/etym-queue?language=de&limit=200"
+                      ).json()["rows"]
+    assert all(r["sense_id"] != sid for r in rows)
