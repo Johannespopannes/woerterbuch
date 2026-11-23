@@ -3,10 +3,17 @@
 #
 # Kein Laptop nötig: alle LLM-Aufrufe gehen über die ModelHub-Cloud
 # (Text: mistral-large-4/qwen3.8-max, Vision: qwen3.8-flash), die Bilder
-# rendert Wan in der Cloud. Die API wird lokal auf 127.0.0.1:8000 angesprocen.
+# rendert Wan in der Cloud. Die API wird lokal auf 127.0.0.1:8805 angesprocen.
 #
-# Endloser Zyklus, idempotent: Seeds deduplizieren, define überspringt
-# definierte Einträge, die API antwortet auf Dubletten mit 409.
+# Zyklus-Design (Round-Robin, seit 23.11.): JEDER Zyklus ist abschließend
+# begrenzt — genau eine Textsprache, ein Übersetzungsziel, eine Bildsprache.
+# Davor liefen alle 9 Sprachketten je Zyklus; der langsame suggest-Schritt
+# fraß den Zyklus, und define/Sinne/Quellen/Übersetzungs-Rotation/Bilder
+# kamen faktisch nie dran. So bekommt jeder Schritt jeden Zyklus seinen
+# garantierten Slot, und ein Abbruch kostet maximal einen begrenzten Zyklus.
+#
+# Idempotent: Seeds deduplizieren, define überspringt definierte Einträge,
+# die API antwortet auf Dubletten mit 409, Queues liefern nur offene Arbeit.
 # Log: journalctl -u woerterbuch-pipeline -f
 set -u
 cd "$(dirname "$0")/.."   # /home/johannes/woerterbuch
@@ -19,54 +26,55 @@ export WB_PICK_MODEL=qwen3.8-flash
 
 MISTRAL=mistral-large-4:cloud
 QWEN=qwen3.8-max
-LANGS_IMG="de en es fr it ru zh ja hi ar tn"
+LANGS_TXT=(de en es fr it ru zh ja hi)
+LANGS_IMG=(de en es fr it ru zh ja hi ar tn)
 
 log()  { echo; echo "======== $(date '+%d.%m. %H:%M:%S')  $1 ========"; }
 run()  { echo "---- $(date '+%H:%M:%S') START: $*"; python -u "$@" || echo "!! $* (rc=$?)"; echo "---- $(date '+%H:%M:%S') ENDE: $1 $2 $3"; }
 
-# Sprachkette: $1=Sprache $2=Modell $3=Audit-Skript
+modell_fuer() {
+  case "$1" in
+    zh|ja|hi|ru) echo "$QWEN" ;;
+    *)           echo "$MISTRAL" ;;
+  esac
+}
+
+# Sprachkette: Verarbeitung ZUERST (garantiert dran), Ernte danach.
+# Fällt der Zyklus mitten in suggest/gap aus, ist die Verarbeitung der
+# Sprache trotzdem komplett gelaufen.
 kette() {
-  local lang=$1 model=$2 audit=${3:-audit_eu.py}
-  export MODEL_NAME=$model
-  log "Kette $lang via $model"
+  local lang=$1
+  export MODEL_NAME=$(modell_fuer "$lang")
+  log "Kette $lang via $MODEL_NAME"
   run harvester.py --seed --language "$lang"
-  run harvester.py --mode suggest --language "$lang" --letters all --rounds 1 --per-round 60 --delay 0.5
-  run harvester.py --mode gap     --language "$lang" --letters all --rounds 1 --per-round 15 --pairs 4 --delay 0.5
   run harvester.py --mode define  --language "$lang" --per-round 30 --delay 0.3
   run define_langs.py --mode own --language "$lang" --limit 300 --batch 20 --delay 0.4
   run sense_split.py --language "$lang" --limit 150 --batch 5
   run sense_etym.py --language "$lang" --limit 80 --batch 5
   run source_links.py --language "$lang" --limit 400
-  run "$audit" --language "$lang"
+  run audit_eu.py --language "$lang"
+  run harvester.py --mode suggest --language "$lang" --letters all --rounds 1 --per-round 60 --delay 0.5
+  run harvester.py --mode gap     --language "$lang" --letters all --rounds 1 --per-round 15 --pairs 4 --delay 0.5
 }
 
 zyklen=0
 while true; do
   zyklen=$((zyklen+1))
   log "ZYKLUS $zyklen startet"
+  idx=$(( (zyklen - 1) % ${#LANGS_TXT[@]} ))
 
-  # --- Europäisch ---
-  for L in de en es fr it; do kette "$L" "$MISTRAL" audit_eu.py; done
-
-  # --- zh/ja/hi/ru ---
-  for L in zh ja hi ru; do kette "$L" "$QWEN" audit_eu.py; done
+  # --- 1 Textsprache je Zyklus (Round-Robin über alle 9) ---
+  kette "${LANGS_TXT[$idx]}"
 
   # --- ar/tn: Ernte/Audit/Franco laufen auf dem LAPTOP via Jais (Sonder-
   # modelle, staerkste Arabisch-Qualitaet) — siehe ar-tn-loop.sh/franco-loop.sh.
-  # Der Pi rendert hier nur die Bilder (Wan-Cloudrender) und uebersetzt
-  # ar/tn ueber die Cloud (Ziel-Rotation unten).
-
-  # --- Externquellen-Links fuer ar (ar-Wiki existiert; tn hat kein
-  # eigenes Wiki und wird deshalb uebersprungen) ---
+  # Der Pi pflegt hier nur die ar-Quellenlinks (ar-Wiki existiert; tn hat
+  # kein eigenes Wiki und wird deshalb uebersprungen).
   run source_links.py --language ar --limit 300
 
-  # --- Bedeutungs-Matrix: je Zyklus ein Ziel rotieren (de+en zuerst) ---
-  TARGETS=(de en it fr es ru zh ja hi ar tn)
-  T=${TARGETS[$(( (zyklen - 1) % ${#TARGETS[@]} ))]}
-  case "$T" in
-    zh|ja|hi|ru) export MODEL_NAME=$QWEN ;;
-    *)           export MODEL_NAME=$MISTRAL ;;
-  esac
+  # --- Bedeutungs-Matrix: je Zyklus ein Ziel rotieren ---
+  T=${LANGS_IMG[$(( (zyklen - 1) % ${#LANGS_IMG[@]} ))]}
+  export MODEL_NAME=$(modell_fuer "$T")
   log "Bedeutungs-Übersetzung -> $T via $MODEL_NAME"
   run define_langs.py --mode translate --target "$T" --limit 400 --batch 15 --delay 0.5
 
@@ -86,13 +94,11 @@ while true; do
   log "Definitions-Sprachaudit (Legacy-de)"
   run fix_def_lang.py --limit 100 --batch 10 --model "$MISTRAL"
 
-  # --- Bilder (Wan-Cloudrender, Vision-Pick via ModelHub) ---
-  log "Bilder-Runde"
-  for L in $LANGS_IMG; do
-    run image_harvester.py --language "$L" --limit 40
-    sleep 10
-  done
+  # --- Bilder: eine Sprache je Zyklus (Wan-Cloudrender, Vision-Pick) ---
+  I=${LANGS_IMG[$(( (zyklen - 1) % ${#LANGS_IMG[@]} ))]}
+  log "Bilder-Runde $I"
+  run image_harvester.py --language "$I" --limit 60
 
-  log "ZYKLUS $zyklen fertig — Pause 10 min"
-  sleep 600
+  log "ZYKLUS $zyklen fertig — Pause 5 min"
+  sleep 300
 done
