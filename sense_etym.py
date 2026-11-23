@@ -38,13 +38,101 @@ MODEL_API_KEY = os.environ.get("MODEL_API_KEY", "dummy")
 
 UA = {"User-Agent": "woerterbuch-tassekaffee-etym/1.0 "
                     "(woerterbuch@tassekaffee.com)"}
-# Etymologie-Überschriften in den Wiktionary-Sprachausgaben
-ETYM_KOPF = re.compile(
-    r"^={2,6}\s*(Herkunft|Etymologie|Etymology|Étymologie|Origine|"
-    r"Etimolog\w*|Origen|Etymologia|Etymolog\w*|词源|語源|어원|"
-    r"Etymolog[iy]\w*)\s*={2,6}\s*$",
-    re.I | re.M)
-KOPF_ZEILE = re.compile(r"^={2,6}[^=]", re.M)
+# Etymologie-Überschriften in den Wiktionary-Sprachausgaben (auf den
+# RENDERTITELN gematcht — die parse-API loest {{Sprache|Deutsch}} zu
+# "Deutsch" auf, {{Herkunft}} zu "Herkunft")
+ETYM_TITEL = re.compile(
+    r"(Herkunft|Etymologie|Etymology|Étymologie|Origine|Etimolog\w*|"
+    r"Origen|Etymolog\w*|词源|語源|语源|어원)",
+    re.I)
+
+
+def _api_json(language: str, params: dict) -> dict:
+    api = f"https://{language}.wiktionary.org/w/api.php"
+    qs = urllib.parse.urlencode(dict(params, format="json"))
+    req = urllib.request.Request(api + "?" + qs, headers=UA)
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.load(r)
+
+
+def etym_texte_holen(language: str, word: str,
+                     max_len: int = 1800) -> list[str]:
+    """Gerenderte Etymologie-Abschnitte eines Artikels (bereinigter Text).
+
+    Zwei Schritte: Abschnittsliste mit aufgeloesten Titeln, dann jeder
+    Abschnitt einzeln als gerendertes HTML — Templates sind dort bereits
+    zu Woertern aufgeloest ('inherited from Middle English bank'),
+    Wikitext-Regexerei entfaellt.
+    """
+    try:
+        data = _api_json(language, {
+            "action": "parse", "prop": "sections", "redirects": "1",
+            "page": word})
+    except Exception as e:
+        print(f"  Wiki-API {word}: {e}", file=sys.stderr)
+        return []
+    if "error" in data:
+        return []
+    treffer = [s for s in data.get("parse", {}).get("sections", [])
+               if ETYM_TITEL.search(str(s.get("line", "")))]
+    texte = []
+    for s in treffer[:3]:
+        try:
+            html = _api_json(language, {
+                "action": "parse", "prop": "text", "redirects": "1",
+                "page": word, "section": s["index"]})
+            fragment = html["parse"]["text"]["*"]
+        except Exception:
+            continue
+        txt = re.sub(r"<ref[^>]*>.*?</ref>", " ", fragment,
+                     flags=re.S | re.I)
+        txt = re.sub(r"<style[^>]*>.*?</style>", " ", txt,
+                     flags=re.S | re.I)
+        txt = re.sub(r"<[^>]+>", " ", txt)
+        import html as html_mod
+        txt = html_mod.unescape(txt)
+        txt = re.sub(r"\s+", " ", txt).strip()
+        # Rendered Abschnitte tragen den Seiten-TOC am Anfang; der echte
+        # Abschnittskoerper beginnt beim ersten Bearbeiten-Link.
+        bearb = re.search(
+            r"\[\s*(edit|modifier|modifica|bearbeiten|redigera|"
+            r"uredi|bewerk|editar)", txt, re.I)
+        if bearb and bearb.start() < 1500:
+            txt = txt[bearb.start():]
+        txt = re.sub(r"\[\s*(edit|modifier[^]]*|modifica[^]]*|"
+                     r"bearbeiten|redigera|uredi|bewerk|editar)[^]]*\]",
+                     " ", txt, flags=re.I)
+        txt = re.sub(r"\s+", " ", txt).strip()
+        if txt:
+            texte.append(txt[:max_len])
+    if texte:
+        return texte
+    # Fallback deutsches Wiktionary: {{Herkunft}}-Block im Artikelkopf
+    # (keine Section). Die Sprachbausteine {{gmh.}}/{{goh.}} bleiben
+    # stehen — das Modell liest Wikitext-Etymologie zuverlaessig.
+    try:
+        wt_data = _api_json(language, {
+            "action": "parse", "prop": "wikitext", "redirects": "1",
+            "page": word})
+        wt = wt_data["parse"]["wikitext"]["*"]
+    except Exception:
+        return []
+    m = re.search(r"^\{\{Herkunft[^}]*\}\}\s*$", wt, re.M)
+    if not m:
+        return []
+    zeilen = []
+    for ln in wt[m.end():].splitlines():
+        if ln.startswith(":"):
+            zeilen.append(ln.lstrip(":").strip())
+        elif ln.strip() == "":
+            continue
+        else:
+            break
+    roh = " ".join(z for z in zeilen if z)
+    roh = re.sub(r"<ref[^>]*>.*?</ref>", " ", roh, flags=re.S | re.I)
+    roh = re.sub(r"<ref[^>]*/>", " ", roh)
+    roh = re.sub(r"\s+", " ", roh).strip()
+    return [roh[:max_len]] if roh else []
 
 PROMPT = (
     "Du prüfst eine Herkunftsbehauptung für ein Wörterbuch. Gegeben: "
@@ -57,45 +145,6 @@ PROMPT = (
     "ergänzen). Kein Beleg → belegt=false, aussage leer.\n\n"
     "ETYMOLOGIE-ABSCHNITT:\n{ausschnitt}\n"
 )
-
-
-def wikitext_holen(language: str, word: str) -> str | None:
-    api = f"https://{language}.wiktionary.org/w/api.php"
-    qs = urllib.parse.urlencode({
-        "action": "parse", "format": "json", "prop": "wikitext",
-        "redirects": "1", "page": word})
-    req = urllib.request.Request(api + "?" + qs, headers=UA)
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            data = json.load(r)
-    except Exception as e:
-        print(f"  Wiki-API {word}: {e}", file=sys.stderr)
-        return None
-    if "error" in data:
-        return None
-    try:
-        return data["parse"]["wikitext"]["*"]
-    except Exception:
-        return None
-
-
-def etym_abschnitte(wikitext: str, max_len: int = 1800) -> str:
-    """Alle Etymologie-Abschnitte hintereinander, grob bereinigt."""
-    teile = []
-    for m in ETYM_KOPF.finditer(wikitext):
-        naechster = KOPF_ZEILE.search(wikitext, m.end())
-        ende = naechster.start() if naechster else len(wikitext)
-        teile.append(wikitext[m.end():ende])
-    roh = "\n".join(t.strip() for t in teile if t.strip())
-    # Wikitext-Syntax grob reduzieren (Templates, Links, Formatierung)
-    txt = re.sub(r"\{\{[^{}]*\}\}", " ", roh)
-    txt = re.sub(r"\{\{[^{}]*\}\}", " ", txt)
-    txt = re.sub(r"\[\[([^]|]*\|)?([^]]*)\]\]", r"\2", txt)
-    txt = re.sub(r"'{2,}", "", txt)
-    txt = re.sub(r"<ref[^>]*>.*?</ref>", " ", txt, flags=re.S | re.I)
-    txt = re.sub(r"<[^>]+>", " ", txt)
-    txt = re.sub(r"\s+", " ", txt).strip()
-    return txt[:max_len]
 
 
 def modell_pruefen(model: str, batch: list[dict],
@@ -168,14 +217,12 @@ def main() -> None:
         return
     print(f"{lang}: {len(rows)} Sinne ohne Herkunftsbeleg", flush=True)
 
-    # Phase 1: Wiktionary-Abschnitte sammeln
+    # Phase 1: gerenderte Etymologie-Abschnitte sammeln
     ausschnitte = {}
     for r in rows:
-        wt = wikitext_holen(lang, r["word"])
-        if wt:
-            ab = etym_abschnitte(wt)
-            if ab:
-                ausschnitte[r["sense_id"]] = ab
+        texte = etym_texte_holen(lang, r["word"])
+        if texte:
+            ausschnitte[r["sense_id"]] = "\n---\n".join(texte)
         time.sleep(a.delay)
     print(f"  Etymologie-Abschnitte gefunden: {len(ausschnitte)}/{len(rows)}",
           flush=True)
