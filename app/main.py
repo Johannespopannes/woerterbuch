@@ -961,11 +961,14 @@ def get_definitions(entry_id: int):
         out: dict[str, str] = {}
         if row["definition"]:
             out["de"] = row["definition"]
+        src: dict[str, str] = {"de": "legacy"} if row["definition"] else {}
         for r in conn.execute(
-                "SELECT lang, text FROM definitions WHERE entry_id = ?"
-                " ORDER BY lang", (entry_id,)).fetchall():
+                "SELECT lang, text, source FROM definitions"
+                " WHERE entry_id = ? ORDER BY lang",
+                (entry_id,)).fetchall():
             out[r["lang"]] = r["text"]
-        return {"definitions": out}
+            src[r["lang"]] = r["source"]
+        return {"definitions": out, "sources": src}
     finally:
         conn.close()
 

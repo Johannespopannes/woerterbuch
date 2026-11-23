@@ -184,11 +184,13 @@ def run_translate(target: str, limit: int, batch: int, delay: float,
             fehler += 1
             continue
         m = _json_map(out)
-        for e, _s, _sl in items:
+        for e, _s, sl in items:
             d = m.get(e["word"])
             if not d or not (2 <= len(d) <= MAX_LEN):
                 continue
-            if put_def(e["id"], target, d, f"translate"):
+            # Herkunft mitschreiben: eine fehlerhafte Ausgangsdefinition
+            # darf nicht unbemerkt in zehn Sprachen "bestätigt" wirken.
+            if put_def(e["id"], target, d, f"translate:{sl}"):
                 total += 1
         print(f"  {i + len(chunk)}/{len(todo)}: +{total} gesamt",
               flush=True)

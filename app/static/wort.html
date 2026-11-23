@@ -377,11 +377,21 @@ async function load() {
         for (const c of chips.children)
           c.classList.toggle('aktiv', c.dataset.l === aktuell);
       };
+      const quelle = (defs && defs.sources) || {};
+      const quellTitel = c => {
+        const s = quelle[c] || '';
+        if (s.startsWith('translate:'))
+          return 'Übersetzung aus ' + (WB.sprachName(s.slice(10)) || s.slice(10));
+        return { legacy: 'Bestandsdefinition', harvester: 'Modell (de)',
+                 'define-own': 'Modell (Eintragssprache)' }[s] || '';
+      };
       for (const c of codes) {
         const a = document.createElement('a');
         a.textContent = WB.sprachName(c) || c;
         a.dataset.l = c;
         a.href = '#defcard';
+        const t = quellTitel(c);
+        if (t) a.title = t;
         a.addEventListener('click', ev2 => {
           ev2.preventDefault(); aktuell = c; render();
         });
