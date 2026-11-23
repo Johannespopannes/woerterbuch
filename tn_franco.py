@@ -52,9 +52,23 @@ def post(path: str, body: dict):
 
 
 def main() -> None:
-    entries = api_get("/entries?" + urllib.parse.urlencode(
-        {"language": "tn", "limit": 1000}))
-    todo = [e for e in entries if not e.get("script")]
+    # Paginieren — ab >1000 tn-Einträgen würde ein einzelner Fetch sonst
+    # abgeschnittene Wortlisten liefern und neue Wörter nie erreichen.
+    entries = []
+    offset = 0
+    while True:
+        chunk = api_get("/entries?" + urllib.parse.urlencode(
+            {"language": "tn", "limit": 1000, "offset": offset}))
+        entries.extend(chunk)
+        if len(chunk) < 1000:
+            break
+        offset += len(chunk)
+    # Arabische Einträge ohne irgendeine latn-Form in ihrer Wortfamilie —
+    # ein Eintrag mit script='latn' zählt als Abdeckung über das Lemma.
+    abgedeckt = {e["lemma"] for e in entries
+                 if e.get("script") == "latn" and e.get("lemma")}
+    todo = [e for e in entries
+            if not e.get("script") and e["word"] not in abgedeckt]
     print(f"{len(entries)} tn-Einträge, {len(todo)} ohne script-Angabe",
           flush=True)
     created = linked = failed = 0
