@@ -227,6 +227,7 @@
   <span class="lc-label">Bilder</span>
   <span class="lc-num" id="lcAudio">–</span>
   <span class="lc-label">Audios</span>
+  <span class="lc-label" id="lcToday" title="Neue Einträge seit Mitternacht"></span>
 </div>
 
 <div id="discover" class="discover">
@@ -316,6 +317,7 @@ async function loadMeta() {
     entries: stats.total_entries,
     images: stats.with_image,
     audio: stats.with_audio,
+    today_new: stats.today_new,
   });
 }
 
@@ -355,6 +357,9 @@ function updateCounter(s) {
     }
     lcShown[id] = target;
   }
+  const td = document.getElementById('lcToday');
+  if (td) td.textContent = s.entries != null && s.today_new != null
+    ? `heute +${s.today_new.toLocaleString('de-DE')}` : '';
 }
 
 async function pollCounter() {
@@ -364,6 +369,7 @@ async function pollCounter() {
       entries: s.total_entries,
       images: s.with_image,
       audio: s.with_audio,
+      today_new: s.today_new,
     });
     loadNeueBilder();
   } catch { /* nächste Runde */ }

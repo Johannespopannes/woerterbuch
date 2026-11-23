@@ -68,6 +68,12 @@ while true; do
   log "Bedeutungs-Übersetzung -> $T via $MODEL_NAME"
   run define_langs.py --mode translate --target "$T" --limit 400 --batch 15 --delay 0.5
 
+  # --- Definitions-Sprachaudit: pauschal als 'de' übernommene Legacy-
+  # Texte per Modell prüfen, falsch zugeordnete in die richtige Sprache
+  # verschieben (entries.definition-Cache wird dabei sauber frei) ---
+  log "Definitions-Sprachaudit (Legacy-de)"
+  run fix_def_lang.py --limit 100 --batch 10 --model "$MISTRAL"
+
   # --- Bilder (Wan-Cloudrender, Vision-Pick via ModelHub) ---
   log "Bilder-Runde"
   for L in $LANGS_IMG; do

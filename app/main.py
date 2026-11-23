@@ -901,6 +901,12 @@ def stats():
         with_definition = conn.execute(
             "SELECT COUNT(*) AS n FROM entries "
             "WHERE definition IS NOT NULL AND definition != ''").fetchone()["n"]
+        # Tageszuwachs: String-Vergleich funktioniert in beiden Dialekten,
+        # solange das Format YYYY-MM-DD HH:MM:SS bleibt.
+        heute = time.strftime("%Y-%m-%d")
+        today_new = conn.execute(
+            "SELECT COUNT(*) AS n FROM entries WHERE created_at >= ?",
+            (heute,)).fetchone()["n"]
     finally:
         conn.close()
     try:
@@ -912,6 +918,7 @@ def stats():
         "with_image": with_image,
         "with_definition": with_definition,
         "with_audio": with_audio,
+        "today_new": today_new,
     })
     return _stats_cache["data"]
 
@@ -1012,6 +1019,80 @@ def put_definition(entry_id: int, body: DefLangIn,
                          (text, entry_id))
         conn.commit()
         return {"ok": True, "entry_id": entry_id, "lang": lang}
+    finally:
+        conn.close()
+
+
+@app.get("/definitions/audit-queue")
+def definitions_audit_queue(limit: int = Query(default=50, le=200)):
+    """Legacy-Definitionen (als 'de' übernommen, noch nicht geprüft) für das
+    autonome Sprachaudit. Älteste zuerst, pro Aufruf ein handlicher Batzen."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT d.entry_id AS entry_id, e.language AS language,"
+            " e.word AS word, d.text AS text"
+            " FROM definitions d JOIN entries e ON e.id = d.entry_id"
+            " WHERE d.lang = 'de' AND d.source = 'legacy'"
+            " ORDER BY d.entry_id LIMIT ?", (limit,)).fetchall()
+        return {"rows": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+class DefAuditIn(BaseModel):
+    action: str           # "confirm" (Text ist wirklich deutsch) |
+                          # "move" (Text gehört in eine andere Sprache)
+    lang: str = "de"      # Zielsprache bei action="move"
+    source: str = "legacy-checked"   # neuer Herkunftshinweis
+    clear_entry_def: bool = False    # entries.definition leeren (wenn der
+                                     # deutsche Slot frei wird)
+
+
+@app.post("/entries/{entry_id}/definitions/audit")
+def audit_definition(entry_id: int, body: DefAuditIn,
+                     _=Depends(require_api_key)):
+    """Ergebnis des Sprachaudits für die 'de'-Definition eines Eintrags.
+
+    confirm: nur Herkunft setzen. move: Zeile auf die wahre Sprache
+    umbiegen (Kollision → als Dublette markieren statt überschreiben).
+    """
+    action = body.action.strip().lower()
+    if action not in ("confirm", "move"):
+        raise HTTPException(422, "action muss 'confirm' oder 'move' sein")
+    to_lang = body.lang.strip().lower()
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT id FROM definitions WHERE entry_id = ? AND lang = 'de'",
+            (entry_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "keine 'de'-Definition zu diesem Eintrag")
+        if action == "confirm":
+            conn.execute(
+                "UPDATE definitions SET source = ?"
+                " WHERE entry_id = ? AND lang = 'de'",
+                (body.source, entry_id))
+        else:
+            clash = conn.execute(
+                "SELECT id FROM definitions WHERE entry_id = ? AND lang = ?",
+                (entry_id, to_lang)).fetchone()
+            if clash:
+                conn.execute(
+                    "UPDATE definitions SET source = 'legacy-dup'"
+                    " WHERE entry_id = ? AND lang = 'de'",
+                    (entry_id,))
+            else:
+                conn.execute(
+                    "UPDATE definitions SET lang = ?, source = ?"
+                    " WHERE entry_id = ? AND lang = 'de'",
+                    (to_lang, body.source, entry_id))
+            if body.clear_entry_def:
+                conn.execute(
+                    "UPDATE entries SET definition = NULL WHERE id = ?",
+                    (entry_id,))
+        conn.commit()
+        return {"ok": True, "entry_id": entry_id, "action": action}
     finally:
         conn.close()
 
