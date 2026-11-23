@@ -232,6 +232,7 @@
     <div class="pruef-inhalt">
       <div class="bildstimmen" id="bildstimmen"></div>
       <div class="meta" id="bildvotes"></div>
+      <ul class="evi" id="extlinks" style="display:none"></ul>
       <ul class="evi" id="evi"></ul>
       <div class="meta" id="quelle" style="margin-top:.6rem"></div>
       <div id="satzeCard" style="display:none; margin-top:.6rem">
@@ -320,6 +321,25 @@ async function load() {
   }
 
   if (ev.sprache_unsicher) show(document.getElementById('warn'), true);
+
+  // Gepruefte Externquellen (Existenz wurde von der Pipeline verifiziert)
+  if (ev.source_links && ev.source_links.length) {
+    const ul = document.getElementById('extlinks');
+    ul.innerHTML = '';
+    const namen = { wiktionary: 'Wiktionary', wikipedia: 'Wikipedia',
+                    dwds: 'DWDS (Wortgeschichte)' };
+    for (const l of ev.source_links) {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = l.url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = namen[l.kind] || l.kind;
+      li.appendChild(a);
+      ul.appendChild(li);
+    }
+    show(ul, true);
+  }
 
   // Bild + Galerie-Thumbs (Kombination beschreibt den Begriff)
   const bilder = ev.bilder || [];

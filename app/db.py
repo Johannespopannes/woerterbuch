@@ -204,9 +204,20 @@ def _migrate(conn: sqlite3.Connection) -> None:
         " created_at TEXT NOT NULL DEFAULT (datetime('now')),"
         " UNIQUE (language, voice, session_id)"
         ")")
+    # Gepruefte Externquellen pro Eintrag (Wiktionary/Wikipedia/DWDS).
+    # Nur verifizierte Ziele (Existenz per API geprueft) — keine Sackgassen.
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_speaker_ratings_voice "
-        "ON speaker_ratings (language, voice)")
+        "CREATE TABLE IF NOT EXISTS source_links ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " entry_id INTEGER NOT NULL REFERENCES entries (id),"
+        " kind TEXT NOT NULL,"
+        " url TEXT NOT NULL,"
+        " created_at TEXT NOT NULL DEFAULT (datetime('now')),"
+        " UNIQUE (entry_id, kind)"
+        ")")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_source_links_entry "
+        "ON source_links (entry_id)")
     # Bedeutungen in beliebigen Sprachen: pro Eintrag und Definitions-
     # Sprache eine Zeile. lang = Sprache DES Textes ('de' = kanonische
     # deutsche Definition, spiegelt entries.definition; 'it' = italienische
@@ -346,6 +357,15 @@ CREATE TABLE IF NOT EXISTS definitions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE INDEX IF NOT EXISTS idx_definitions_entry ON definitions (entry_id);
 CREATE INDEX IF NOT EXISTS idx_definitions_lang ON definitions (lang(8));
+CREATE TABLE IF NOT EXISTS source_links (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    entry_id INT NOT NULL REFERENCES entries (id),
+    kind TEXT NOT NULL,
+    url TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (NOW()),
+    UNIQUE (entry_id, kind(16))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX IF NOT EXISTS idx_source_links_entry ON source_links (entry_id);
 """
 
 _TRANSLATE = [

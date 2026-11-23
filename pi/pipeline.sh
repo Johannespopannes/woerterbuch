@@ -34,6 +34,7 @@ kette() {
   run harvester.py --mode gap     --language "$lang" --letters all --rounds 1 --per-round 15 --pairs 4 --delay 0.5
   run harvester.py --mode define  --language "$lang" --per-round 30 --delay 0.3
   run define_langs.py --mode own --language "$lang" --limit 300 --batch 20 --delay 0.4
+  run source_links.py --language "$lang" --limit 400
   run "$audit" --language "$lang"
 }
 
@@ -52,6 +53,10 @@ while true; do
   # modelle, staerkste Arabisch-Qualitaet) — siehe ar-tn-loop.sh/franco-loop.sh.
   # Der Pi rendert hier nur die Bilder (Wan-Cloudrender) und uebersetzt
   # ar/tn ueber die Cloud (Ziel-Rotation unten).
+
+  # --- Externquellen-Links fuer ar (ar-Wiki existiert; tn hat kein
+  # eigenes Wiki und wird deshalb uebersprungen) ---
+  run source_links.py --language ar --limit 300
 
   # --- Bedeutungs-Matrix: je Zyklus ein Ziel rotieren (de+en zuerst) ---
   TARGETS=(de en it fr es ru zh ja hi ar tn)

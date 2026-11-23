@@ -292,6 +292,12 @@ class DefLangIn(BaseModel):
     source: str = Field(default="model", max_length=40)
 
 
+class SourceLinkIn(BaseModel):
+    """Verifizierten Externlink setzen (Wiktionary/Wikipedia/DWDS)."""
+    kind: str = Field(min_length=2, max_length=20)
+    url: str = Field(min_length=8, max_length=300)
+
+
 class WordIn(BaseModel):
     """Wort eines Eintrags korrigieren (Tippfehler, Kodier-Müll)."""
     word: str = Field(min_length=1, max_length=100)
@@ -547,6 +553,9 @@ def list_entries(
         default=None,
         description="nur Einträge ohne Definition in dieser Sprache ('de' = "
                     "entries.definition, sonst definitions-Tabelle)"),
+    nolinks: bool = Query(
+        default=False,
+        description="nur Einträge mit unvollständigen Externquellen-Links"),
     limit: int = Query(default=100, le=1000),
     offset: int = 0,
 ):
@@ -586,6 +595,12 @@ def list_entries(
             sql += (" AND id NOT IN (SELECT entry_id FROM definitions"
                     " WHERE lang = ?)")
             params.append(dl)
+    if nolinks:
+        # Vollständig = alle Wikis (+ DWDS bei de). Unvollständige nachrüsten.
+        erwartet = 3 if (language or "").lower() == "de" else 2
+        sql += (" AND (SELECT COUNT(*) FROM source_links s"
+                " WHERE s.entry_id = entries.id) < ?")
+        params.append(erwartet)
     sql += " ORDER BY id DESC" if neu else " ORDER BY word"
     sql += " LIMIT ? OFFSET ?"
     params += [limit, offset]
@@ -997,6 +1012,34 @@ def put_definition(entry_id: int, body: DefLangIn,
                          (text, entry_id))
         conn.commit()
         return {"ok": True, "entry_id": entry_id, "lang": lang}
+    finally:
+        conn.close()
+
+
+@app.post("/entries/{entry_id}/source-links")
+def put_source_link(entry_id: int, body: SourceLinkIn,
+                    _=Depends(require_api_key)):
+    """Verifizierten Externlink fuer einen Eintrag setzen (Upsert).
+
+    Die Pipeline prueft die Existenz des Ziels VOR dem Schreiben — hier
+    landen nur echt vorhandene Eintraege (keine Suchseiten, keine 404er).
+    """
+    kind = body.kind.strip().lower()
+    url = body.url.strip()
+    if not url.startswith("https://"):
+        raise HTTPException(400, "Nur https-URLs erlaubt")
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT id FROM entries WHERE id = ?",
+                           (entry_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        conn.execute(
+            "INSERT OR REPLACE INTO source_links (entry_id, kind, url)"
+            " VALUES (?, ?, ?)",
+            (entry_id, kind, url))
+        conn.commit()
+        return {"ok": True, "entry_id": entry_id, "kind": kind}
     finally:
         conn.close()
 
@@ -1621,9 +1664,13 @@ def get_evidence(entry_id: int):
             "FROM grammar WHERE language = ? AND lemma = ?",
             (row["language"], lemma_for_grammar),
         ).fetchone()
+        links = [{"kind": l["kind"], "url": l["url"]} for l in conn.execute(
+            "SELECT kind, url FROM source_links WHERE entry_id = ? "
+            "ORDER BY kind", (entry_id,)).fetchall()]
     finally:
         conn.close()
     out = row_to_dict(row)
+    out["source_links"] = links
     try:
         out["evidence"] = json.loads(out["evidence"] or "{}")
     except Exception:
