@@ -20,7 +20,7 @@ import sys
 import time
 import urllib.request
 
-from harvester import api_get, api_post, api_patch  # noqa
+from harvester import api_get, api_post, api_put  # noqa
 
 DICT_API_URL = os.environ.get("DICT_API_URL", "http://127.0.0.1:8000")
 DICT_API_KEY = os.environ["DICT_API_KEY"]
@@ -114,9 +114,9 @@ def main() -> None:
                                  "source": "sense-split"})
                 sid = resp["sense_id"]
                 if s["beschreibung"]:
-                    api_patch(f"/senses/{sid}/definitions",
-                              {"lang": lang, "text": s["beschreibung"],
-                               "source": "sense-split"})
+                    api_put(f"/senses/{sid}/definitions",
+                            {"lang": lang, "text": s["beschreibung"],
+                             "source": "sense-split"})
                 stat["sinne"] += 1
             stat["woerter"] += 1
         print(f"  {min(i + a.batch, len(rows))}/{len(rows)}: {stat}",

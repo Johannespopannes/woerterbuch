@@ -451,6 +451,20 @@ def api_post(path: str, payload: dict):
         return json.loads(resp.read())
 
 
+def api_put(path: str, payload: dict):
+    headers = {"Content-Type": "application/json"}
+    if DICT_API_KEY:
+        headers["X-API-Key"] = DICT_API_KEY
+    req = urllib.request.Request(
+        f"{DICT_API_URL}{path}",
+        data=json.dumps(payload).encode(),
+        headers=headers,
+        method="PUT",
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        return json.loads(resp.read())
+
+
 def api_patch(path: str, payload: dict):
     headers = {"Content-Type": "application/json"}
     if DICT_API_KEY:
