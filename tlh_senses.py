@@ -141,29 +141,37 @@ def main() -> None:
     print(f"Plan: {len(plan)} Schreibungen mit Sinndefinitionen",
           flush=True)
 
-    stat = {"sinne": 0, "definitionen": 0, "vorhanden": 0, "kein_eintrag": 0}
+    stat = {"sinne": 0, "definitionen": 0, "vorhanden": 0,
+            "kein_eintrag": 0, "fehler": 0}
     for i, (wort, eintraege) in enumerate(plan.items(), 1):
         # 2 Reads pro Wort (lookup + senses) — unter der API-Lesegrenze
-        # bleiben und 429 mit Backoff statt als „nicht gefunden" werten.
-        lu = None
+        # bleiben. Nur ein definitives 404 zählt als „kein Eintrag";
+        # 429 und Netz-Aussetzer (10054/10060) bekommen Backoff-Retries
+        # und werden sonst als „fehler" gezählt (idempotenter Nachlauf).
+        lu, fehler = None, False
         for versuch in range(5):
             try:
                 lu = api_get("/lookup?" + urllib.parse.urlencode(
                     {"word": wort, "language": "tlh"}))
                 break
             except urllib.error.HTTPError as e:
-                if e.code == 429 and versuch < 4:
-                    time.sleep(10 * (versuch + 1))
-                    continue
-                if e.code != 429:
+                if e.code == 404:
                     break
-                print(f"  {wort}: 429 auch nach Retries", file=sys.stderr)
-                break
+                if versuch < 4:
+                    time.sleep(8 * (versuch + 1))
+                    continue
+                fehler = True
             except Exception:
-                break
+                if versuch < 4:
+                    time.sleep(8 * (versuch + 1))
+                    continue
+                fehler = True
         time.sleep(0.6)
         if not lu:
-            stat["kein_eintrag"] += 1
+            if fehler:
+                stat["fehler"] += 1  # transient — nächster Lauf holt es nach
+            else:
+                stat["kein_eintrag"] += 1
             continue
         try:
             vorhanden = {s["label"] for s in api_get(
@@ -171,6 +179,7 @@ def main() -> None:
         except Exception as e:
             print(f"  {wort}: senses lesen fehlgeschlagen: {e}",
                   file=sys.stderr)
+            stat["fehler"] += 1  # transient — Sinne beim nächsten Lauf
             continue
         for e in eintraege:
             if e["label"] in vorhanden:
