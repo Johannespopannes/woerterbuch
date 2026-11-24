@@ -83,6 +83,10 @@ while true; do
   # kein eigenes Wiki und wird deshalb uebersprungen).
   run source_links.py --language ar --limit 300
 
+  # --- tlh: kanonische Sinne aus den boQwI'-Tabellen/Homonymen (ohne LLM,
+  # idempotent — legt je grammatischer Funktion einen Sinn an) ---
+  run tlh_senses.py
+
   # --- Bedeutungs-Matrix: je Zyklus ein Ziel rotieren ---
   T=${LANGS_IMG[$(( (zyklen - 1) % ${#LANGS_IMG[@]} ))]}
   export MODEL_NAME=$(modell_fuer "$T")
