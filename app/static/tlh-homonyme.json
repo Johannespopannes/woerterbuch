@@ -1,0 +1,6066 @@
+{
+ "quelle": "boQwI' De7vID/klingon-assistant-data 2026.07.24b",
+ "woerter": {
+  "bach": [
+   {
+    "pos_raw": "v:t_c,klcp1,weap",
+    "de": "schießen",
+    "en": "shoot"
+   },
+   {
+    "pos_raw": "n:klcp1,weap",
+    "de": "Schuss",
+    "en": "shot"
+   }
+  ],
+  "baQ": [
+   {
+    "pos_raw": "v:1,t_c,weap",
+    "de": "das Bat'leth von einer Hand in die andere werfen",
+    "en": "toss bat'leth from one hand to the other"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "frisch sein, frisch geerntet sein (Obst oder Gemüse)",
+    "en": "be fresh, be just picked (fruit, vegetable)"
+   },
+   {
+    "pos_raw": "v:3,i_c",
+    "de": "abwechseln",
+    "en": "take turns"
+   }
+  ],
+  "batlh": [
+   {
+    "pos_raw": "n",
+    "de": "Ehre (allgemeine, philosophische Bedeutung, mit Integrität assoziiert)",
+    "en": "honor (general, philosophical concept, associated with integrity)"
+   },
+   {
+    "pos_raw": "adv",
+    "de": "geehrt, ehrenhaft, mit Ehre",
+    "en": "honored, with honor"
+   }
+  ],
+  "bav": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "umkreisen",
+    "en": "orbit"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Kreisumfang",
+    "en": "circumference"
+   }
+  ],
+  "bej": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "anschauen, schauen, zuschauen, zusehen, beobachten",
+    "en": "watch"
+   },
+   {
+    "pos_raw": "v:2,t_c,slang",
+    "de": "sicher sein, definitiv sein, eindeutig sein",
+    "en": "be sure, be definite, be positive, be certain"
+   }
+  ],
+  "bel": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "erfreut sein, zufrieden sein, vergnügt sein",
+    "en": "be pleased"
+   },
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Vergnügen, Spaß",
+    "en": "pleasure"
+   }
+  ],
+  "ben": [
+   {
+    "pos_raw": "n:1",
+    "de": "vor ... Jahren",
+    "en": "years ago"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Jahre alt",
+    "en": "years old"
+   }
+  ],
+  "bep": [
+   {
+    "pos_raw": "n",
+    "de": "Schmerz, Qual",
+    "en": "agony"
+   },
+   {
+    "pos_raw": "v:t",
+    "de": "beschweren, meckern, beanstanden",
+    "en": "complain, object, gripe"
+   }
+  ],
+  "bIj": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "bestrafen, strafen",
+    "en": "punish"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Strafe, Bestrafung",
+    "en": "punishment"
+   }
+  ],
+  "bol": [
+   {
+    "pos_raw": "v:1,i_c",
+    "de": "sabbern",
+    "en": "drool"
+   },
+   {
+    "pos_raw": "v:2,t_c,slang",
+    "de": "verraten",
+    "en": "betray"
+   }
+  ],
+  "bom": [
+   {
+    "pos_raw": "n",
+    "de": "Lied",
+    "en": "song, chant"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "singen",
+    "en": "sing, chant"
+   }
+  ],
+  "boq": [
+   {
+    "pos_raw": "n:1",
+    "de": "Allianz, Block, Koalition",
+    "en": "alliance, bloc, coalition"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Fusion",
+    "en": "fusion"
+   },
+   {
+    "pos_raw": "n:3",
+    "de": "Akkord (Musik)",
+    "en": "chord (music)"
+   },
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "sich verbünden mit, eine Allianz formen",
+    "en": "ally with, form an alliance with"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "plus (in der Mathematik)",
+    "en": "add (used in math)"
+   }
+  ],
+  "boQ": [
+   {
+    "pos_raw": "n:1,being",
+    "de": "Assistent, Gehilfe",
+    "en": "aide"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Assistenz, Hilfestellung, Mitwirkung, Mithilfe, Beistand",
+    "en": "aid, assistance"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "assistieren, unterstützen, beistehen, behilflich sein",
+    "en": "assist"
+   }
+  ],
+  "bot": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "hindern, abwehren, blockieren, verhindern, aufhalten, verbieten",
+    "en": "prevent, block, prohibit"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "isolieren (Wärme, Strom)",
+    "en": "insulate (heat, electricity)"
+   }
+  ],
+  "botlh": [
+   {
+    "pos_raw": "n:1",
+    "de": "Zentrum, Mitte",
+    "en": "center, middle"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Median, Zentralwert (Mathematik)",
+    "en": "median (used in math)"
+   }
+  ],
+  "butlh": [
+   {
+    "pos_raw": "n:1",
+    "de": "Nageldreck",
+    "en": "dirt under fingernails"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Eigenschaft ähnlich dem, was Menschen \"Frechheit, Dreistigkeit\" nennen",
+    "en": "quality that is similar to what humans call \"gall\""
+   }
+  ],
+  "buv": [
+   {
+    "pos_raw": "n",
+    "de": "Klassifikation, Einstufung",
+    "en": "classification"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "klassifizieren, sortieren, einordnen",
+    "en": "classify"
+   }
+  ],
+  "chab": [
+   {
+    "pos_raw": "n:1",
+    "de": "Torte, Kuchen, Pastete, Knödel",
+    "en": "pie, tart, dumpling"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "Erfindung, Innovation",
+    "en": "invention, innovation"
+   }
+  ],
+  "chap": [
+   {
+    "pos_raw": "n:body",
+    "de": "Handrücken",
+    "en": "back (of hand)"
+   },
+   {
+    "pos_raw": "v:1,is",
+    "de": "offiziell sein, überprüft sein, autorisiert sein, legitim sein",
+    "en": "be official, be authenticated, be authorized, be legitimate"
+   },
+   {
+    "pos_raw": "v:2,t",
+    "de": "fassen, greifen",
+    "en": "grasp"
+   }
+  ],
+  "chatlh": [
+   {
+    "pos_raw": "n:1",
+    "de": "Suppe (dickflüssig)",
+    "en": "soup (thick)"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "Unsinn, Quatsch",
+    "en": "nonsense, balderdash"
+   }
+  ],
+  "chav": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "erreichen, schaffen, erzielen, leisten, erringen",
+    "en": "achieve"
+   },
+   {
+    "pos_raw": "n:1,klcp1",
+    "de": "Errungenschaft, Leistung, Erfolg",
+    "en": "achievement"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Funktion (Mathematik)",
+    "en": "function (mathematics)"
+   }
+  ],
+  "chaw'": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "erlauben, zulassen",
+    "en": "allow, permit"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Erlaubnis, Zulassung, Genehmigung",
+    "en": "permit"
+   }
+  ],
+  "cha'": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "zeigen, anzeigen (Bild)",
+    "en": "show, display (picture)"
+   },
+   {
+    "pos_raw": "n:num",
+    "de": "zwei",
+    "en": "two"
+   }
+  ],
+  "cha'DIch": [
+   {
+    "pos_raw": "n:1,num,deriv",
+    "de": "zweite/r",
+    "en": "second (ordinal number)"
+   },
+   {
+    "pos_raw": "n:2,being,deriv",
+    "de": "Sekundant, Berater",
+    "en": "second, aide (role in Klingon legal system)"
+   }
+  ],
+  "chem": [
+   {
+    "pos_raw": "n",
+    "de": "Feld (Physik)",
+    "en": "field (physics)"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "reinlegen, jdm. einen Streich spielen",
+    "en": "prank"
+   }
+  ],
+  "cheSvel": [
+   {
+    "pos_raw": "n:1",
+    "de": "Art Mantel",
+    "en": "type of coat"
+   },
+   {
+    "pos_raw": "n:2,reg",
+    "de": "Jacke, Mantel",
+    "en": "coat, jacket"
+   }
+  ],
+  "chetvI'": [
+   {
+    "pos_raw": "n:1",
+    "de": "Torpedorohr",
+    "en": "torpedo tube"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Speerwurfgerät, Speerschleuder",
+    "en": "spear-throwing device"
+   }
+  ],
+  "choghvat": [
+   {
+    "pos_raw": "n:1",
+    "de": "Stufen zum Eingang eines Raumschiffs; Landungssteg, Laufplanke, Gangway",
+    "en": "stairway leading to a door of a ship, gangplank"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Veranda",
+    "en": "porch"
+   }
+  ],
+  "choH": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "ändern, verändern, umwandeln",
+    "en": "alter, change"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Änderung, Veränderung",
+    "en": "change"
+   }
+  ],
+  "chong": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "senkrecht sein",
+    "en": "be vertical"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "gründlich sein, sorgfältig sein, vorsichtig sein; gut sein, ausgezeichnet sein",
+    "en": "be profound, be thorough, be careful, be good, be excellent"
+   }
+  ],
+  "chor": [
+   {
+    "pos_raw": "n:1,body",
+    "de": "Bauch",
+    "en": "belly, midsection"
+   },
+   {
+    "pos_raw": "n:2,alt,food,reg",
+    "de": "{chor bargh:n}",
+    "en": "{chor bargh:n}"
+   }
+  ],
+  "chorgh": [
+   {
+    "pos_raw": "n:1,num",
+    "de": "acht",
+    "en": "eight"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "achte Note der neunstufigen Tonleiter",
+    "en": "eighth tone of nonatonic music scale"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "glänzend sein",
+    "en": "be glossy"
+   }
+  ],
+  "choS": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "desertieren, fahnenflüchtig werden, im Stich lassen, verlassen, aufgeben",
+    "en": "desert"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Zwielicht, Dämmerung",
+    "en": "twilight"
+   }
+  ],
+  "cho'": [
+   {
+    "pos_raw": "n",
+    "de": "Nachfolge",
+    "en": "succession"
+   },
+   {
+    "pos_raw": "v:t",
+    "de": "nachfolgen (in eine/n Posten/Amt/Stelle), Nachfolge antreten",
+    "en": "succeed (to authority)"
+   }
+  ],
+  "chuH": [
+   {
+    "pos_raw": "v:1,t_c,weap",
+    "de": "Speer auf jdn. werfen",
+    "en": "throw (a spear) at, hurl (a spear) at"
+   },
+   {
+    "pos_raw": "v:2,t_c,slang",
+    "de": "jmdm. klar machen, genau erklären",
+    "en": "explain clearly to, clarify for, specify for"
+   }
+  ],
+  "chuv": [
+   {
+    "pos_raw": "v:is",
+    "de": "übrig bleiben, übrig sein",
+    "en": "be left over"
+   },
+   {
+    "pos_raw": "n:1",
+    "de": "Übrigbleibsel, Rest",
+    "en": "leftover"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Wechselgeld",
+    "en": "change (money)"
+   }
+  ],
+  "chu'": [
+   {
+    "pos_raw": "v:1,is,klcp1",
+    "de": "neu sein",
+    "en": "be new"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "(Gerät) einschalten, aktivieren",
+    "en": "engage, activate (a device)"
+   },
+   {
+    "pos_raw": "v:3,t_c",
+    "de": "(ein Musikinstrument) spielen",
+    "en": "play (a musical instrument)"
+   }
+  ],
+  "chu'wI'": [
+   {
+    "pos_raw": "n:1,deriv",
+    "de": "Auslöser, Aktivierer, Trigger",
+    "en": "trigger"
+   },
+   {
+    "pos_raw": "n:2,being,deriv",
+    "de": "Spieler (eines Musikinstruments)",
+    "en": "player (of an instrument)"
+   }
+  ],
+  "Day": [
+   {
+    "pos_raw": "n",
+    "de": "der Konsonant {D:sen:nolink}",
+    "en": "the consonant {D:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "vergleichen",
+    "en": "compare"
+   }
+  ],
+  "Dach": [
+   {
+    "pos_raw": "v:1,i,klcp1",
+    "de": "abwesend sein",
+    "en": "be absent"
+   },
+   {
+    "pos_raw": "v:2,i,slang",
+    "de": "unaufmerksam sein, abgelenkt sein, unkonzentriert sein",
+    "en": "be not attentive, be distracted, lack focus"
+   }
+  ],
+  "DaH": [
+   {
+    "pos_raw": "adv",
+    "de": "jetzt",
+    "en": "now"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Phalanx",
+    "en": "array, bank"
+   }
+  ],
+  "Daj": [
+   {
+    "pos_raw": "v:1,is,klcp1",
+    "de": "interessant sein",
+    "en": "be interesting"
+   },
+   {
+    "pos_raw": "v:2,t",
+    "de": "ohne eindeutiges Ergebnis prüfen",
+    "en": "test inconclusively"
+   }
+  ],
+  "Daq": [
+   {
+    "pos_raw": "v:t",
+    "de": "lauschen",
+    "en": "eavesdrop"
+   },
+   {
+    "pos_raw": "n:1",
+    "de": "Ort, Platz, Bereich",
+    "en": "site, location"
+   },
+   {
+    "pos_raw": "n:2,hyp",
+    "de": "psychische Fähigkeit?",
+    "en": "psychic ability?"
+   }
+  ],
+  "DaS": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Stiefel",
+    "en": "boot"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "kneifen, zwicken",
+    "en": "pinch"
+   }
+  ],
+  "Dav": [
+   {
+    "pos_raw": "v:1,i_c",
+    "de": "schwanken, zur Seite treten",
+    "en": "sidestep, sway"
+   },
+   {
+    "pos_raw": "v:2,i_c",
+    "de": "schwanken (Flugzeug bewegt zur Seite ohne zu neigen)",
+    "en": "sway (aircraft moves to the side without yawing)"
+   }
+  ],
+  "Daw'": [
+   {
+    "pos_raw": "v:i",
+    "de": "revoltieren, sich auflehnen",
+    "en": "revolt"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Revolte, Revolution",
+    "en": "revolt, revolution"
+   }
+  ],
+  "Degh": [
+   {
+    "pos_raw": "n:1",
+    "de": "Medaille, Emblem, Abzeichen, Symbol, Insignie",
+    "en": "medal, emblem, symbol, insignia"
+   },
+   {
+    "pos_raw": "n:2,klcp1",
+    "de": "Steuer",
+    "en": "helm"
+   },
+   {
+    "pos_raw": "v:i,slang",
+    "de": "planlos agieren, improvisieren",
+    "en": "act without a plan, improvise"
+   }
+  ],
+  "Der": [
+   {
+    "pos_raw": "v:1,i_c",
+    "de": "abbiegen (nach links oder rechts auf einer Reiseroute), ausscheren",
+    "en": "veer (to the left or right while traveling or moving)"
+   },
+   {
+    "pos_raw": "v:2,i_c",
+    "de": "aer. (um die Hochachse) gieren, scheren",
+    "en": "yaw (aircraft nose points left or right)"
+   }
+  ],
+  "DeS": [
+   {
+    "pos_raw": "n:1,body,klcp1",
+    "de": "Arm (Körperteil)",
+    "en": "arm (body part)"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Axtgriff",
+    "en": "ax handle"
+   },
+   {
+    "pos_raw": "n:3",
+    "de": "Kathete, eine der Seiten eines rechtwinkligen Dreiecks",
+    "en": "cathetus, shorter side of right-angled triangle"
+   }
+  ],
+  "DIj": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "Schwertklinge an Gegnerklinge entlang gleiten",
+    "en": "slide sword blade along opponent's blade"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "Malstab benutzen, mit Malstab (an)malen",
+    "en": "use a pigment stick, paint with pigment stick"
+   },
+   {
+    "pos_raw": "n:hyp",
+    "de": "Gerichtssaal?",
+    "en": "court, trial?"
+   }
+  ],
+  "DIS": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "zugeben, gestehen",
+    "en": "confess"
+   },
+   {
+    "pos_raw": "n:1",
+    "de": "Höhle",
+    "en": "cave"
+   },
+   {
+    "pos_raw": "n:2,klcp1",
+    "de": "Jahr",
+    "en": "year (Klingon)"
+   },
+   {
+    "pos_raw": "n:3",
+    "de": "Schleife, Schlinge, Runde, (Kreis-)Bahn (nicht elektrisch)",
+    "en": "loop, circuit (non-electrical)"
+   }
+  ],
+  "Doch": [
+   {
+    "pos_raw": "v:is",
+    "de": "unhöflich sein",
+    "en": "be rude"
+   },
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Ding, Gegenstand",
+    "en": "thing"
+   }
+  ],
+  "Doj": [
+   {
+    "pos_raw": "n",
+    "de": "Haufen, Stapel, Ansammlung",
+    "en": "batch, pile, heap, accumulation"
+   },
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "beeindruckend sein",
+    "en": "be impressive"
+   }
+  ],
+  "Dop": [
+   {
+    "pos_raw": "n",
+    "de": "Seite, Richtung",
+    "en": "side (direction, face)"
+   },
+   {
+    "pos_raw": "v:1,is",
+    "de": "gegenteilig sein, entgegengesetzt sein, umgekehrt sein",
+    "en": "be opposite, be antithetical, be contradictory"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "negativ sein (wörtlich \"das Gegenteil sein\")",
+    "en": "be negative (used in math)"
+   }
+  ],
+  "Dor": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "eskortieren, begleiten",
+    "en": "escort"
+   },
+   {
+    "pos_raw": "v:2,i_c",
+    "de": "enden, zu ende gehen",
+    "en": "end (of a period of time)"
+   }
+  ],
+  "Do'": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "Glück haben",
+    "en": "be fortunate, be lucky"
+   },
+   {
+    "pos_raw": "adv",
+    "de": "glücklicherweise",
+    "en": "luckily, with luck"
+   },
+   {
+    "pos_raw": "n:1",
+    "de": "Schwarm",
+    "en": "swarm"
+   },
+   {
+    "pos_raw": "n:2,archaic,hyp",
+    "de": "Schiff, Fahrzeug",
+    "en": "ship, vessel"
+   }
+  ],
+  "Do'Ha'": [
+   {
+    "pos_raw": "adv",
+    "de": "unglücklicherweise",
+    "en": "unfortunately"
+   },
+   {
+    "pos_raw": "v:is,deriv",
+    "de": "kein Glück haben",
+    "en": "be unfortunate"
+   }
+  ],
+  "Dub": [
+   {
+    "pos_raw": "n:body",
+    "de": "Rücken (Körperteil)",
+    "en": "back (of body)"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "verbessern",
+    "en": "improve"
+   }
+  ],
+  "DuH": [
+   {
+    "pos_raw": "v:is",
+    "de": "möglich sein",
+    "en": "be possible"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Möglichkeit, Option",
+    "en": "possibility, option"
+   }
+  ],
+  "Duj": [
+   {
+    "pos_raw": "n:1,klcp1",
+    "de": "Schiff, Fahrzeug",
+    "en": "ship, vessel"
+   },
+   {
+    "pos_raw": "n:2,inhpl,inhps",
+    "de": "Instinkte",
+    "en": "instinct, instincts"
+   }
+  ],
+  "Duq": [
+   {
+    "pos_raw": "n",
+    "de": "kleine Schüssel",
+    "en": "bowl (small)"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "schockiert sein, erstaunt sein",
+    "en": "be stunned (like {yay':v:nolink} but stronger)"
+   }
+  ],
+  "DuQ": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "stechen, erstechen, niederstechen, zustechen",
+    "en": "stab"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "(emotional) berühren, bewegen",
+    "en": "touch (emotionally)"
+   }
+  ],
+  "Dut": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "niederdrücken, aufschlagen",
+    "en": "slam down"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "betonen",
+    "en": "stress, emphasize"
+   }
+  ],
+  "Duy'": [
+   {
+    "pos_raw": "v:is",
+    "de": "defekt sein, unvollständig sein",
+    "en": "be defective"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Defekt, Fehler, Mangel",
+    "en": "defect"
+   }
+  ],
+  "ghay": [
+   {
+    "pos_raw": "n",
+    "de": "der Konsonant {gh:sen:nolink}",
+    "en": "the consonant {gh:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "versprühen",
+    "en": "spray, bombard, rain down"
+   }
+  ],
+  "ghab": [
+   {
+    "pos_raw": "n:food",
+    "de": "Fleisch vom Rumpf des Tieres",
+    "en": "meat from midsection of animal"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "töten, erlegen (bei der Jagd)",
+    "en": "kill (when on a hunt)"
+   }
+  ],
+  "ghan": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "hektisch sein, sehr aktiv sein, lebhaft sein",
+    "en": "be hectic, be very active, be lively"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "flüchtig blicken",
+    "en": "glance at, take a quick look at"
+   }
+  ],
+  "ghar": [
+   {
+    "pos_raw": "v:t",
+    "de": "Diplomatie betreiben",
+    "en": "conduct diplomacy"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Diplomatie",
+    "en": "diplomacy"
+   }
+  ],
+  "ghaw'": [
+   {
+    "pos_raw": "n:1",
+    "de": "Igvah-Lebersuppe",
+    "en": "igvah liver soup"
+   },
+   {
+    "pos_raw": "n:2,reg",
+    "de": "unsichere Person voller Selbstzweifel",
+    "en": "insecure one, one full of self-doubt"
+   },
+   {
+    "pos_raw": "n:3,slang",
+    "de": "Zahnfleisch",
+    "en": "gum (oral anatomy)"
+   }
+  ],
+  "ghep": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "umarmen",
+    "en": "hug, embrace"
+   },
+   {
+    "pos_raw": "n:hyp",
+    "de": "Alter?",
+    "en": "age?"
+   }
+  ],
+  "ghIgh": [
+   {
+    "pos_raw": "n:1",
+    "de": "Halskette, Collier",
+    "en": "necklace"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "Anweisung, Aufgabe, Pflicht",
+    "en": "assignment, task, duty"
+   }
+  ],
+  "ghIH": [
+   {
+    "pos_raw": "v:1,is,klcp1",
+    "de": "unordentlich sein, schlampig sein, unsauber sein, nachlässig sein",
+    "en": "be messy, be sloppy"
+   },
+   {
+    "pos_raw": "v:2,is,reg",
+    "de": "sorglos sein, unvorsichtig sein, leichtsinnig sein, achtlos sein (regional)",
+    "en": "be careless"
+   }
+  ],
+  "ghIntaq": [
+   {
+    "pos_raw": "n:1,weap",
+    "de": "Gin'tak, Kampfspeer",
+    "en": "battle spear, Gin'tak"
+   },
+   {
+    "pos_raw": "n:2,being,extcan",
+    "de": "Berater eines Klingonischen Hauses",
+    "en": "gin'tak, trusted adviser of a Klingon House"
+   }
+  ],
+  "ghIt": [
+   {
+    "pos_raw": "n:1,body",
+    "de": "offene flache Hand",
+    "en": "open, flat hand"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Axtklinge",
+    "en": "ax blade"
+   },
+   {
+    "pos_raw": "v:i_c",
+    "de": "fließen, sprudeln, speien",
+    "en": "flow (e.g., water), gush, spout"
+   }
+  ],
+  "ghItlh": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Manuskript, Schreiben",
+    "en": "manuscript"
+   },
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "schreiben, eingravieren, einritzen",
+    "en": "engrave, incise, mark (upon), write"
+   }
+  ],
+  "ghob": [
+   {
+    "pos_raw": "n",
+    "de": "Ethos, Tugend, Moral, Moralvorstellung",
+    "en": "ethics, virtue"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "kämpfen, Krieg führen",
+    "en": "fight, battle, do battle, wage war"
+   }
+  ],
+  "ghoch": [
+   {
+    "pos_raw": "n",
+    "de": "Bestimmungsort, Reiseziel",
+    "en": "destination"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "verfolgen, aufspüren",
+    "en": "track, track down"
+   }
+  ],
+  "ghom": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Gruppe, Partei",
+    "en": "band, group, party"
+   },
+   {
+    "pos_raw": "v:ambi,klcp1",
+    "de": "treffen, begegnen",
+    "en": "meet, encounter, assemble, rendezvous"
+   }
+  ],
+  "ghong": [
+   {
+    "pos_raw": "n",
+    "de": "Missbrauch",
+    "en": "abuse"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "missbrauchen, ausnutzen, ausbeuten",
+    "en": "abuse, exploit"
+   }
+  ],
+  "ghoQ": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "frisch erlegt sein (Fleisch)",
+    "en": "be fresh, be just killed (meat)"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "aktuell sein, jüngst sein",
+    "en": "be most recent"
+   }
+  ],
+  "ghor": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "kaputt machen, zerbrechen",
+    "en": "break"
+   },
+   {
+    "pos_raw": "n:1",
+    "de": "Planetenoberfläche",
+    "en": "surface (of a planet)"
+   },
+   {
+    "pos_raw": "n:2,hyp",
+    "de": "Antrieb? Motor?",
+    "en": "drive? (mechanical system)"
+   }
+  ],
+  "ghoS": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "sich etw. nähern, weggehen von, weitergehen, kommen, (einem Kurs/Weg) folgen",
+    "en": "approach, go away from, proceed, come, follow (a course)"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "(kräftig) stoßen, stechen, stecken",
+    "en": "thrust"
+   }
+  ],
+  "ghuH": [
+   {
+    "pos_raw": "n",
+    "de": "Warnung, Vorwarnung, Lehre",
+    "en": "alert"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "auf etw. vorbereitet sein, gewarnt",
+    "en": "prepare for, be alerted to"
+   }
+  ],
+  "ghum": [
+   {
+    "pos_raw": "n",
+    "de": "Alarm",
+    "en": "alarm"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "alarmieren, Alarm auslösen",
+    "en": "alarm, sound an alarm"
+   }
+  ],
+  "ghun": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "(einen Computer) programmieren",
+    "en": "program (a computer)"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "warm sein",
+    "en": "be warm"
+   }
+  ],
+  "ghuS": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "feuerbereit sein, abschussbereit sein",
+    "en": "be prepared, be ready (to launch)"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "den Speer zum Angriff horizontal senken",
+    "en": "lower (spear) to horizontal to attack"
+   }
+  ],
+  "Hay": [
+   {
+    "pos_raw": "n:1",
+    "de": "der Konsonant {H:sen:nolink}",
+    "en": "the consonant {H:sen:nolink}"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Bereich hinter",
+    "en": "area beyond"
+   },
+   {
+    "pos_raw": "v:i_c",
+    "de": "Salto machen",
+    "en": "somersault"
+   }
+  ],
+  "HaH": [
+   {
+    "pos_raw": "v:1,t",
+    "de": "durchtränken, durchnässen",
+    "en": "soak, drench"
+   },
+   {
+    "pos_raw": "v:2,t",
+    "de": "marinieren",
+    "en": "marinate"
+   }
+  ],
+  "Hal": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Quelle",
+    "en": "source"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "porös sein",
+    "en": "be porous"
+   }
+  ],
+  "Haq": [
+   {
+    "pos_raw": "n",
+    "de": "Operation, Chirurgie",
+    "en": "surgery"
+   },
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "(jdn.) operieren",
+    "en": "perform surgery (on)"
+   },
+   {
+    "pos_raw": "v:2,t,slang",
+    "de": "(in eine Situation) eingreifen",
+    "en": "intervene in (a situation)"
+   },
+   {
+    "pos_raw": "v:3,t,slang",
+    "de": "basteln",
+    "en": "tinker"
+   }
+  ],
+  "HaSta": [
+   {
+    "pos_raw": "n:1",
+    "de": "Video (Bewegtbild)",
+    "en": "video (moving images)"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "visuelle Anzeige, Videoansicht",
+    "en": "visual display (mode)"
+   }
+  ],
+  "Hat": [
+   {
+    "pos_raw": "v:is",
+    "de": "illegal sein",
+    "en": "be illegal"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Temperatur",
+    "en": "temperature"
+   }
+  ],
+  "Ha'DIbaH": [
+   {
+    "pos_raw": "n:1,klcp1",
+    "de": "Fleisch, Tier",
+    "en": "meat, animal"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "Hundesohn, \"Schwein\", minderwertige Person",
+    "en": "dog, cur, inferior person"
+   }
+  ],
+  "Hegh": [
+   {
+    "pos_raw": "v:t,klcp1",
+    "de": "sterben",
+    "en": "die"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Tod",
+    "en": "death"
+   }
+  ],
+  "HeS": [
+   {
+    "pos_raw": "v:t",
+    "de": "ein Verbrechen begehen",
+    "en": "commit a crime"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Verbrechen",
+    "en": "crime"
+   }
+  ],
+  "HoH": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "töten",
+    "en": "kill"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Töten",
+    "en": "killing"
+   }
+  ],
+  "Hom": [
+   {
+    "pos_raw": "n:1,body",
+    "de": "Knochen",
+    "en": "bone"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "Schwächling, Zwerg",
+    "en": "weakling, runt, scrawny one, skinny one"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "den zweiten Zeh benutzen",
+    "en": "use the second toe"
+   }
+  ],
+  "Hoq": [
+   {
+    "pos_raw": "n",
+    "de": "Expedition",
+    "en": "expedition"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "ziehen",
+    "en": "pull, drag"
+   }
+  ],
+  "HoS": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "stark sein",
+    "en": "be strong"
+   },
+   {
+    "pos_raw": "n:1",
+    "de": "Stärke, Energie, Kraft, Macht",
+    "en": "strength, energy, power"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Amplitude",
+    "en": "amplitude"
+   }
+  ],
+  "Hotlh": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "projizieren, auf den Schirm bringen",
+    "en": "project, put on (screen)"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "scannen, abtasten",
+    "en": "scan"
+   }
+  ],
+  "Ho'": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "bewundern, verehren",
+    "en": "admire"
+   },
+   {
+    "pos_raw": "n:1,body",
+    "de": "Zahn",
+    "en": "tooth"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "Idol, jemand bewundernswertes, respektvolles",
+    "en": "idol, someone worthy of emulation, something deserving of respect"
+   },
+   {
+    "pos_raw": "n:3",
+    "de": "Zähne des Zahnrades",
+    "en": "cog tooth, sprocket tooth"
+   }
+  ],
+  "Hu": [
+   {
+    "pos_raw": "n",
+    "de": "Zoo",
+    "en": "zoo"
+   },
+   {
+    "pos_raw": "excl:alt",
+    "de": "{Hu'ma:excl}",
+    "en": "{Hu'ma:excl}"
+   }
+  ],
+  "Hub": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "verteidigen",
+    "en": "defend"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Verteidigung",
+    "en": "defense"
+   }
+  ],
+  "HuD": [
+   {
+    "pos_raw": "n:1",
+    "de": "Berg, Hügel",
+    "en": "mountain, hill"
+   },
+   {
+    "pos_raw": "n:2,body,slang",
+    "de": "Brust",
+    "en": "breast"
+   }
+  ],
+  "Huj": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "fremd sein, seltsam sein",
+    "en": "be strange"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "laden, aufladen",
+    "en": "charge (up)"
+   }
+  ],
+  "Hur": [
+   {
+    "pos_raw": "n:1",
+    "de": "Außenseite, das Äußere (draußen)",
+    "en": "outside"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Hintergrund (z. B. Musik)",
+    "en": "background (e.g., music)"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "ziehen",
+    "en": "pull, tug"
+   }
+  ],
+  "Hurgh": [
+   {
+    "pos_raw": "v:is",
+    "de": "dunkel sein",
+    "en": "be dark"
+   },
+   {
+    "pos_raw": "n:food",
+    "de": "Essiggurke",
+    "en": "pickle (cucumber)"
+   }
+  ],
+  "HuS": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "hängen",
+    "en": "hang"
+   },
+   {
+    "pos_raw": "n:name,fic",
+    "de": "Huss",
+    "en": "Huss"
+   }
+  ],
+  "HutmaH": [
+   {
+    "pos_raw": "n:1,num,deriv",
+    "de": "neunzig",
+    "en": "ninety"
+   },
+   {
+    "pos_raw": "n:2,deriv,slang",
+    "de": "Höhepunkt (sexuell)",
+    "en": "climax (sexual)"
+   }
+  ],
+  "Huv": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "klar sein, nicht versperrt sein",
+    "en": "be clear, be not obstructed"
+   },
+   {
+    "pos_raw": "v:2,is,alt,archaic,slang",
+    "de": "{qu':v:2,slang}",
+    "en": "{qu':v:2,slang}"
+   }
+  ],
+  "Huy": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "summen",
+    "en": "hum, purr"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "scharf sein, pikant sein",
+    "en": "be spicy, be piquant, be hot"
+   },
+   {
+    "pos_raw": "v:3,is,slang",
+    "de": "triebhaft sein",
+    "en": "be libidinous"
+   }
+  ],
+  "Hu'": [
+   {
+    "pos_raw": "n",
+    "de": "vor ... Tagen",
+    "en": "days ago"
+   },
+   {
+    "pos_raw": "v:i",
+    "de": "aufstehen",
+    "en": "get up"
+   }
+  ],
+  "jan": [
+   {
+    "pos_raw": "n:1",
+    "de": "Gerät",
+    "en": "device"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Musikinstrument",
+    "en": "musical instrument"
+   }
+  ],
+  "jang": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "antworten, erwidern, entgegnen",
+    "en": "answer, reply"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "(auf etwas chemisch) reagieren",
+    "en": "react (to something chemically)"
+   }
+  ],
+  "jat": [
+   {
+    "pos_raw": "n:body",
+    "de": "Zunge",
+    "en": "tongue"
+   },
+   {
+    "pos_raw": "v:1,i,slang",
+    "de": "undeutlich sprechen, murmeln",
+    "en": "speak incoherently, mumble"
+   },
+   {
+    "pos_raw": "v:2,is,reg",
+    "de": "unbeholfen sein, tollpatschig sein",
+    "en": "be clumsy"
+   }
+  ],
+  "jav": [
+   {
+    "pos_raw": "n:1,num",
+    "de": "sechs",
+    "en": "six"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "sechste Note der neunstufigen Tonleiter",
+    "en": "sixth tone of nonatonic musical scale"
+   },
+   {
+    "pos_raw": "n:3,slang",
+    "de": "Gefangener",
+    "en": "prisoner"
+   }
+  ],
+  "jaw": [
+   {
+    "pos_raw": "v:t",
+    "de": "sich unterhalten, plaudern, quatschen",
+    "en": "chat"
+   },
+   {
+    "pos_raw": "n:alt",
+    "de": "{joH:n}",
+    "en": "{joH:n}"
+   }
+  ],
+  "ja'chuq": [
+   {
+    "pos_raw": "v:t_c,deriv",
+    "de": "diskutieren, besprechen, absprechen",
+    "en": "discuss, confer"
+   },
+   {
+    "pos_raw": "n:fic",
+    "de": "Nachfolgeritus (antik)",
+    "en": "succession ritual (ancient)"
+   }
+  ],
+  "je": [
+   {
+    "pos_raw": "conj:klcp1",
+    "de": "und, auch (bei Substantiven)",
+    "en": "also, and (joining nouns)"
+   },
+   {
+    "pos_raw": "adv",
+    "de": "auch (folgt dem Verb das es modifiziert)",
+    "en": "also (follows the verb it modifies)"
+   }
+  ],
+  "jech": [
+   {
+    "pos_raw": "v:t",
+    "de": "verkleiden, kostümieren, sich tarnen, verschleiern",
+    "en": "disguise"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Verkleidung",
+    "en": "disguise, costume"
+   }
+  ],
+  "jeS": [
+   {
+    "pos_raw": "v:i_c",
+    "de": "teilnehmen",
+    "en": "participate"
+   },
+   {
+    "pos_raw": "n:alt,terran",
+    "de": "{jeS QoQ:n}",
+    "en": "{jeS QoQ:n}"
+   }
+  ],
+  "jev": [
+   {
+    "pos_raw": "v:1,i",
+    "de": "stürmen, gewittern",
+    "en": "storm"
+   },
+   {
+    "pos_raw": "v:2,i",
+    "de": "keuchen, laut atmen",
+    "en": "wheeze, breathe noisily"
+   }
+  ],
+  "jey": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "besiegen, bezwingen, schlagen",
+    "en": "defeat"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Reiseroute, Reiseplan",
+    "en": "itinerary"
+   }
+  ],
+  "je'": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "kaufen, erwerben",
+    "en": "buy, purchase"
+   },
+   {
+    "pos_raw": "v:2,t_c,klcp1",
+    "de": "(jdn.) füttern, Geist bereichern",
+    "en": "feed (someone else), enrich spirit"
+   }
+  ],
+  "jIb": [
+   {
+    "pos_raw": "n:body",
+    "de": "Haar (Kopfhaar)",
+    "en": "hair (on head)"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "hängen, exekutieren durch erhängen",
+    "en": "execute by hanging"
+   }
+  ],
+  "jIH": [
+   {
+    "pos_raw": "n:1,pro,klcp1",
+    "de": "ich",
+    "en": "I, me"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Bildschirm",
+    "en": "viewing screen"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "überwachen, beobachten",
+    "en": "monitor"
+   }
+  ],
+  "jIm": [
+   {
+    "pos_raw": "v:1,i_c",
+    "de": "(mit den Schultern) zucken",
+    "en": "shrug"
+   },
+   {
+    "pos_raw": "v:2,i_c",
+    "de": "heben und senken (eines Flugzeugs ohne sich zu neigen; absacken)",
+    "en": "heave (aircraft rising or falling without pitching)"
+   }
+  ],
+  "jIr": [
+   {
+    "pos_raw": "v:i_c",
+    "de": "sich (wenige Male oder unvollständig) drehen",
+    "en": "rotate, twirl"
+   },
+   {
+    "pos_raw": "excl",
+    "de": "Egal. Wen interessiert das? Uninteressant.",
+    "en": "Whoop-dee-doo!, La-dee-dah!, Who cares?!, Big deal!"
+   }
+  ],
+  "jIrmoH": [
+   {
+    "pos_raw": "v:1,t_c,deriv",
+    "de": "Bat'leth (herum)wirbeln",
+    "en": "twirl bat'leth, cause bat'leth to rotate"
+   },
+   {
+    "pos_raw": "v:2,t_c,deriv",
+    "de": "kurbeln, drehen, in die Pedale treten, strampeln",
+    "en": "crank, pedal"
+   }
+  ],
+  "jol": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "(an Bord) beamen",
+    "en": "beam (aboard)"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Transporterstrahl",
+    "en": "transporter beam"
+   }
+  ],
+  "jom": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "(ein Gerät) installieren",
+    "en": "install (a device)"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "(jemand anderem) Kleidung anziehen",
+    "en": "put clothes on (someone else)"
+   }
+  ],
+  "jon": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "fangen, gefangen nehmen",
+    "en": "capture"
+   },
+   {
+    "pos_raw": "n:hyp",
+    "de": "Maschinen?",
+    "en": "engineering?"
+   }
+  ],
+  "jop": [
+   {
+    "pos_raw": "v:1,t_c,weap",
+    "de": "ausfallen, (zurück)stoßen",
+    "en": "lunge, thrust"
+   },
+   {
+    "pos_raw": "v:2,i_c",
+    "de": "dran sein, sich abwechseln",
+    "en": "take turn"
+   }
+  ],
+  "joq": [
+   {
+    "pos_raw": "conj:klcp1",
+    "de": "und/oder (bei Substantiven)",
+    "en": "or, and/or (joining nouns)"
+   },
+   {
+    "pos_raw": "v:i_c",
+    "de": "flattern, wehen",
+    "en": "flap, flutter, wave"
+   }
+  ],
+  "joQ": [
+   {
+    "pos_raw": "n:1,body",
+    "de": "Rippe",
+    "en": "rib"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Materialstreifen im Schusdek Instrument",
+    "en": "strip of material in a susdek instrument"
+   }
+  ],
+  "joS": [
+   {
+    "pos_raw": "v:i",
+    "de": "tratschen, klatschen, lästern",
+    "en": "gossip"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Gerücht, Klatsch",
+    "en": "rumor, gossip"
+   }
+  ],
+  "jot": [
+   {
+    "pos_raw": "v:1,is,klcp1",
+    "de": "ruhig sein",
+    "en": "be calm"
+   },
+   {
+    "pos_raw": "v:2,is,archaic",
+    "de": "fade sein (im Bezug auf Essen)",
+    "en": "be bland (referring to food)"
+   }
+  ],
+  "jo'": [
+   {
+    "pos_raw": "n",
+    "de": "Mechanismus, Maschinenanlage",
+    "en": "machinery"
+   },
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "in ein Behältnis hineinblasen",
+    "en": "blow into a container of some kind"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "zoomen, heranzoomen",
+    "en": "zoom in on"
+   }
+  ],
+  "juch": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "breit sein, eine Breite von ... haben",
+    "en": "have a width of"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "auf einer geographischen Länge liegen",
+    "en": "be at a longitude"
+   }
+  ],
+  "lay": [
+   {
+    "pos_raw": "n:1",
+    "de": "der Konsonant {l:sen:nolink}",
+    "en": "the consonant {l:sen:nolink}"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Luft (nur als technischer Begriff)",
+    "en": "air (technical term)"
+   }
+  ],
+  "lagh": [
+   {
+    "pos_raw": "n:being",
+    "de": "Fähnrich",
+    "en": "ensign"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "auseinander nehmen, demontieren",
+    "en": "take apart, disassemble"
+   }
+  ],
+  "laj": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "annehmen, akzeptieren",
+    "en": "accept"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Annahme, Zusage, Zustimmung",
+    "en": "acceptance"
+   }
+  ],
+  "lam": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "dreckig sein, schmutzig sein",
+    "en": "be dirty"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Dreck, Schmutz",
+    "en": "dirt"
+   }
+  ],
+  "laq": [
+   {
+    "pos_raw": "v:1,i_c",
+    "de": "flattern (wie Flügel eines Vogels, nicht wie Fahne)",
+    "en": "flap"
+   },
+   {
+    "pos_raw": "v:2,i_c,slang",
+    "de": "Kauderwelsch sprechen",
+    "en": "speak gibberish"
+   }
+  ],
+  "lav": [
+   {
+    "pos_raw": "n",
+    "de": "Strauch, Busch",
+    "en": "shrub"
+   },
+   {
+    "pos_raw": "v:i_c",
+    "de": "neigen, kippen, schräg stellen",
+    "en": "lean, incline, slant"
+   }
+  ],
+  "leH": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "instand halten",
+    "en": "maintain"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Instandhaltung",
+    "en": "maintenance"
+   }
+  ],
+  "leng": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "wandern, reisen, umherziehen",
+    "en": "roam, travel, rove"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Ausflug, Reise",
+    "en": "trip, voyage"
+   }
+  ],
+  "leS": [
+   {
+    "pos_raw": "n",
+    "de": "in ... Tagen",
+    "en": "days from now"
+   },
+   {
+    "pos_raw": "v:i,klcp1",
+    "de": "ausruhen, entspannen",
+    "en": "rest, relax"
+   }
+  ],
+  "letlh": [
+   {
+    "pos_raw": "n:1",
+    "de": "Treppe, Stufen",
+    "en": "stairs, stairway"
+   },
+   {
+    "pos_raw": "n:2,reg",
+    "de": "Steg zur Tür eines Schiffes",
+    "en": "stairway leading to door of a ship"
+   }
+  ],
+  "lev": [
+   {
+    "pos_raw": "n:body",
+    "de": "Vordergaumen, harter Gaumen",
+    "en": "hard palate, roof of mouth"
+   },
+   {
+    "pos_raw": "v:1,t_c,weap",
+    "de": "das Bat'leth von der Senkrechte in die Waagerechte bewegen",
+    "en": "move bat'leth from vertical to horizontal orientation"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "kompensieren, ausgleichen, wiedergutmachen",
+    "en": "compensate, make up for"
+   }
+  ],
+  "lIH": [
+   {
+    "pos_raw": "v:1,t",
+    "de": "einführen, vorstellen",
+    "en": "introduce"
+   },
+   {
+    "pos_raw": "v:2,t",
+    "de": "ein Lied beginnen",
+    "en": "begin a song"
+   }
+  ],
+  "lIn": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "teilen",
+    "en": "share"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "online",
+    "en": "go online (connect to computer network)"
+   }
+  ],
+  "lIq": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "zusammentreiben, zusammentrommeln",
+    "en": "round up"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "kreativ sein, erfinderisch sein, einfallsreich sein",
+    "en": "be creative, be inventive, be resourceful"
+   }
+  ],
+  "lI'": [
+   {
+    "pos_raw": "v:1,is,klcp1",
+    "de": "nützlich sein, brauchbar sein",
+    "en": "be useful"
+   },
+   {
+    "pos_raw": "v:2,t",
+    "de": "Daten übertragen, versenden (zu einem Ort)",
+    "en": "transmit data (to a place)"
+   }
+  ],
+  "loch": [
+   {
+    "pos_raw": "n:body",
+    "de": "Schnurrbart",
+    "en": "mustache"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "ein Teil (von etwas) sein, eine Teilmenge (von etwas) sein",
+    "en": "be a fraction of, make up a portion of, constitute part of"
+   }
+  ],
+  "logh'ob": [
+   {
+    "pos_raw": "n:1,body",
+    "de": "Brust",
+    "en": "chest"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Vorderseite (außen)",
+    "en": "front (exterior surface)"
+   }
+  ],
+  "loH": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "verwalten, administrieren",
+    "en": "administer"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Verwaltung, Administration",
+    "en": "administration"
+   }
+  ],
+  "lol": [
+   {
+    "pos_raw": "v:1,i_c",
+    "de": "in einer bestimmten Pose stehen (Personen, Tiere oder Kampfsport)",
+    "en": "be in a stance, be in a pose (people, animals, or martial arts)"
+   },
+   {
+    "pos_raw": "v:2,i_c",
+    "de": "in einer Fluglage befinden (Flugzeug)",
+    "en": "be in an attitude (aircraft)"
+   },
+   {
+    "pos_raw": "n",
+    "de": "bestimmte Stellung in der Kampfsportart Mok'bara",
+    "en": "a specific position in the martial arts form Mok'bara"
+   }
+  ],
+  "lop": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "feiern, (ein Ritual) zelebrieren",
+    "en": "observe, celebrate (a ritual)"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Feier",
+    "en": "celebration"
+   }
+  ],
+  "lor": [
+   {
+    "pos_raw": "n:1,being",
+    "de": "Cousin",
+    "en": "cousin (cross-cousin; child of {'IrneH:n} or {'e'mam:n})"
+   },
+   {
+    "pos_raw": "n:2,being",
+    "de": "Nichte oder Neffe",
+    "en": "nephew, niece (cross-nibling)"
+   }
+  ],
+  "loS": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "warten (auf)",
+    "en": "wait (for)"
+   },
+   {
+    "pos_raw": "n:1,num",
+    "de": "vier",
+    "en": "four"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "vierte Note der neunstufigen Tonleiter",
+    "en": "fourth tone of nonatonic musical scale"
+   }
+  ],
+  "lot": [
+   {
+    "pos_raw": "n",
+    "de": "Katastrophe",
+    "en": "catastrophe"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "kratzen",
+    "en": "scratch"
+   }
+  ],
+  "lo'": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "benutzen, gebrauchen, verwenden",
+    "en": "use, make use of"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Verwendung, Gebrauch, Betriebsmodus",
+    "en": "use, mode"
+   }
+  ],
+  "luH": [
+   {
+    "pos_raw": "v:1,t",
+    "de": "herausreißen, zerren, ruckartig ziehen",
+    "en": "yank"
+   },
+   {
+    "pos_raw": "v:2,t,slang",
+    "de": "(jemanden) dazu veranlassen, ein Geheimnis preiszugeben",
+    "en": "cause (someone) to confess or reveal a secret"
+   },
+   {
+    "pos_raw": "n:body",
+    "de": "Darm",
+    "en": "intestine"
+   }
+  ],
+  "lup": [
+   {
+    "pos_raw": "n",
+    "de": "Sekunde",
+    "en": "second (of time)"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "transportieren",
+    "en": "transport"
+   }
+  ],
+  "may": [
+   {
+    "pos_raw": "n",
+    "de": "der Konsonant {m:sen:nolink}",
+    "en": "the consonant {m:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "fair sein, gerecht sein",
+    "en": "be fair"
+   }
+  ],
+  "mab": [
+   {
+    "pos_raw": "n:1",
+    "de": "Vertrag, Abkommen, Verpflichtung, Zusage, Zusicherung",
+    "en": "treaty, agreement, contract, commitment"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Account, Konto (z.B. Computerkonto)",
+    "en": "account (for using a service)"
+   }
+  ],
+  "magh": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "verraten, betrügen, hintergehen",
+    "en": "betray"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Gras",
+    "en": "grass"
+   }
+  ],
+  "maH": [
+   {
+    "pos_raw": "n:1,pro,klcp1",
+    "de": "wir, uns",
+    "en": "we, us"
+   },
+   {
+    "pos_raw": "n:2,num",
+    "de": "-zig (Zahlenbildungsmorphem)",
+    "en": "ten (number-forming element)"
+   }
+  ],
+  "maS": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "bevorzugen",
+    "en": "prefer"
+   },
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Mond",
+    "en": "moon"
+   }
+  ],
+  "matlh": [
+   {
+    "pos_raw": "v:is",
+    "de": "loyal sein, treu sein",
+    "en": "be loyal"
+   },
+   {
+    "pos_raw": "n:name,fic",
+    "de": "Maltz",
+    "en": "Maltz"
+   }
+  ],
+  "maw": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "beleidigen, kränken",
+    "en": "offend"
+   },
+   {
+    "pos_raw": "n:name,terran",
+    "de": "Mao",
+    "en": "Mao"
+   }
+  ],
+  "meb": [
+   {
+    "pos_raw": "n:being",
+    "de": "Gast",
+    "en": "guest"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "eine Vision haben",
+    "en": "experience a vision"
+   }
+  ],
+  "meq": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Grund, Motiv, Anlass, Thema",
+    "en": "reason, motive, logical thinking, topic, subject, theme"
+   },
+   {
+    "pos_raw": "v:t",
+    "de": "begründen, logisch denken",
+    "en": "reason, think logically"
+   }
+  ],
+  "meQ": [
+   {
+    "pos_raw": "v:1,i_c,klcp1",
+    "de": "brennen, verbrennen",
+    "en": "burn, be on fire"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "verbrannt sein, angebrannt sein, anzünden (Zubereitung von Speisen)",
+    "en": "burn, set on fire (food preparation)"
+   },
+   {
+    "pos_raw": "v:3,is",
+    "de": "verbrannt werden (Zubereitung von Speisen)",
+    "en": "be burnt (food preparation)"
+   },
+   {
+    "pos_raw": "v:4,i_c,slang",
+    "de": "Höhepunkt erreichten (sexuell)",
+    "en": "climax (sexual)"
+   }
+  ],
+  "mergh": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "überlagert sein, kombiniert sein",
+    "en": "be combined, be mixed together"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "komplexwertig sein (in der Mathematik verwendet)",
+    "en": "be complex (used in math)"
+   }
+  ],
+  "meS": [
+   {
+    "pos_raw": "n",
+    "de": "Knoten",
+    "en": "knot"
+   },
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "knoten, verknoten",
+    "en": "knot, tie a knot"
+   },
+   {
+    "pos_raw": "v:2,t_c,slang",
+    "de": "verschlüsseln",
+    "en": "encrypt"
+   }
+  ],
+  "meSHa'": [
+   {
+    "pos_raw": "v:1,t_c,deriv",
+    "de": "entknoten, aufknoten",
+    "en": "unknot, untie a knot"
+   },
+   {
+    "pos_raw": "v:2,t_c,deriv,slang",
+    "de": "entschlüsseln",
+    "en": "decrypt"
+   }
+  ],
+  "mIp": [
+   {
+    "pos_raw": "v:is",
+    "de": "reich sein",
+    "en": "be rich"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Wohlstand, Reichtum",
+    "en": "wealth, richness"
+   }
+  ],
+  "mIQ": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "fritieren",
+    "en": "deep-fry"
+   },
+   {
+    "pos_raw": "n:body,reg",
+    "de": "Stirn",
+    "en": "forehead"
+   }
+  ],
+  "mIr": [
+   {
+    "pos_raw": "n:1",
+    "de": "Kette",
+    "en": "chain"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Strähne",
+    "en": "streak"
+   }
+  ],
+  "mIS": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "verwirrt sein, durcheinander sein, konfus sein",
+    "en": "be confused, be mixed up"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Verwirrung",
+    "en": "confusion"
+   }
+  ],
+  "mIv": [
+   {
+    "pos_raw": "n:1",
+    "de": "Helm",
+    "en": "helmet"
+   },
+   {
+    "pos_raw": "n:2,reg",
+    "de": "flacher Metalltopf",
+    "en": "metal flat-bottomed pot"
+   }
+  ],
+  "mI'": [
+   {
+    "pos_raw": "n",
+    "de": "Nummer, Zahl",
+    "en": "number"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "tanzen, turnen, rhythm. Bewegungen machen",
+    "en": "dance, run in place, do calisthenics"
+   }
+  ],
+  "mob": [
+   {
+    "pos_raw": "v:1,is,klcp1",
+    "de": "alleine sein, einsam sein",
+    "en": "be alone"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "ungerade sein (Zahl)",
+    "en": "be odd (used in math)"
+   }
+  ],
+  "mogh": [
+   {
+    "pos_raw": "v:is",
+    "de": "frustriert sein",
+    "en": "be frustrated"
+   },
+   {
+    "pos_raw": "n:name,fic",
+    "de": "Mogh",
+    "en": "Mogh"
+   }
+  ],
+  "moH": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "hässlich sein",
+    "en": "be ugly"
+   },
+   {
+    "pos_raw": "v:2,t_c,slang",
+    "de": "jdn. unnötig beeinflussen",
+    "en": "exert undue influence on"
+   }
+  ],
+  "mol": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "vergraben, begraben, beerdigen",
+    "en": "bury"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Grab",
+    "en": "grave"
+   }
+  ],
+  "mon": [
+   {
+    "pos_raw": "n",
+    "de": "Hauptstadt",
+    "en": "capital (of a place)"
+   },
+   {
+    "pos_raw": "v:i",
+    "de": "lächeln, grinsen",
+    "en": "smile, grin, sneer, snarl, smirk"
+   }
+  ],
+  "moQ": [
+   {
+    "pos_raw": "n",
+    "de": "Kugel",
+    "en": "sphere"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "Blasen haben, blasig sein, mit Blasen bedeckt sein",
+    "en": "be blistered"
+   }
+  ],
+  "morgh": [
+   {
+    "pos_raw": "v:t",
+    "de": "protestieren",
+    "en": "protest"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Flächeneinheit (27 Quadrat {'ujmey:n@@'uj:n, -mey:n})",
+    "en": "unit of area (27 square {'ujmey:n@@'uj:n, -mey:n})"
+   }
+  ],
+  "motlh": [
+   {
+    "pos_raw": "v:is",
+    "de": "gewöhnlich sein, herkömmlich sein, normal sein, Standard sein",
+    "en": "be usual, be standard, be normal"
+   },
+   {
+    "pos_raw": "adv",
+    "de": "gewöhnlicherweise, typisch, wie erwartet",
+    "en": "usually, typically, as expected"
+   }
+  ],
+  "mo'": [
+   {
+    "pos_raw": "n:1",
+    "de": "Käfig",
+    "en": "cage"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "Motiv, Grund",
+    "en": "motive, motivation, grounds, reason, rationale"
+   }
+  ],
+  "much": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "präsentieren, vorführen, aufführen",
+    "en": "present"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "vorführen, aufführen (Musik)",
+    "en": "perform (music)"
+   },
+   {
+    "pos_raw": "v:3,t_c",
+    "de": "eine Pose einnehmen (Kampftkunst)",
+    "en": "strike a pose or stance (martial arts)"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Präsentation, Vorstellung",
+    "en": "presentation"
+   }
+  ],
+  "muD": [
+   {
+    "pos_raw": "n:1",
+    "de": "Atmosphäre",
+    "en": "atmosphere"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Wetter (im Allgemeinen)",
+    "en": "weather (in general)"
+   }
+  ],
+  "mum": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "schmecken (Geschmack wahrnehmen)",
+    "en": "taste, sense flavors"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "auf jmdn. stehen, in jmdn. verknallt sein",
+    "en": "fancy, have a crush on"
+   }
+  ],
+  "mut": [
+   {
+    "pos_raw": "v:is",
+    "de": "egoistisch sein",
+    "en": "be selfish"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Spezies",
+    "en": "species"
+   }
+  ],
+  "nay": [
+   {
+    "pos_raw": "n",
+    "de": "der Konsonant {n:sen:nolink}",
+    "en": "the consonant {n:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "heiraten (macht die Frau)",
+    "en": "marry (wife does this)"
+   }
+  ],
+  "nab": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "planen",
+    "en": "plan"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Plan, Prozedur, Vorgehensweise",
+    "en": "plan, procedure"
+   }
+  ],
+  "naD": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "loben, belobigen, anerkennen",
+    "en": "praise, commend, approve"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Belobigung, Ehrung, Würdigung, Anerkennung",
+    "en": "commendation"
+   }
+  ],
+  "naH": [
+   {
+    "pos_raw": "n:food",
+    "de": "Frucht, Obst, Gemüse",
+    "en": "fruit, vegetable"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "feindlich sein, bösartig sein, unfreundlich sein, gegnerisch sein",
+    "en": "be hostile, be malicious, be unfriendly, be antagonistic"
+   }
+  ],
+  "nan": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "ausmeißeln",
+    "en": "gouge"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "den vierten Zehe benutzen",
+    "en": "use the fourth toe"
+   },
+   {
+    "pos_raw": "v:3,t",
+    "de": "Bewegung im Kampfsport (machen?)",
+    "en": "martial arts kick"
+   }
+  ],
+  "nanwI'": [
+   {
+    "pos_raw": "n:1,deriv",
+    "de": "Meißel, Beitel",
+    "en": "chisel"
+   },
+   {
+    "pos_raw": "n:2,body,deriv",
+    "de": "vierter Zehe",
+    "en": "fourth toe"
+   }
+  ],
+  "naQ": [
+   {
+    "pos_raw": "v:is",
+    "de": "vollständig sein, komplett sein, ganz sein",
+    "en": "be full, be whole, be entire, be complete"
+   },
+   {
+    "pos_raw": "n:1",
+    "de": "Stock, Stab",
+    "en": "cane, staff, stick"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "Pferdeschwanz",
+    "en": "ponytail"
+   }
+  ],
+  "nargh": [
+   {
+    "pos_raw": "v:1,i",
+    "de": "erscheinen",
+    "en": "appear"
+   },
+   {
+    "pos_raw": "v:2,i",
+    "de": "entkommen, entweichen",
+    "en": "escape"
+   }
+  ],
+  "natlh": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "auf-, verbrauchen, konsumieren",
+    "en": "use up, consume, expend, drain"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "widerlich sein, tadelnswert sein, verachtenswert sein, schändlich sein, anstößig sein",
+    "en": "be reprehensible, be disgusting, be contemptible"
+   }
+  ],
+  "naw'": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "abrufen, zugreifen auf",
+    "en": "access"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Zugriff",
+    "en": "access"
+   }
+  ],
+  "na'": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "salzig sein",
+    "en": "be salty, be brackish"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "sicher sein, eindeutig sein, bestimmt sein",
+    "en": "be sure, be definite, be positive, be certain"
+   }
+  ],
+  "neb": [
+   {
+    "pos_raw": "n:1,body",
+    "de": "Schnabel, schnabelähnliche Schnauze",
+    "en": "beak, bill"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Düse",
+    "en": "nozzle"
+   }
+  ],
+  "neH": [
+   {
+    "pos_raw": "adv",
+    "de": "nur, lediglich, einig, bloß",
+    "en": "only, merely, just"
+   },
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "wollen",
+    "en": "want"
+   }
+  ],
+  "nen": [
+   {
+    "pos_raw": "n",
+    "de": "Wachstum, Reife",
+    "en": "growth, maturation"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "erwachsen sein, reif sein",
+    "en": "be mature, be grown-up, be adult"
+   }
+  ],
+  "nIH": [
+   {
+    "pos_raw": "n",
+    "de": "Rechts (Seite)",
+    "en": "right (side)"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "stehlen",
+    "en": "steal"
+   }
+  ],
+  "nItlhpach": [
+   {
+    "pos_raw": "n:1,body",
+    "de": "Fingernagel",
+    "en": "fingernail"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "flaches Endes eines Malstabs",
+    "en": "flat end of a pigment stick"
+   }
+  ],
+  "nob": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Geschenk",
+    "en": "gift"
+   },
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "geben",
+    "en": "give"
+   }
+  ],
+  "noH": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "beurteilen, schätzen, abschätzen, einschätzen",
+    "en": "judge, estimate"
+   },
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Krieg (ein bestimmter Krieg)",
+    "en": "war (an individual war)"
+   }
+  ],
+  "nong": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "leidenschaftlich sein",
+    "en": "be passionate"
+   },
+   {
+    "pos_raw": "v:2,is,alt,archaic,slang",
+    "de": "{qu':v:2,slang}",
+    "en": "{qu':v:2,slang}"
+   }
+  ],
+  "noq": [
+   {
+    "pos_raw": "n:1,body",
+    "de": "Nippel, Brustwarze",
+    "en": "nipple (anatomy)"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Trinksauger (für Flaschen)",
+    "en": "nipple (on bottles, etc.)"
+   }
+  ],
+  "nov": [
+   {
+    "pos_raw": "n:being,klcp1",
+    "de": "Alien, Außerirdischer, Außenseiter, Ausländer, Fremder",
+    "en": "alien, outsider, foreigner"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "fremd sein, fremdartig sein, ausländisch sein, außerirdisch sein",
+    "en": "be foreign, be alien"
+   }
+  ],
+  "nuH": [
+   {
+    "pos_raw": "n:1,klcp1,weap",
+    "de": "Waffe",
+    "en": "weapon"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Möglichkeit",
+    "en": "possibility"
+   }
+  ],
+  "ngang": [
+   {
+    "pos_raw": "v:1,i_c",
+    "de": "variieren, variabel sein",
+    "en": "vary, be varying"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "grätschen, breitbeinig stehen",
+    "en": "straddle"
+   }
+  ],
+  "ngaQmoH": [
+   {
+    "pos_raw": "v:1,t_c,deriv",
+    "de": "verschließen, versiegeln, sichern, befestigen",
+    "en": "lock, seal, secure, fasten"
+   },
+   {
+    "pos_raw": "v:2,t_c,deriv",
+    "de": "ausloggen",
+    "en": "sign out, log out"
+   }
+  ],
+  "ngaQHa'moH": [
+   {
+    "pos_raw": "v:1,t_c,deriv",
+    "de": "entsperren, entsiegeln, entsichern, lösen",
+    "en": "unlock, unseal, unsecure, unfasten"
+   },
+   {
+    "pos_raw": "v:2,t_c,deriv",
+    "de": "einloggen",
+    "en": "sign in, log in"
+   }
+  ],
+  "ngat": [
+   {
+    "pos_raw": "n:1",
+    "de": "Schießpulver",
+    "en": "gunpowder"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "gewürzter gemahlener Knorpel (Kochzutat)",
+    "en": "herbed granulated cartilage (for food preparation)"
+   }
+  ],
+  "ngech": [
+   {
+    "pos_raw": "n:1",
+    "de": "Tal",
+    "en": "valley"
+   },
+   {
+    "pos_raw": "n:2,body,slang",
+    "de": "Busen einer Frau",
+    "en": "woman's cleavage"
+   }
+  ],
+  "ngIb": [
+   {
+    "pos_raw": "n:1,body",
+    "de": "Fußknöchel",
+    "en": "ankle"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "umgangssprachlich als abwertender Begriff",
+    "en": "slang term of deprecation"
+   }
+  ],
+  "ngoH": [
+   {
+    "pos_raw": "v:1,t",
+    "de": "schmieren",
+    "en": "smear"
+   },
+   {
+    "pos_raw": "v:2,t",
+    "de": "mit den Fingern malen",
+    "en": "paint using fingers"
+   }
+  ],
+  "ngong": [
+   {
+    "pos_raw": "n",
+    "de": "Experiment",
+    "en": "experiment"
+   },
+   {
+    "pos_raw": "v:t",
+    "de": "experimentieren",
+    "en": "experiment"
+   }
+  ],
+  "ngup": [
+   {
+    "pos_raw": "n:1",
+    "de": "Umhang (Kleidungsstück)",
+    "en": "cape (clothing)"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "Autorität, Machtsperson",
+    "en": "authority, power, one in authority or in charge"
+   }
+  ],
+  "pay": [
+   {
+    "pos_raw": "n",
+    "de": "der Konsonant {p:sen:nolink}",
+    "en": "the consonant {p:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "bereuen, bedauern",
+    "en": "regret"
+   }
+  ],
+  "pab": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "Regeln befolgen",
+    "en": "follow (rules)"
+   },
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Grammatik",
+    "en": "grammar"
+   }
+  ],
+  "pagh": [
+   {
+    "pos_raw": "n:1,klcp1",
+    "de": "nichts, keine/r",
+    "en": "nothing, none, no one"
+   },
+   {
+    "pos_raw": "n:2,num",
+    "de": "null",
+    "en": "zero"
+   },
+   {
+    "pos_raw": "conj:klcp1",
+    "de": "entweder/oder (zwischen Sätzen)",
+    "en": "or, either/or (joining sentences)"
+   }
+  ],
+  "pan": [
+   {
+    "pos_raw": "v:1,t",
+    "de": "Funken sprühen",
+    "en": "spark, emit sparks"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "lösen",
+    "en": "solve"
+   }
+  ],
+  "paq": [
+   {
+    "pos_raw": "n:1h,klcp1",
+    "de": "Buch",
+    "en": "book"
+   },
+   {
+    "pos_raw": "n:2,name,fic",
+    "de": "Pok",
+    "en": "Pok"
+   }
+  ],
+  "patlh": [
+   {
+    "pos_raw": "n:1",
+    "de": "Rang, Niveau, Schicht, Stellung",
+    "en": "rank (military, governmental), level, layer, standing"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Reihenfolge (wie in alphabetischer Reihenfolge)",
+    "en": "order (as in alphabetical order)"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "eingestuft sein, eingeordnet sein, einen Rang haben",
+    "en": "be ranked, have a status, be graded, be sorted"
+   }
+  ],
+  "paw'": [
+   {
+    "pos_raw": "v:1,i",
+    "de": "zusammenstoßen, kollidieren",
+    "en": "collide"
+   },
+   {
+    "pos_raw": "v:2,i,slang",
+    "de": "kopfstoßen",
+    "en": "butt heads"
+   }
+  ],
+  "pa'": [
+   {
+    "pos_raw": "n:1,klcp1",
+    "de": "Raum, Zimmer, Kammer",
+    "en": "room, enclosed area, chamber"
+   },
+   {
+    "pos_raw": "n:2,klcp1",
+    "de": "da, dort, drüben",
+    "en": "there, over there, thereabouts"
+   }
+  ],
+  "pegh": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "etwas geheim halten",
+    "en": "keep something secret"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "geheim sein",
+    "en": "be secret"
+   },
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Geheimnis",
+    "en": "secret"
+   }
+  ],
+  "pel'aQ": [
+   {
+    "pos_raw": "n:1",
+    "de": "(Eier-)Schale",
+    "en": "shell (of an egg)"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Sarg",
+    "en": "coffin"
+   }
+  ],
+  "per": [
+   {
+    "pos_raw": "n",
+    "de": "Bezeichnung, Etikett, Beschriftung, Kennzeichnung",
+    "en": "label"
+   },
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "beschriften bezeichnen, bestätigen, belegen, benennen, angeben",
+    "en": "label, ascertain, specify"
+   }
+  ],
+  "pIch": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "beschuldigen",
+    "en": "blame"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Fehler, Schuld",
+    "en": "fault, blame"
+   }
+  ],
+  "pID": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "(Nahrung) mit Gewürzmischung überziehen",
+    "en": "coat (food) with herbed mixture"
+   },
+   {
+    "pos_raw": "v:2,t_c,alt,slang",
+    "de": "{laS:v}",
+    "en": "{laS:v}"
+   }
+  ],
+  "pIH": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "erwarten",
+    "en": "expect"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "misstrauisch sein",
+    "en": "be suspicious"
+   }
+  ],
+  "pIn": [
+   {
+    "pos_raw": "n:1,being,klcp1",
+    "de": "Chef, Boss",
+    "en": "boss"
+   },
+   {
+    "pos_raw": "n:2,being,slang",
+    "de": "Experte, Autorität",
+    "en": "expert, authority"
+   }
+  ],
+  "pIq": [
+   {
+    "pos_raw": "n",
+    "de": "in bestimmter Zeit (Zukunft).",
+    "en": "time period from now (future)"
+   },
+   {
+    "pos_raw": "v:t",
+    "de": "abfangen",
+    "en": "intercept"
+   }
+  ],
+  "pIv": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "gesund sein",
+    "en": "be healthy"
+   },
+   {
+    "pos_raw": "n:hyp",
+    "de": "Warp?",
+    "en": "warp power?"
+   }
+  ],
+  "po": [
+   {
+    "pos_raw": "n:1h,klcp1",
+    "de": "Morgen",
+    "en": "morning"
+   },
+   {
+    "pos_raw": "n:place,2h,terran",
+    "de": "Tibet",
+    "en": "Tibet"
+   }
+  ],
+  "poH": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "Zeit messen",
+    "en": "time"
+   },
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Zeitraum, Sitzung, Schicht",
+    "en": "period of time, session, shift"
+   }
+  ],
+  "poj": [
+   {
+    "pos_raw": "n",
+    "de": "Analyse",
+    "en": "analysis"
+   },
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "analysieren",
+    "en": "analyze"
+   }
+  ],
+  "pong": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Name",
+    "en": "name"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "nennen, benennen, rufen",
+    "en": "name, call"
+   }
+  ],
+  "poS": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "offen sein, geöffnet sein",
+    "en": "be open, be opened"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Links (Seite)",
+    "en": "left (side)"
+   }
+  ],
+  "potlh": [
+   {
+    "pos_raw": "n",
+    "de": "Wichtiges, Bedeutsames",
+    "en": "consequential thing, something important"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "wichtig sein",
+    "en": "be important"
+   }
+  ],
+  "pov": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Nachmittag",
+    "en": "afternoon"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "ausgezeichnet sein",
+    "en": "be excellent"
+   }
+  ],
+  "puj": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "schwach sein, kraftlos sein",
+    "en": "be weak"
+   },
+   {
+    "pos_raw": "n:1",
+    "de": "Schwäche",
+    "en": "weakness"
+   },
+   {
+    "pos_raw": "n:2,hyp",
+    "de": "Lithium? Mineral?",
+    "en": "lithium? mineral?"
+   }
+  ],
+  "pum": [
+   {
+    "pos_raw": "n",
+    "de": "Anklage, Beschuldigung, Anschuldigung, Vorwurf",
+    "en": "accusation"
+   },
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "anklagen, beschuldigen, anschuldigen",
+    "en": "accuse"
+   },
+   {
+    "pos_raw": "v:2,i_c,klcp1",
+    "de": "fallen (abwärts bewegen)",
+    "en": "fall"
+   }
+  ],
+  "pup": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "perfekt sein, exakt sein",
+    "en": "be perfect, be exact"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "mit hoher Auflösung sein",
+    "en": "be high resolution"
+   },
+   {
+    "pos_raw": "v:3,t",
+    "de": "treten",
+    "en": "kick"
+   }
+  ],
+  "puS": [
+   {
+    "pos_raw": "v:1,is,klcp1",
+    "de": "wenige sein, einige sein, mehrere sein, eine Handvoll sein",
+    "en": "be few, be several, be a handful"
+   },
+   {
+    "pos_raw": "v:2,t",
+    "de": "anvisieren (mit Zielfernrohr)",
+    "en": "sight (with a gunsight)"
+   }
+  ],
+  "pu'": [
+   {
+    "pos_raw": "n:1,fic,weap",
+    "de": "Phaser",
+    "en": "phaser"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Stiefelspitze",
+    "en": "spike, boot spike"
+   },
+   {
+    "pos_raw": "n:3,body",
+    "de": "Horn",
+    "en": "horn"
+   }
+  ],
+  "qay": [
+   {
+    "pos_raw": "n",
+    "de": "der Konsonant {q:sen:nolink}",
+    "en": "the consonant {q:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "den zweiten (Mittel) Finger benutzen",
+    "en": "use the second (middle) finger"
+   }
+  ],
+  "qab": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "schlimm sein, schlecht sein, böse sein",
+    "en": "be bad"
+   },
+   {
+    "pos_raw": "n:body,klcp1",
+    "de": "Gesicht",
+    "en": "face"
+   }
+  ],
+  "qaD": [
+   {
+    "pos_raw": "n",
+    "de": "Herausforderung",
+    "en": "challenge, test of one's abilities"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "herausfordern, widerstehen, sich widersetzen, konfrontieren, herausfördern, sich etw. stellen",
+    "en": "challenge, resist, oppose, confront, face"
+   }
+  ],
+  "qagh": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "unterbrechen",
+    "en": "interrupt"
+   },
+   {
+    "pos_raw": "n:food",
+    "de": "Schlagenwurm (als Speise)",
+    "en": "serpent worm (as food)"
+   }
+  ],
+  "qan": [
+   {
+    "pos_raw": "v:1,is,klcp1",
+    "de": "alt sein (nicht jung)",
+    "en": "be old (not young)"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "den kleinen Finger benutzen",
+    "en": "use the pinkie, little finger"
+   }
+  ],
+  "qang": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "gießen (von einem Gefäß ins andere)",
+    "en": "pour (from one container into another)"
+   },
+   {
+    "pos_raw": "v:2,t_c,slang",
+    "de": "immer zustimmen, zusammenarbeiten",
+    "en": "always agree with, always cooperate with"
+   }
+  ],
+  "qat": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "wickeln, umhüllen",
+    "en": "wrap, encase"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "(Gesang) instrumental begleiten",
+    "en": "accompany (singing) with instrumental music"
+   }
+  ],
+  "qaw": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "sich erinnern an, an etwas denken",
+    "en": "remember"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Gedächtnis, Erinnerungsvermögen",
+    "en": "memory (ability)"
+   }
+  ],
+  "qa'": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "ersetzen",
+    "en": "replace"
+   },
+   {
+    "pos_raw": "n:being",
+    "de": "Geist",
+    "en": "spirit"
+   }
+  ],
+  "qel": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "berücksichtigen, in Betracht ziehen, beachten",
+    "en": "consider, take into account"
+   },
+   {
+    "pos_raw": "v:2,i_c",
+    "de": "nicken",
+    "en": "nod"
+   }
+  ],
+  "qen": [
+   {
+    "pos_raw": "adv",
+    "de": "neulich, vor Kurzem",
+    "en": "recently, a short time ago"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "wischen",
+    "en": "wipe"
+   }
+  ],
+  "qeng": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "tragen, befördern",
+    "en": "carry, convey"
+   },
+   {
+    "pos_raw": "n:name,fic",
+    "de": "Kang",
+    "en": "Kang"
+   }
+  ],
+  "qeq": [
+   {
+    "pos_raw": "n",
+    "de": "militärische Übung, Drill",
+    "en": "drill (military)"
+   },
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "üben, trainieren, proben",
+    "en": "practice, train, prepare, rehearse"
+   }
+  ],
+  "qeS": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Rat, Ratschlag",
+    "en": "advice"
+   },
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "raten, beraten",
+    "en": "advise"
+   }
+  ],
+  "qev": [
+   {
+    "pos_raw": "v:t",
+    "de": "drängen, vordrängen, zusammendrängen",
+    "en": "crowd"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Menschenmenge",
+    "en": "crowd"
+   }
+  ],
+  "qID": [
+   {
+    "pos_raw": "n",
+    "de": "Witz",
+    "en": "joke"
+   },
+   {
+    "pos_raw": "v:i_c",
+    "de": "scherzen, einen Witz erzählen",
+    "en": "joke, make a joke, tell a joke"
+   }
+  ],
+  "qIt": [
+   {
+    "pos_raw": "v:is",
+    "de": "möglich sein",
+    "en": "be possible"
+   },
+   {
+    "pos_raw": "n:anim",
+    "de": "Art Vogel",
+    "en": "a kind of bird"
+   }
+  ],
+  "qI'": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "unterzeichnen (einen Vertrag)",
+    "en": "sign (a treaty)"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "registrieren, (zum ersten Mal) anmelden, einen Account erstellen",
+    "en": "register for, sign up for (an account)"
+   }
+  ],
+  "qoch": [
+   {
+    "pos_raw": "n:being",
+    "de": "Partner",
+    "en": "partner"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "(in einen engen Raum) hineinquetschen",
+    "en": "squeeze (into a space)"
+   }
+  ],
+  "qogh": [
+   {
+    "pos_raw": "n:1",
+    "de": "Gürtel",
+    "en": "belt"
+   },
+   {
+    "pos_raw": "n:2,body",
+    "de": "Ohr (äußerer Teil), Ohrmuschel",
+    "en": "ear (external, cartilaginous flap)"
+   }
+  ],
+  "qoj": [
+   {
+    "pos_raw": "n",
+    "de": "Klippe, Felsen",
+    "en": "cliff"
+   },
+   {
+    "pos_raw": "conj:klcp1",
+    "de": "und/oder (zwischen Sätzen)",
+    "en": "or, and/or (joining sentences)"
+   }
+  ],
+  "qol": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "aussprechen",
+    "en": "pronounce"
+   },
+   {
+    "pos_raw": "n:1h",
+    "de": "Anordnung von Elementen, die mit einander verbunden sind",
+    "en": "collection of segments that are joined together, collocation"
+   },
+   {
+    "pos_raw": "n:2,name,fic",
+    "de": "Kol",
+    "en": "Kol"
+   }
+  ],
+  "qor": [
+   {
+    "pos_raw": "v:t",
+    "de": "auflesen, ergattern, durchwühlen, plündern",
+    "en": "scavenge"
+   },
+   {
+    "pos_raw": "n:name,fic",
+    "de": "Kor",
+    "en": "Kor"
+   }
+  ],
+  "qotlh": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "kitzeln",
+    "en": "tickle"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "verdienen, zu Recht bekommen oder bekommen sollen",
+    "en": "deserve, warrant"
+   }
+  ],
+  "qubbID": [
+   {
+    "pos_raw": "n:1",
+    "de": "Abstand, Strecke, Ausdehnung",
+    "en": "span, run, stretch (between)"
+   },
+   {
+    "pos_raw": "n:2,alt",
+    "de": "{ra'Duch leD qubbID:n}",
+    "en": "{ra'Duch leD qubbID:n}"
+   }
+  ],
+  "quH": [
+   {
+    "pos_raw": "n",
+    "de": "Erbe, Erbschaft",
+    "en": "heritage"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "(in Scheiben) schneiden",
+    "en": "slice, carve"
+   }
+  ],
+  "qum": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "regieren",
+    "en": "govern"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Regierung",
+    "en": "government"
+   }
+  ],
+  "qun": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Geschichte (historisch)",
+    "en": "history"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "schimpfen, ausschimpfen, schelten",
+    "en": "scold"
+   }
+  ],
+  "qut": [
+   {
+    "pos_raw": "n",
+    "de": "Kristall (geologische Struktur)",
+    "en": "crystal (geologic formation)"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "vorhersagen",
+    "en": "predict"
+   }
+  ],
+  "quv": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Ehre",
+    "en": "honor"
+   },
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "geehrt sein, ehrenswert sein",
+    "en": "be honored, be honorable"
+   }
+  ],
+  "qu'": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "grimmig sein, wild sein",
+    "en": "be fierce"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "großartig sein",
+    "en": "be great, be wonderful, be excellent, be splendid"
+   }
+  ],
+  "Qay": [
+   {
+    "pos_raw": "n",
+    "de": "der Konsonant {Q:sen:nolink}",
+    "en": "the consonant {Q:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "transferieren, übertragen",
+    "en": "transfer"
+   }
+  ],
+  "QaD": [
+   {
+    "pos_raw": "v:1,is,klcp1",
+    "de": "trocken sein, ausgetrocknet sein",
+    "en": "be dry, be dried out"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "sicher sein, beschützt sein",
+    "en": "be safe, be protected"
+   }
+  ],
+  "Qagh": [
+   {
+    "pos_raw": "n",
+    "de": "Fehler",
+    "en": "error, mistake"
+   },
+   {
+    "pos_raw": "v:i,klcp1",
+    "de": "sich irren, einen Fehler machen",
+    "en": "err, be mistaken, make a mistake"
+   }
+  ],
+  "QaH": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "helfen",
+    "en": "help, aid"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Hilfe",
+    "en": "help"
+   }
+  ],
+  "Qal": [
+   {
+    "pos_raw": "v:1,i",
+    "de": "schwimmen",
+    "en": "swim"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "kokett sein",
+    "en": "be flirty"
+   }
+  ],
+  "Qap": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "funktionieren, gewinnen, Erfolg haben",
+    "en": "work, function, succeed, win"
+   },
+   {
+    "pos_raw": "v:2,i_c",
+    "de": "laufen, funktionieren",
+    "en": "operate, be in operation"
+   }
+  ],
+  "QaS": [
+   {
+    "pos_raw": "n:being,inhpl,1h",
+    "de": "Mannschaften (Soldaten ohne Offiziere), Mitglieder der Mannschaftsdienstgrade",
+    "en": "troops, troop member"
+   },
+   {
+    "pos_raw": "n:2,name,fic",
+    "de": "Kras",
+    "en": "Kras"
+   }
+  ],
+  "Qay'": [
+   {
+    "pos_raw": "v:1,i",
+    "de": "ausrasten, die Beherrschung verlieren, in die Luft gehen, aus der Haut fahren, die Geduld verlieren",
+    "en": "blow one's top, lose one's temper"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "den kleinen Zeh benutzen",
+    "en": "use the little toe"
+   }
+  ],
+  "Qa'": [
+   {
+    "pos_raw": "n:1,anim",
+    "de": "Tiersorte",
+    "en": "type of animal"
+   },
+   {
+    "pos_raw": "n:2,hyp",
+    "de": "Union, Föderation, Liga",
+    "en": "union, federation, organization, association, league"
+   }
+  ],
+  "Qeb": [
+   {
+    "pos_raw": "n:1",
+    "de": "Ring",
+    "en": "ring (for finger)"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "Pferdeschwanz-Halter",
+    "en": "ponytail holder"
+   }
+  ],
+  "QeH": [
+   {
+    "pos_raw": "n",
+    "de": "Ärger, Wut",
+    "en": "anger"
+   },
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "verärgert sein, wütend sein",
+    "en": "be angry, be mad"
+   }
+  ],
+  "Qel": [
+   {
+    "pos_raw": "n:1h,klcp1",
+    "de": "Arzt, Doktor",
+    "en": "doctor, physician"
+   },
+   {
+    "pos_raw": "n:2,name,fic",
+    "de": "Krell",
+    "en": "Krell"
+   }
+  ],
+  "Qeq": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "zielen (auf)",
+    "en": "aim (at)"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "ausrichten, zu etw. hindrehen",
+    "en": "face (orient towards)"
+   }
+  ],
+  "QIb": [
+   {
+    "pos_raw": "n",
+    "de": "Schatten",
+    "en": "shadow"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "filtern, abseihen, sieben",
+    "en": "filter, strain, sieve, sift"
+   }
+  ],
+  "QIH": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "schaden, Schaden verursachen",
+    "en": "damage, cause damage"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "ungerecht behandeln, misshandeln",
+    "en": "wrong, treat unjustly"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Schaden, Zerstörung",
+    "en": "damage, destruction"
+   }
+  ],
+  "QIn": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "injizieren",
+    "en": "inject"
+   },
+   {
+    "pos_raw": "n:1",
+    "de": "Nachricht",
+    "en": "message"
+   },
+   {
+    "pos_raw": "n:2,weap",
+    "de": "Speerspitze",
+    "en": "spearhead"
+   }
+  ],
+  "QIS": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "nähen",
+    "en": "stitch, sew"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Messer mit gewellter Klinge",
+    "en": "wavy-bladed knife"
+   }
+  ],
+  "Qob": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "gefährlich sein",
+    "en": "be dangerous"
+   },
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Gefahr",
+    "en": "danger"
+   }
+  ],
+  "Qom": [
+   {
+    "pos_raw": "v:1,t",
+    "de": "ein Erdbeben oder eine Erschütterung erfahren",
+    "en": "experience an earthquake or tremor"
+   },
+   {
+    "pos_raw": "v:2,t,slang",
+    "de": "gewagt sein, gefährlich sein, riskant sein",
+    "en": "be hazardous, be perilous, be treacherous"
+   }
+  ],
+  "QongmoH": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "einschläfern",
+    "en": "put to sleep, cause to sleep"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "löschen (ein Feuer)",
+    "en": "extinguish (a fire)"
+   }
+  ],
+  "Qop": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "abgenutzt sein, verbraucht sein, verschlissen sein",
+    "en": "be worn out"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "tot sein (im Bezug auf Essen)",
+    "en": "be dead (referring to food)"
+   }
+  ],
+  "Quch": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "glücklich sein",
+    "en": "be happy"
+   },
+   {
+    "pos_raw": "n:body",
+    "de": "Stirn",
+    "en": "forehead"
+   }
+  ],
+  "Qugh": [
+   {
+    "pos_raw": "n:1h",
+    "de": "Katastrophe, Desaster",
+    "en": "disaster"
+   },
+   {
+    "pos_raw": "n:2,name,fic",
+    "de": "Kruge",
+    "en": "Kruge"
+   }
+  ],
+  "Quj": [
+   {
+    "pos_raw": "n",
+    "de": "Spiel",
+    "en": "game"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "ein Spiel spielen",
+    "en": "play a game"
+   }
+  ],
+  "Qum": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "kommunizieren",
+    "en": "communicate"
+   },
+   {
+    "pos_raw": "n:archaic",
+    "de": "Kommunikation",
+    "en": "communications, communications-related technology"
+   }
+  ],
+  "Qur": [
+   {
+    "pos_raw": "n:1",
+    "de": "Struktur, Organisation",
+    "en": "structure, organization (the way things fit together; the arrangement of the parts of something bigger)"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Anatomie",
+    "en": "anatomy (referring to animals)"
+   }
+  ],
+  "QuS": [
+   {
+    "pos_raw": "n",
+    "de": "Verschwörung",
+    "en": "conspiracy"
+   },
+   {
+    "pos_raw": "v:i",
+    "de": "verschwören",
+    "en": "conspire"
+   }
+  ],
+  "ram": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "trivial sein, banal sein, belanglos sein,, unwichtig sein, unbedeutend sein",
+    "en": "be trivial, be trifling, be unimportant, be insignificant"
+   },
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Nacht",
+    "en": "night"
+   }
+  ],
+  "ramjep": [
+   {
+    "pos_raw": "n:1",
+    "de": "Mitternacht",
+    "en": "midnight"
+   },
+   {
+    "pos_raw": "n:2,anim,food",
+    "de": "ramjep-Vogel (manchmal als Essen serviert)",
+    "en": "ramjep bird (sometimes served as food)"
+   }
+  ],
+  "raQ": [
+   {
+    "pos_raw": "n",
+    "de": "Militärlager",
+    "en": "camp (military term)"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "von Hand bedienen/bearbeiten, hantieren, handhaben",
+    "en": "manipulate by hand, handle"
+   }
+  ],
+  "rav": [
+   {
+    "pos_raw": "n:1,klcp1",
+    "de": "Fußboden",
+    "en": "floor"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Minimum",
+    "en": "minimum"
+   }
+  ],
+  "ra'": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "befehlen, kommandieren",
+    "en": "order, command"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "(ein Orchester) dirigieren",
+    "en": "conduct (an orchestra)"
+   }
+  ],
+  "reD": [
+   {
+    "pos_raw": "n:1",
+    "de": "Außenwand",
+    "en": "exterior wall"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Seite (Geometrie)",
+    "en": "side (geometry)"
+   },
+   {
+    "pos_raw": "n:3",
+    "de": "Seite, Außenseite",
+    "en": "side (exterior surface)"
+   }
+  ],
+  "reH": [
+   {
+    "pos_raw": "adv",
+    "de": "immer",
+    "en": "always"
+   },
+   {
+    "pos_raw": "v:t",
+    "de": "spielen",
+    "en": "play"
+   }
+  ],
+  "reS": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "verzaubern, einen Zauberspruch sprechen",
+    "en": "conjure, cast (a spell)"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "züchten (Pflanzen, Blumen, Gemüse)",
+    "en": "grow (e.g., flowers, plant, vegetables)"
+   }
+  ],
+  "ret": [
+   {
+    "pos_raw": "n",
+    "de": "vor gewisser Zeit (vergangen)",
+    "en": "time period ago (past)"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "aktuell sein, jüngst sein",
+    "en": "be most recent"
+   }
+  ],
+  "rIl": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "den Daumen benutzen (Kind)",
+    "en": "use the thumb (child)"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "(Blasinstrument) spielen",
+    "en": "play (a wind instrument)"
+   }
+  ],
+  "rIS": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "ein knackendes oder klickendes Geräusch machen, ein Signal aussenden",
+    "en": "make a cracking, snapping, or clicking sound; emit a signal (could be sound, radiation, smell, etc.)"
+   },
+   {
+    "pos_raw": "n",
+    "de": "klicken",
+    "en": "click"
+   }
+  ],
+  "rI'": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "rufen, anrufen, kontaktieren, anfunken",
+    "en": "hail (communication)"
+   },
+   {
+    "pos_raw": "n:hyp",
+    "de": "modernes Konzept einer Maßeinheit?",
+    "en": "modern concept of measurement unit?"
+   }
+  ],
+  "roj": [
+   {
+    "pos_raw": "v:t,klcp1",
+    "de": "Frieden stiften",
+    "en": "make peace"
+   },
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Frieden",
+    "en": "peace"
+   }
+  ],
+  "ron": [
+   {
+    "pos_raw": "v:1,i_c",
+    "de": "rollen",
+    "en": "roll, be rolling"
+   },
+   {
+    "pos_raw": "v:2,i_c",
+    "de": "rollen (Flugzeugflügel neigen sich, einer nach oben, einer nach unten)",
+    "en": "roll (aircraft wings tilt, one up, one down)"
+   }
+  ],
+  "rop": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "krank sein, übel sein",
+    "en": "be sick, be ill"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Krankheit",
+    "en": "disease"
+   }
+  ],
+  "roS": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "lecken",
+    "en": "lick"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "den dritten Zehe benutzen",
+    "en": "use the third toe"
+   },
+   {
+    "pos_raw": "v:3,is,hyp",
+    "de": "agil, flott, wendig sein",
+    "en": "be agile, be nimble, be spry?"
+   }
+  ],
+  "ruS": [
+   {
+    "pos_raw": "n",
+    "de": "Bindung, Bund",
+    "en": "bond"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "positiv geladen sein",
+    "en": "be positively charged, have a positive charge"
+   }
+  ],
+  "rutlh": [
+   {
+    "pos_raw": "n",
+    "de": "Rad",
+    "en": "wheel"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "rund sein",
+    "en": "be round"
+   }
+  ],
+  "ru'": [
+   {
+    "pos_raw": "v:1,is,klcp1",
+    "de": "temporär sein, zeitlich begrenzt sein, vorübergehend sein",
+    "en": "be temporary"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "kurz davor sein zu zerfallen oder zu sterben (im Bezug auf Essen)",
+    "en": "be ready to collapse or die (referring to food)"
+   }
+  ],
+  "Sach": [
+   {
+    "pos_raw": "v:1,i_c",
+    "de": "ausbreiten, ausdehnen, expandieren",
+    "en": "expand"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "verstärkt sein, verfeinert sein, ausgearbeitet sein",
+    "en": "be amplified, be fleshed out, be elaborated, be increased in scope, etc."
+   }
+  ],
+  "SaH": [
+   {
+    "pos_raw": "v:1,is,klcp1",
+    "de": "anwesend sein",
+    "en": "be present (not absent)"
+   },
+   {
+    "pos_raw": "v:2,t_c,klcp1",
+    "de": "wichtig finden, sich interessieren für, kümmern um, besorgt sein um",
+    "en": "care (about), be concerned (about)"
+   }
+  ],
+  "Sam": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "suchen und finden, auffinden",
+    "en": "locate, seek and find"
+   },
+   {
+    "pos_raw": "n:terran",
+    "de": "Schalmei",
+    "en": "shawm"
+   }
+  ],
+  "Sar": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "vielfältig sein, unterschiedlich sein",
+    "en": "be varied, be various"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Variante, Sorte",
+    "en": "variety"
+   }
+  ],
+  "SaS": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "horizontal sein, waagerecht sein",
+    "en": "be horizontal"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "oberflächlich sein, unkritisch sein, unglücklich sein",
+    "en": "be shallow, be superficial, be uncritical, be unfortunate, be not good"
+   }
+  ],
+  "Sa'Hut": [
+   {
+    "pos_raw": "n:1,body",
+    "de": "Hintern, Gesäß",
+    "en": "buttocks, rear end"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Rückseite (außen)",
+    "en": "back (exterior surface)"
+   }
+  ],
+  "SeH": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "kontrollieren",
+    "en": "control"
+   },
+   {
+    "pos_raw": "n:archaic,hyp",
+    "de": "Steuerung",
+    "en": "control"
+   }
+  ],
+  "Sen": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "den Daumen benutzen",
+    "en": "use the thumb (adult)"
+   },
+   {
+    "pos_raw": "v:2,i,slang",
+    "de": "spotten, höhnen",
+    "en": "scoff"
+   },
+   {
+    "pos_raw": "n:place,terran",
+    "de": "Seine",
+    "en": "Seine"
+   }
+  ],
+  "Seng": [
+   {
+    "pos_raw": "v:i,klcp1",
+    "de": "Ärger machen",
+    "en": "cause trouble"
+   },
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Ärger",
+    "en": "trouble"
+   }
+  ],
+  "Sep": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "züchten",
+    "en": "breed"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "potenzieren",
+    "en": "exponentiate"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Region",
+    "en": "region"
+   }
+  ],
+  "Sev": [
+   {
+    "pos_raw": "n",
+    "de": "Binde, Verband",
+    "en": "bandage"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "(einen Feind) in Schach halten",
+    "en": "contain (an enemy)"
+   }
+  ],
+  "SIj": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "schlitzen, aufschlitzen",
+    "en": "slit"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "verständnisvoll sein, einfühlsam sein, klug sein",
+    "en": "be insightful, be clever"
+   }
+  ],
+  "SIp": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Gas",
+    "en": "gas"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "infiltrieren, eindringen",
+    "en": "infiltrate"
+   }
+  ],
+  "SIrlop": [
+   {
+    "pos_raw": "n:1",
+    "de": "Konstante (Mathematik, Naturwissenschaften)",
+    "en": "constant (mathematics, science)"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Maßeinheit",
+    "en": "unit (of measure)"
+   }
+  ],
+  "SIS": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "regnen",
+    "en": "rain"
+   },
+   {
+    "pos_raw": "n:hyp",
+    "de": "Regen?",
+    "en": "rain?"
+   }
+  ],
+  "Soch": [
+   {
+    "pos_raw": "n:1,num",
+    "de": "sieben",
+    "en": "seven"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "siebte Note der neunstufigen Tonleiter",
+    "en": "seventh tone of nonatonic musical scale"
+   }
+  ],
+  "SoD": [
+   {
+    "pos_raw": "n",
+    "de": "Flut",
+    "en": "flood"
+   },
+   {
+    "pos_raw": "v:t",
+    "de": "überfluten",
+    "en": "flood"
+   }
+  ],
+  "Soj": [
+   {
+    "pos_raw": "n:1,food,klcp1",
+    "de": "Essen, Getränk",
+    "en": "food, drink"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Angelegenheit, Interesse, Anliegen",
+    "en": "matter, concern, affair"
+   }
+  ],
+  "Sol": [
+   {
+    "pos_raw": "v:t",
+    "de": "streiten",
+    "en": "quarrel"
+   },
+   {
+    "pos_raw": "n:place,terran",
+    "de": "Sonne (wissenschaftlicher Name für die Sonne der Erde)",
+    "en": "Sun (scientific name for Earth's sun)"
+   }
+  ],
+  "SoQ": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "geschlossen sein",
+    "en": "be closed, be shut"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Rede, Vortrag, Ansprache",
+    "en": "speech, lecture, address"
+   }
+  ],
+  "Sor": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Baum",
+    "en": "tree"
+   },
+   {
+    "pos_raw": "v:i",
+    "de": "nicht-metaphorisch sprechen",
+    "en": "speak non-metaphorically"
+   }
+  ],
+  "Sov": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "wissen, kennen",
+    "en": "know"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Wissen",
+    "en": "knowledge"
+   }
+  ],
+  "Soy'": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "ungeschickt sein, tollpatschig sein, unbeholfen sein, schwerfällig sein",
+    "en": "be clumsy"
+   },
+   {
+    "pos_raw": "v:2,is,reg",
+    "de": "unordentlich sein",
+    "en": "be messy"
+   }
+  ],
+  "So'": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "tarnen, verstecken",
+    "en": "hide, cloak"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "verschlüsseln",
+    "en": "encrypt"
+   }
+  ],
+  "So'Ha'": [
+   {
+    "pos_raw": "v:1,t_c,deriv",
+    "de": "enttarnen",
+    "en": "unhide, decloak"
+   },
+   {
+    "pos_raw": "v:2,t_c,deriv",
+    "de": "entschlüsseln",
+    "en": "decrypt"
+   }
+  ],
+  "Sub": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "fest sein, solide sein",
+    "en": "be solid"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "tapfer sein, heldenhaft sein, kühn sein, mutig sein, unerschrocken sein",
+    "en": "be brave, be heroic, be bold, be valiant, be intrepid"
+   },
+   {
+    "pos_raw": "n:being",
+    "de": "Held",
+    "en": "hero"
+   }
+  ],
+  "SuD": [
+   {
+    "pos_raw": "v:1,is,klcp1",
+    "de": "grün sein, blau sein, gelb sein",
+    "en": "be green, be blue, be yellow"
+   },
+   {
+    "pos_raw": "v:2,t",
+    "de": "spekulieren, riskieren",
+    "en": "gamble, take a chance, take a risk"
+   }
+  ],
+  "Sup": [
+   {
+    "pos_raw": "v:i",
+    "de": "springen",
+    "en": "jump"
+   },
+   {
+    "pos_raw": "n:inhps",
+    "de": "Ressource",
+    "en": "resource"
+   }
+  ],
+  "SuS": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Wind",
+    "en": "wind, breeze"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "(in ein Blasinstrument) blasen um ein Geräusch zu erzeugen",
+    "en": "blow (into wind instrument) to produce sound"
+   }
+  ],
+  "tay": [
+   {
+    "pos_raw": "n:1",
+    "de": "der Konsonant {t:sen:nolink}",
+    "en": "the consonant {t:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "zivilisiert sein",
+    "en": "be civilized"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Zeremonie, Ritus, Ritual",
+    "en": "ceremony, rite, ritual"
+   },
+   {
+    "pos_raw": "n:3,being",
+    "de": "Tai (Rang)",
+    "en": "tai (rank)"
+   }
+  ],
+  "tach": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Bar, Cocktail Lounge, Kneipe",
+    "en": "bar, saloon, cocktail lounge"
+   },
+   {
+    "pos_raw": "v:i_c",
+    "de": "umdrehen",
+    "en": "turn over"
+   }
+  ],
+  "taD": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "gefroren sein",
+    "en": "be frozen"
+   },
+   {
+    "pos_raw": "n:place,fic",
+    "de": "taD (der Name eines Planeten)",
+    "en": "taD (name of planet)"
+   }
+  ],
+  "tagh": [
+   {
+    "pos_raw": "n:body",
+    "de": "Lunge",
+    "en": "lung"
+   },
+   {
+    "pos_raw": "v:ambi",
+    "de": "(etw./einen Vorgang/Prozess) beginnen, initiieren, einleiten",
+    "en": "begin a process, initiate (proceedings)"
+   }
+  ],
+  "taH": [
+   {
+    "pos_raw": "v:1,i",
+    "de": "weitergehen, andauern, fortbestehen, überleben",
+    "en": "continue, go on, endure, survive"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "in einem negativen Winkel sein",
+    "en": "be at a negative angle"
+   }
+  ],
+  "tajvaj": [
+   {
+    "pos_raw": "n:1",
+    "de": "Winkel",
+    "en": "angle"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Ecke in einem Zimmer",
+    "en": "corner of a room"
+   }
+  ],
+  "tal": [
+   {
+    "pos_raw": "n:1",
+    "de": "Kanone",
+    "en": "cannon"
+   },
+   {
+    "pos_raw": "n:2,hyp",
+    "de": "Kartenlinie?",
+    "en": "map line?"
+   }
+  ],
+  "tam": [
+   {
+    "pos_raw": "v:1,i,klcp1",
+    "de": "leise sein",
+    "en": "be quiet"
+   },
+   {
+    "pos_raw": "v:2,t",
+    "de": "austauschen, ersetzen",
+    "en": "exchange, substitute"
+   }
+  ],
+  "taQbang": [
+   {
+    "pos_raw": "n:1",
+    "de": "Abgase",
+    "en": "exhaust"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "Urin, Fäkalien",
+    "en": "urine, fecal matter"
+   }
+  ],
+  "ta'": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "erledigen, vollbringen, erfüllen, schaffen, tun",
+    "en": "accomplish"
+   },
+   {
+    "pos_raw": "n:1,klcp1",
+    "de": "Tat, Handlung, Vollendung, Erfüllung, Errungenschaft",
+    "en": "deed, accomplishment"
+   },
+   {
+    "pos_raw": "n:2,being",
+    "de": "Kaiser, Imperator",
+    "en": "emperor"
+   }
+  ],
+  "teb": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "füllen, auffüllen",
+    "en": "fill"
+   },
+   {
+    "pos_raw": "v:2,t_c,slang",
+    "de": "kompensieren, entschädigen (monetär)",
+    "en": "compensate (monetary)"
+   }
+  ],
+  "tem": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "abstreiten (widersprechen, verleugnen, als falsch bezeichnen)",
+    "en": "deny (contradict, disavow, claim as false)"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Elektron",
+    "en": "electron"
+   }
+  ],
+  "tetlh": [
+   {
+    "pos_raw": "n",
+    "de": "Schriftrolle, Verzeichnis, Liste",
+    "en": "roll, scroll, list"
+   },
+   {
+    "pos_raw": "v:i_c",
+    "de": "rollen, runterrollen (wie ein Baumstamm auf einem Hang)",
+    "en": "roll (down a hill like a log)"
+   }
+  ],
+  "tey": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "kratzen",
+    "en": "scrape"
+   },
+   {
+    "pos_raw": "v:2,i_c",
+    "de": "eng sein, unbequem sein, unsicher sein, ohne Spielraum sein",
+    "en": "be uncomfortable, be close, not have wiggle room or leeway"
+   }
+  ],
+  "tey'": [
+   {
+    "pos_raw": "v:t",
+    "de": "anvertrauen",
+    "en": "confide"
+   },
+   {
+    "pos_raw": "n:1,being",
+    "de": "Cousin (Kind von {tennuS:n} oder {me':n})",
+    "en": "cousin (parallel cousin; child of {tennuS:n} or {me':n})"
+   },
+   {
+    "pos_raw": "n:2,being",
+    "de": "Nichte, Neffe",
+    "en": "nephew, niece (parallel nibling)"
+   }
+  ],
+  "tIH": [
+   {
+    "pos_raw": "n:1",
+    "de": "Strahl",
+    "en": "ray, beam"
+   },
+   {
+    "pos_raw": "n:2,weap",
+    "de": "Schaft (eines Speers)",
+    "en": "shaft (of spear)"
+   }
+  ],
+  "tIq": [
+   {
+    "pos_raw": "v:is",
+    "de": "lang sein, länglich sein (ein Gegenstand)",
+    "en": "be long, be lengthy (of an object)"
+   },
+   {
+    "pos_raw": "n:body",
+    "de": "Herz (auch symbolisch verwendet)",
+    "en": "heart (also used symbolically)"
+   }
+  ],
+  "tIr": [
+   {
+    "pos_raw": "n",
+    "de": "Getreide",
+    "en": "grain"
+   },
+   {
+    "pos_raw": "v:i_c",
+    "de": "gestapelt sein, aufeinander gestellt sein",
+    "en": "be arranged in a stack, be superimposed"
+   }
+  ],
+  "toch": [
+   {
+    "pos_raw": "n:body",
+    "de": "Handfläche, Handinnenfläche, Handteller",
+    "en": "palm (of hand)"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "real sein, konkret sein, praktisch sein, pragmatisch sein, angewandt werden (sprachlicher Begriff)",
+    "en": "be actual, be concrete, be practical, be pragmatic, be applied (linguistic notion)"
+   }
+  ],
+  "toD": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "retten, bergen",
+    "en": "save, rescue"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Rettung, Bergung",
+    "en": "rescue"
+   }
+  ],
+  "tor": [
+   {
+    "pos_raw": "v:1,i_c",
+    "de": "knieen",
+    "en": "kneel"
+   },
+   {
+    "pos_raw": "v:2,i_c",
+    "de": "nicken (Nase des Flugzeugs neigt sich nach oben oder nach unten)",
+    "en": "pitch (aircraft tilts nose up or down)"
+   }
+  ],
+  "tuch": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "verbieten",
+    "en": "forbid"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Zukunft (als Ganzes)",
+    "en": "the future (as a whole)"
+   }
+  ],
+  "tugh": [
+   {
+    "pos_raw": "adv",
+    "de": "bald",
+    "en": "soon"
+   },
+   {
+    "pos_raw": "excl",
+    "de": "Beeilung!",
+    "en": "Hurry up!"
+   }
+  ],
+  "tuH": [
+   {
+    "pos_raw": "n",
+    "de": "militärisches Manöver",
+    "en": "maneuver (military term)"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "beschämt sein, sich schämen",
+    "en": "be ashamed"
+   }
+  ],
+  "tuj": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "heiß sein, warm sein",
+    "en": "be hot"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Hitze, Wärme",
+    "en": "heat"
+   }
+  ],
+  "tup": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Minute",
+    "en": "minute (of time)"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "konzeptionell sein, abstrakt sein, rein sein (sprachlicher Begriff)",
+    "en": "be conceptual, be abstract, be pure (linguistic notion)"
+   }
+  ],
+  "tut": [
+   {
+    "pos_raw": "n:1",
+    "de": "Säule",
+    "en": "column"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Prisma (Geometrie)",
+    "en": "prism (geometry)"
+   }
+  ],
+  "tutlh": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "ein Tattoo haben, tätowiert sein",
+    "en": "have a tattoo, be tattooed"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "offiziell sein",
+    "en": "be official"
+   }
+  ],
+  "tlhay": [
+   {
+    "pos_raw": "n:1",
+    "de": "der Konsonant {tlh:sen:nolink}",
+    "en": "the consonant {tlh:sen:nolink}"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Ärmel",
+    "en": "sleeve"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "einbalsamieren",
+    "en": "embalm"
+   }
+  ],
+  "tlhab": [
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "frei sein, unabhängig sein",
+    "en": "be free, be independent"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Freiheit, Unabhängigkeit",
+    "en": "freedom, independence"
+   }
+  ],
+  "tlham": [
+   {
+    "pos_raw": "n:1",
+    "de": "Schwerkraft, Gravitation",
+    "en": "gravity"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "Ordnung, gesellschaftl. Struktur",
+    "en": "order, structure (societal)"
+   },
+   {
+    "pos_raw": "v:i",
+    "de": "rutschen",
+    "en": "slide"
+   }
+  ],
+  "tlharwIl": [
+   {
+    "pos_raw": "n:1",
+    "de": "Bindeglied",
+    "en": "link in a chain"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Folge (einer Fernsehsendung)",
+    "en": "episode (of a TV show)"
+   }
+  ],
+  "tlhIl": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "schürfen, fördern, abbauen",
+    "en": "mine"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Mineral",
+    "en": "mineral"
+   }
+  ],
+  "tlhI'": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "signieren, autogrammieren, ein Autogramm geben",
+    "en": "sign (an autograph), autograph"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Unterschrift, Autogramm, Signatur",
+    "en": "signature, autograph"
+   }
+  ],
+  "tlhogh": [
+   {
+    "pos_raw": "n",
+    "de": "Ehe, Heirat, Hochzeit",
+    "en": "marriage"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "heiraten",
+    "en": "get married to, marry"
+   }
+  ],
+  "tlhop": [
+   {
+    "pos_raw": "n:1",
+    "de": "Vorne, Bereich vor etwas",
+    "en": "front, area in front of"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Öffentlicher Platz",
+    "en": "public area"
+   }
+  ],
+  "tlho'": [
+   {
+    "pos_raw": "n",
+    "de": "Anerkennung, Dank",
+    "en": "appreciation, gratitude"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "danken",
+    "en": "thank"
+   }
+  ],
+  "tlhuH": [
+   {
+    "pos_raw": "n",
+    "de": "Atem",
+    "en": "breath"
+   },
+   {
+    "pos_raw": "v:1,t,klcp1",
+    "de": "atmen",
+    "en": "breathe"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "aufgeregt sein, stimuliert sein, begeistert sein",
+    "en": "be exhilarated, be stimulated, be invigorated"
+   }
+  ],
+  "vay": [
+   {
+    "pos_raw": "n",
+    "de": "der Konsonant {v:sen:nolink}",
+    "en": "the consonant {v:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "kämpfen (mittlere Stärke)",
+    "en": "fight, battle (midlevel ferocity)"
+   }
+  ],
+  "vagh": [
+   {
+    "pos_raw": "n:1,num",
+    "de": "fünf",
+    "en": "five"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "fünfte Note der neunstufigen Tonleiter",
+    "en": "fifth tone of nonatonic musical scale"
+   }
+  ],
+  "vaj": [
+   {
+    "pos_raw": "adv",
+    "de": "dann, also, in dem Fall",
+    "en": "so, then, thus, in that case"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Kriegertum",
+    "en": "warrior, warriorhood"
+   }
+  ],
+  "van": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "salutieren, (milit.) grüßen",
+    "en": "salute"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "beenden (ein Ereignis, Reise, Kampf, Spiel, Oper, Geschichte, Lied usw.)",
+    "en": "end (an event, voyage, battle, play, opera, story, song, etc.)"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Salut, Tribut, Anerkennung",
+    "en": "salute, tribute"
+   }
+  ],
+  "vaS": [
+   {
+    "pos_raw": "n",
+    "de": "Halle, Versammlungshalle",
+    "en": "hall, assembly hall"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "breit sein",
+    "en": "be wide, broad"
+   }
+  ],
+  "vatlh": [
+   {
+    "pos_raw": "n:num",
+    "de": "hundert (Zahlenbildungsmorphem)",
+    "en": "hundred (number-forming element)"
+   },
+   {
+    "pos_raw": "v:i",
+    "de": "aufwickeln",
+    "en": "coil"
+   }
+  ],
+  "vem": [
+   {
+    "pos_raw": "v:i,klcp1",
+    "de": "aufwachen",
+    "en": "wake up, cease sleeping"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Abdruck, Spur, Abbild",
+    "en": "print, mark, tracks, trace, image, pattern"
+   }
+  ],
+  "vemmoH": [
+   {
+    "pos_raw": "v:1,t_c,deriv",
+    "de": "jmd. wecken, aufwecken",
+    "en": "wake (someone) up"
+   },
+   {
+    "pos_raw": "v:2,t_c,deriv",
+    "de": "entzünden (ein Feuer)",
+    "en": "ignite (a fire)"
+   }
+  ],
+  "ver": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "spiralförmig sein",
+    "en": "be spiral"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "sich schwindlig fühlen",
+    "en": "be dizzy"
+   }
+  ],
+  "vergh": [
+   {
+    "pos_raw": "n",
+    "de": "Dock, Hafen (Seehafen, Flughafen, Raumhafen)",
+    "en": "dock, port (seaport, airport, spaceport)"
+   },
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "andocken, anlegen",
+    "en": "dock"
+   }
+  ],
+  "vIb": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "durch die Zeit in die Zukunft reisen",
+    "en": "move through time toward the future"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "sich ausbreiten",
+    "en": "propagate (not in reference to plants)"
+   }
+  ],
+  "vIl": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "geriffelt sein (wie die Stirn)",
+    "en": "be ridgy (of the forehead)"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "cool sein",
+    "en": "be cool (as in chic)"
+   },
+   {
+    "pos_raw": "n",
+    "de": "jemand oder etwas das immer da ist",
+    "en": "someone or something who is just there, someone who is around when you are"
+   }
+  ],
+  "vIt": [
+   {
+    "pos_raw": "v:t,klcp1",
+    "de": "die Wahrheit sagen",
+    "en": "tell the truth"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Wahrheit",
+    "en": "truth"
+   }
+  ],
+  "vI'": [
+   {
+    "pos_raw": "v:i_c",
+    "de": "sich ansammeln, sich anhäufen",
+    "en": "accumulate"
+   },
+   {
+    "pos_raw": "n:1",
+    "de": "Scharfschießen, Treffsicherheit",
+    "en": "sharpshooting, marksmanship"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Dezimalzeichen, Komma",
+    "en": "decimal point"
+   },
+   {
+    "pos_raw": "n:3",
+    "de": "Punkt (Geometrie)",
+    "en": "point (geometry)"
+   }
+  ],
+  "voq": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "vertrauen, in jmd./etw. Vertrauen haben, an jmd. glauben (nicht religiös)",
+    "en": "trust, have faith in"
+   },
+   {
+    "pos_raw": "n:name,fic",
+    "de": "Voq",
+    "en": "Voq"
+   }
+  ],
+  "vum": [
+   {
+    "pos_raw": "v:t,klcp1",
+    "de": "arbeiten, schuften",
+    "en": "work, toil"
+   },
+   {
+    "pos_raw": "n:being",
+    "de": "verächtliche oder verabscheuungswürdige Person, Drecksack, Bastard",
+    "en": "contemptible or despicable person, scumbag, bastard"
+   }
+  ],
+  "way": [
+   {
+    "pos_raw": "n",
+    "de": "der Konsonant {w:sen:nolink}",
+    "en": "the consonant {w:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "gestreift sein, mit Linien versehen sein",
+    "en": "be striped"
+   }
+  ],
+  "waH": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "ausprobieren, testen, versuchen",
+    "en": "try out, test, use experimentally"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "kosten, probieren (Essen)",
+    "en": "taste, try out (food)"
+   }
+  ],
+  "wam": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "jagen",
+    "en": "hunt"
+   },
+   {
+    "pos_raw": "n:anim",
+    "de": "Wam, eine Art Schlange",
+    "en": "wam, type of serpent"
+   }
+  ],
+  "waQ": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "versperren, blockieren, verstopfen",
+    "en": "obstruct"
+   },
+   {
+    "pos_raw": "n",
+    "de": "in ... Monaten",
+    "en": "months from now"
+   }
+  ],
+  "web": [
+   {
+    "pos_raw": "v:1,is",
+    "de": "in Ungnade gefallen sein",
+    "en": "be disgraced"
+   },
+   {
+    "pos_raw": "v:2,is,slang",
+    "de": "chaotisch sein, unorganisiert sein",
+    "en": "be chaotic, be disorganized"
+   }
+  ],
+  "wej": [
+   {
+    "pos_raw": "adv",
+    "de": "noch nicht",
+    "en": "not yet"
+   },
+   {
+    "pos_raw": "n:num",
+    "de": "drei",
+    "en": "three"
+   }
+  ],
+  "wem": [
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "verletzen, brechen, übertreten, verstoßen, missachten",
+    "en": "violate"
+   },
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Verstoß, Missbrauch, Übergriff",
+    "en": "violation"
+   }
+  ],
+  "wep": [
+   {
+    "pos_raw": "n:1,klcp1",
+    "de": "Jacke, Mantel",
+    "en": "jacket, coat"
+   },
+   {
+    "pos_raw": "n:2,reg",
+    "de": "Hemd mit Ärmeln",
+    "en": "shirt with sleeves"
+   }
+  ],
+  "wev": [
+   {
+    "pos_raw": "n",
+    "de": "Reihe (in einer Tabelle)",
+    "en": "row (in a table or spreadsheet)"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "skizzieren, kritzeln",
+    "en": "sketch, doodle"
+   }
+  ],
+  "wIl": [
+   {
+    "pos_raw": "n",
+    "de": "Pflock, Spieß",
+    "en": "spike (stand-alone spike, such as a stake)"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "kurz sein (in der Länge)",
+    "en": "be short (in length)"
+   }
+  ],
+  "wIv": [
+   {
+    "pos_raw": "n",
+    "de": "Auswahl, Wahl",
+    "en": "choice"
+   },
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "auswählen, aussuchen, wählen",
+    "en": "choose, select"
+   }
+  ],
+  "wIy": [
+   {
+    "pos_raw": "n:1",
+    "de": "Schema, grafische Darstellung",
+    "en": "schematic, graphic representation"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "taktische Anzeige",
+    "en": "tactical display (mode)"
+   }
+  ],
+  "woD": [
+   {
+    "pos_raw": "v:1,t_c,klcp1",
+    "de": "wegwerfen",
+    "en": "throw away"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "hohl sein",
+    "en": "be hollow"
+   }
+  ],
+  "woj": [
+   {
+    "pos_raw": "n",
+    "de": "Strahlung",
+    "en": "radiation"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "sterilisieren",
+    "en": "sterilize"
+   }
+  ],
+  "yay": [
+   {
+    "pos_raw": "n:1",
+    "de": "der Konsonant {y:sen:nolink}",
+    "en": "the consonant {y:sen:nolink}"
+   },
+   {
+    "pos_raw": "n:2,klcp1",
+    "de": "Sieg, Triumph",
+    "en": "victory, triumph"
+   },
+   {
+    "pos_raw": "n:3",
+    "de": "Gekritzel, Kritzelei",
+    "en": "scribbles, doodle"
+   }
+  ],
+  "yach": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "streicheln",
+    "en": "pet, stroke"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "Saite anschlagen (bei einem Saiteninstrument)",
+    "en": "strum (a stringed instrument)"
+   }
+  ],
+  "yaD": [
+   {
+    "pos_raw": "n:1,body",
+    "de": "Zehe",
+    "en": "toe"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "Schwert",
+    "en": "sword"
+   },
+   {
+    "pos_raw": "n:3,being,slang",
+    "de": "Teenager, Jugendlicher, junger Erwachsener",
+    "en": "teen, teenager, adolescent, youth, young adult"
+   }
+  ],
+  "yaH": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Arbeitsstation, Arbeitsplatz",
+    "en": "duty station, station"
+   },
+   {
+    "pos_raw": "v:is",
+    "de": "weggenommen sein, weggenommen werden",
+    "en": "be taken away"
+   }
+  ],
+  "yan": [
+   {
+    "pos_raw": "n:weap",
+    "de": "Schwert",
+    "en": "sword"
+   },
+   {
+    "pos_raw": "v:t_c,weap",
+    "de": "ein Schwert handhaben",
+    "en": "use or manipulate a sword"
+   }
+  ],
+  "yaS": [
+   {
+    "pos_raw": "n:1,being,klcp1",
+    "de": "Offizier",
+    "en": "officer"
+   },
+   {
+    "pos_raw": "n:2,being,slang",
+    "de": "Profi (umgangssprachlich)",
+    "en": "professional"
+   }
+  ],
+  "yeb": [
+   {
+    "pos_raw": "n:1,body",
+    "de": "Handgelenk",
+    "en": "wrist"
+   },
+   {
+    "pos_raw": "n:2,slang",
+    "de": "umgangssprachlich als abwertender Begriff",
+    "en": "slang term of deprecation"
+   }
+  ],
+  "yIHotlh!": [
+   {
+    "pos_raw": "sen:1,phr",
+    "de": "Auf den Schirm.",
+    "en": "Put him on screen."
+   },
+   {
+    "pos_raw": "sen:2,phr",
+    "de": "Scan es!",
+    "en": "Scan it!"
+   }
+  ],
+  "yIn": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Leben",
+    "en": "life"
+   },
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "leben",
+    "en": "live"
+   }
+  ],
+  "yIntagh": [
+   {
+    "pos_raw": "n:deriv",
+    "de": "Lebenserhaltungssystem",
+    "en": "life-support system"
+   },
+   {
+    "pos_raw": "excl:epithet",
+    "de": "Beleidigung",
+    "en": "epithet"
+   }
+  ],
+  "yIv": [
+   {
+    "pos_raw": "v:1,t,klcp1",
+    "de": "kauen",
+    "en": "chew"
+   },
+   {
+    "pos_raw": "v:2,t,slang",
+    "de": "nerven, stören, irritieren, reizen, ärgern, belästigen",
+    "en": "annoy, bother, irk, irritate"
+   }
+  ],
+  "yIvbeH": [
+   {
+    "pos_raw": "n:1",
+    "de": "Tunika, Hemd, Bluse",
+    "en": "tunic"
+   },
+   {
+    "pos_raw": "n:2,reg",
+    "de": "Hemd ohne Ärmel",
+    "en": "sleeveless shirt"
+   }
+  ],
+  "yoD": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Schild (Platte aus Material, kein Kraftfeld)",
+    "en": "shield (plate of material, not force field)"
+   },
+   {
+    "pos_raw": "v:t",
+    "de": "abschirmen, schützen, beschützen",
+    "en": "shield"
+   }
+  ],
+  "yor": [
+   {
+    "pos_raw": "n",
+    "de": "äußere Oberseite",
+    "en": "top (exterior)"
+   },
+   {
+    "pos_raw": "v:i_c",
+    "de": "schmollen",
+    "en": "sulk, mope, pout"
+   }
+  ],
+  "yot": [
+   {
+    "pos_raw": "v:t_c",
+    "de": "eindringen, einmarschieren",
+    "en": "invade"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Invasion",
+    "en": "invasion"
+   }
+  ],
+  "'at": [
+   {
+    "pos_raw": "n",
+    "de": "der Vokal {a:sen:nolink}",
+    "en": "the vowel {a:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "erben",
+    "en": "inherit"
+   }
+  ],
+  "'ab": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "eine Länge / Höhe von ... haben",
+    "en": "have a length/height of"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "auf einer geographischen Breite liegen",
+    "en": "be at a latitude"
+   }
+  ],
+  "'aD": [
+   {
+    "pos_raw": "n:body",
+    "de": "Ader, Blutgefäß",
+    "en": "vein, artery, blood vessel"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "eine Länge von ... haben",
+    "en": "have a length of, measure"
+   }
+  ],
+  "'al": [
+   {
+    "pos_raw": "v:1,i",
+    "de": "treiben, schweben (in/auf Luft)",
+    "en": "float (in/on air)"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "zufällig sein (Zahlen)",
+    "en": "be random (number)"
+   }
+  ],
+  "'an": [
+   {
+    "pos_raw": "v:1,i_c",
+    "de": "Verschwendung sein",
+    "en": "be a waste"
+   },
+   {
+    "pos_raw": "v:2,i_c",
+    "de": "versteinert sein",
+    "en": "be petrified"
+   }
+  ],
+  "'ap": [
+   {
+    "pos_raw": "v:is",
+    "de": "eingedrückt sein, verdellt sein",
+    "en": "be dented"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Tribut, Zoll",
+    "en": "dues, toll"
+   }
+  ],
+  "'aqroS": [
+   {
+    "pos_raw": "n:1",
+    "de": "Unterseite der Oberseite",
+    "en": "bottom surface of a table, ceiling"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Maximum, Höchstwert",
+    "en": "maximum"
+   }
+  ],
+  "'et": [
+   {
+    "pos_raw": "n:1",
+    "de": "der Vokal {e:sen:nolink}",
+    "en": "the vowel {e:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:i_c",
+    "de": "abprallen",
+    "en": "bounce, rebound, ricochet"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Vorn, Bug",
+    "en": "fore"
+   }
+  ],
+  "'eD": [
+   {
+    "pos_raw": "v:1,i_c",
+    "de": "kriechen",
+    "en": "crawl"
+   },
+   {
+    "pos_raw": "v:2,i,hyp",
+    "de": "landen? starten? (Flugzeug)",
+    "en": "be landed? be in the air? (aircraft)"
+   }
+  ],
+  "'ej": [
+   {
+    "pos_raw": "conj:klcp1",
+    "de": "und (zwischen Sätzen)",
+    "en": "and (joining sentences)"
+   },
+   {
+    "pos_raw": "n:archaic,hyp",
+    "de": "Stern?",
+    "en": "star?"
+   }
+  ],
+  "'em": [
+   {
+    "pos_raw": "n",
+    "de": "Hinten, Bereich hinter",
+    "en": "behind, area behind"
+   },
+   {
+    "pos_raw": "v:t",
+    "de": "erbrechen, sich übergeben",
+    "en": "vomit"
+   }
+  ],
+  "'ep": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "Suppe essen",
+    "en": "consume soup"
+   },
+   {
+    "pos_raw": "v:2,t_c,slang",
+    "de": "küssen auf menschliche Art",
+    "en": "human-style kiss"
+   }
+  ],
+  "'ev": [
+   {
+    "pos_raw": "n",
+    "de": "Nordwesten, Bereich im Nordwesten",
+    "en": "area northwestward, area towards the northwest"
+   },
+   {
+    "pos_raw": "v:i",
+    "de": "applaudieren",
+    "en": "applaud"
+   }
+  ],
+  "'It": [
+   {
+    "pos_raw": "n",
+    "de": "der Vokal {I:sen:nolink}",
+    "en": "the vowel {I:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "deprimiert sein",
+    "en": "be depressed"
+   }
+  ],
+  "'Ip": [
+   {
+    "pos_raw": "n:klcp1",
+    "de": "Schwur, Versprechen",
+    "en": "oath, promise"
+   },
+   {
+    "pos_raw": "v:t_c,klcp1",
+    "de": "geloben, schwören, feierlich versprechen",
+    "en": "vow, swear"
+   }
+  ],
+  "'Ir": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "schätzen, vermuten, annehmen",
+    "en": "guess, suppose, imagine"
+   },
+   {
+    "pos_raw": "v:2,is",
+    "de": "cremig sein, pastös sein",
+    "en": "be creamy, be pasty"
+   }
+  ],
+  "'Iv": [
+   {
+    "pos_raw": "ques:1",
+    "de": "wer?",
+    "en": "who?"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Höhe, Höhenlage",
+    "en": "altitude"
+   }
+  ],
+  "'ot": [
+   {
+    "pos_raw": "n",
+    "de": "der Vokal {o:sen:nolink}",
+    "en": "the vowel {o:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:t_c",
+    "de": "(Informationen) zurückhalten",
+    "en": "withhold (information)"
+   }
+  ],
+  "'oy'": [
+   {
+    "pos_raw": "v:i,klcp1",
+    "de": "schmerzen, weh tun, schmerzhaft sein",
+    "en": "ache, hurt, be sore"
+   },
+   {
+    "pos_raw": "n",
+    "de": "Schmerz",
+    "en": "ache, pain, sore"
+   }
+  ],
+  "'ut": [
+   {
+    "pos_raw": "n",
+    "de": "der Vokal {u:sen:nolink}",
+    "en": "the vowel {u:sen:nolink}"
+   },
+   {
+    "pos_raw": "v:is,klcp1",
+    "de": "erforderlich sein, wesentlich sein, notwendig sein, nötig sein",
+    "en": "be essential, be necessary"
+   }
+  ],
+  "'uch": [
+   {
+    "pos_raw": "v:1,t_c",
+    "de": "greifen, (fest)halten",
+    "en": "hold, grasp"
+   },
+   {
+    "pos_raw": "v:2,t_c",
+    "de": "erfassen, ausrichten (Ziel)",
+    "en": "lock on (a target)"
+   },
+   {
+    "pos_raw": "v:3,t_c,slang",
+    "de": "enthalten, zusammengesetzt aus",
+    "en": "include, consist of, be composed of"
+   },
+   {
+    "pos_raw": "v:4,idiom,t_c",
+    "de": "absorbieren (über Musik)",
+    "en": "absorb (of music)"
+   }
+  ],
+  "'umber": [
+   {
+    "pos_raw": "n:1",
+    "de": "Ökosystem, Umwelt",
+    "en": "ecosystem, environment"
+   },
+   {
+    "pos_raw": "n:2",
+    "de": "Kontext",
+    "en": "context"
+   }
+  ],
+  "-'a'": [
+   {
+    "pos_raw": "n:suff,klcp1",
+    "de": "Vergrößerung (Nomen Typ 1)",
+    "en": "augmentative (noun type 1)"
+   },
+   {
+    "pos_raw": "v:suff,klcp1",
+    "de": "Fragepartikel (Verb Typ 9)",
+    "en": "interrogative (verb type 9)"
+   }
+  ],
+  "-pu'": [
+   {
+    "pos_raw": "n:suff",
+    "de": "Mehrzahl (sprachfähig) (Nomen Typ 2)",
+    "en": "plural (beings capable of using language) (noun type 2)"
+   },
+   {
+    "pos_raw": "v:suff",
+    "de": "abgeschlossene Handlung (Verb Typ 7)",
+    "en": "perfective (verb type 7)"
+   }
+  ],
+  "-wI'": [
+   {
+    "pos_raw": "n:suff,klcp1",
+    "de": "mein (sprachfähig) (Nomen Typ 4)",
+    "en": "my (noun capable of using language) (noun type 4)"
+   },
+   {
+    "pos_raw": "v:suff",
+    "de": "jemand/etwas, der etwas macht (Verb Typ 9)",
+    "en": "one who does/is, thing which does/is (verb type 9)"
+   }
+  ],
+  "-lI'": [
+   {
+    "pos_raw": "n:suff,klcp1",
+    "de": "dein (sprachfähig) (Nomen Typ 4)",
+    "en": "your (noun capable of using language) (noun type 4)"
+   },
+   {
+    "pos_raw": "v:suff",
+    "de": "fortschreitend (Verb Typ 7)",
+    "en": "progress (verb type 7)"
+   }
+  ],
+  "-mo'": [
+   {
+    "pos_raw": "n:suff,klcp1",
+    "de": "wegen (Nomen Typ 5)",
+    "en": "because, due to (noun type 5)"
+   },
+   {
+    "pos_raw": "v:suff",
+    "de": "weil (Verb Typ 9)",
+    "en": "due to, because of (verb type 9)"
+   }
+  ]
+ }
+}

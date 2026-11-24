@@ -351,11 +351,12 @@ async function load() {
         p.textContent = t;
         body.appendChild(p);
       };
-      const affixLink = a => {
+      const affixLink = (a, f) => {
         const x = document.createElement('a');
         x.textContent = a;
-        x.href = '/worteintrag?' +
-          new URLSearchParams({ word: a, lang: 'tlh' });
+        const q = { word: a, lang: 'tlh' };
+        if (f) q.f = f;  // verlinkt den Sinn der konkreten Funktion
+        x.href = '/worteintrag?' + new URLSearchParams(q);
         return x;
       };
       const suffixTabelle = (data) => {
@@ -368,9 +369,14 @@ async function load() {
           const lab = document.createElement('b');
           lab.textContent = typ + ': ';
           grp.appendChild(lab);
+          const f = data === g.noun_suffixes
+            ? (s => `Nominalsuffix (Typ ${typ})`)
+            : (typ === 'Rover'
+               ? (s => 'Verbal suffix (Rover)')
+               : (s => `Verbal suffix (Typ ${typ})`));
           suffixe.forEach((s, i) => {
             if (i) grp.appendChild(document.createTextNode(' '));
-            grp.appendChild(affixLink(s));
+            grp.appendChild(affixLink(s, f(s)));
           });
           grid.appendChild(grp);
         }
@@ -393,7 +399,7 @@ async function load() {
         hkopf.appendChild(zelle('Subjekt ↓ / Objekt →', true));
         data.objects.forEach(o => hkopf.appendChild(zelle(o, true)));
         tab.appendChild(hkopf);
-        const zeile = (label, prefixes) => {
+        const zeile = (label, prefixes, f) => {
           const tr = document.createElement('tr');
           const th = document.createElement('th');
           th.style.cssText = 'padding:.15rem .45rem;text-align:left;'
@@ -405,14 +411,15 @@ async function load() {
             td.style.cssText = 'padding:.15rem .45rem;text-align:center;'
               + 'border-bottom:1px solid var(--linie,#ccc)';
             if (p && p !== '—' && !p.startsWith('∅'))
-              td.appendChild(affixLink(p));
+              td.appendChild(affixLink(p, f || 'Verbpräfix'));
             else td.textContent = p;
             tr.appendChild(td);
           });
           tab.appendChild(tr);
         };
         data.rows.forEach(r => zeile(r.subject, r.prefixes));
-        zeile(data.unpersoenlich.label, data.unpersoenlich.prefixes);
+        zeile(data.unpersoenlich.label, data.unpersoenlich.prefixes,
+              'Verbpräfix (unpersönlich)');
         data.imperativ.forEach(r => zeile(r.subject, r.prefixes));
         body.appendChild(tab);
       };
@@ -576,9 +583,16 @@ async function load() {
       show(document.getElementById('sinncard'), true);
       const box = document.getElementById('sinne');
       box.innerHTML = '';
+      const fokus = p.get('f');  // Tabellen-Link: konkrete Funktion markieren
       for (const s of sinne) {
         const d = document.createElement('div');
         d.className = 'sinn';
+        if (fokus && s.label === fokus) {
+          d.style.cssText = 'outline:2px solid var(--akzent,#c96);'
+            + 'outline-offset:4px;border-radius:4px';
+          setTimeout(() => d.scrollIntoView({ behavior: 'smooth',
+                                              block: 'center' }), 150);
+        }
         const h = document.createElement('h3');
         h.textContent = s.label + (s.word_class ? ' · ' + s.word_class : '');
         d.appendChild(h);
