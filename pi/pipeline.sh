@@ -27,7 +27,7 @@ export WB_PICK_MODEL=qwen3.8-flash
 MISTRAL=mistral-large-4:cloud
 QWEN=qwen3.8-max
 LANGS_TXT=(de en es fr it ru zh ja hi)
-LANGS_IMG=(de en es fr it ru zh ja hi ar tn)
+LANGS_IMG=(de en es fr it ru zh ja hi ar tn tlh)
 
 log()  { echo; echo "======== $(date '+%d.%m. %H:%M:%S')  $1 ========"; }
 run()  { echo "---- $(date '+%H:%M:%S') START: $*"; python -u "$@" || echo "!! $* (rc=$?)"; echo "---- $(date '+%H:%M:%S') ENDE: $1 $2 $3"; }

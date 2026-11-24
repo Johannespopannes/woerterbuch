@@ -607,6 +607,28 @@ async function load() {
     const m = E.modell;
     eintraege.push(`<strong>Modellprüfung</strong> (${Math.round((m.score || 0) * 100)} %): ${m.begruendung || ''}`);
   }
+  // boQwI'-Evidenz (Klingonisch/tlh): kanonische Anmerkungen und
+  // Verweise aus dem evidence-JSON — {wort:pos}-Markup wird verlinkt
+  if (E.pos_raw) {
+    const boq = (s) => String(s).replace(/[&<>"]/g,
+      c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+      .replace(/\{([^}:]+)(?::[^}]*)?\}/g,
+        (m, w) => `<a href="/worteintrag?word=${encodeURIComponent(w)}&lang=tlh">${w}</a>`);
+    const n = E.notes || {};
+    const notiz = n.de || n.en;
+    if (notiz) eintraege.push(`<strong>Anmerkung</strong> (boQwI'): ${boq(notiz)}`);
+    if (E.definition_en)
+      eintraege.push(`<strong>English</strong>: ${boq(E.definition_en)}`);
+    if (E.components)
+      eintraege.push(`<strong>Bestandteile</strong>: ${boq(E.components)}`);
+    const saetze = Object.values(E.examples || {});
+    if (saetze.length)
+      eintraege.push(`<strong>Beispiele</strong>: ${saetze.map(boq).join(' · ')}`);
+    if (E.see_also)
+      eintraege.push(`<strong>Siehe auch</strong>: ${boq(E.see_also)}`);
+    if (E.synonyms)
+      eintraege.push(`<strong>Synonyme</strong>: ${boq(E.synonyms)}`);
+  }
   const wv = ev.word_votes || { dazu: 0, nicht: 0, unsicher: 0 };
   eintraege.push(`<strong>Nutzer-Stimmen</strong>: ${wv.dazu}× gehört dazu · ` +
     `${wv.nicht}× gehört nicht dazu · ${wv.unsicher}× unsicher`);

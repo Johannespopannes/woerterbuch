@@ -8,13 +8,13 @@
   // ---------- Sprach-Metadaten ----------
   const NAMEN = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch',
                   es: 'Spanisch', it: 'Italienisch',
-                  ar: 'Arabisch', tn: 'Tunesisch',
+                  ar: 'Arabisch', tn: 'Tunesisch', tlh: 'Klingonisch',
                   ru: 'Russisch', zh: 'Chinesisch', ja: 'Japanisch',
                   hi: 'Hindi' };
   // ADJ endet auf '-' → im Satz direkt an 'Wort' geheftet (Hindi-Wort)
   const ADJ = { de: 'deutsches', en: 'englisches', fr: 'französisches',
                 es: 'spanisches', it: 'italienisches',
-                ar: 'arabisches', tn: 'tunesisches',
+                ar: 'arabisches', tn: 'tunesisches', tlh: 'klingonisches',
                 ru: 'russisches', zh: 'chinesisches', ja: 'japanisches',
                 hi: 'Hindi-' };
   WB.sprachName = (l) => NAMEN[l] || l;

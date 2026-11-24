@@ -4,3 +4,5 @@ woerterbuch.db*
 *.log
 *.pid
 images/
+klingon-dict*.json
+klingon-import.sql
