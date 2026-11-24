@@ -21,6 +21,8 @@ Aufruf:
 import json
 import os
 import sys
+import time
+import urllib.error
 import urllib.parse
 from pathlib import Path
 
@@ -141,11 +143,25 @@ def main() -> None:
 
     stat = {"sinne": 0, "definitionen": 0, "vorhanden": 0, "kein_eintrag": 0}
     for i, (wort, eintraege) in enumerate(plan.items(), 1):
-        try:
-            lu = api_get("/lookup?" + urllib.parse.urlencode(
-                {"word": wort, "language": "tlh"}))
-        except Exception:
-            lu = None
+        # 2 Reads pro Wort (lookup + senses) — unter der API-Lesegrenze
+        # bleiben und 429 mit Backoff statt als „nicht gefunden" werten.
+        lu = None
+        for versuch in range(5):
+            try:
+                lu = api_get("/lookup?" + urllib.parse.urlencode(
+                    {"word": wort, "language": "tlh"}))
+                break
+            except urllib.error.HTTPError as e:
+                if e.code == 429 and versuch < 4:
+                    time.sleep(10 * (versuch + 1))
+                    continue
+                if e.code != 429:
+                    break
+                print(f"  {wort}: 429 auch nach Retries", file=sys.stderr)
+                break
+            except Exception:
+                break
+        time.sleep(0.6)
         if not lu:
             stat["kein_eintrag"] += 1
             continue
