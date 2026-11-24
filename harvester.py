@@ -40,6 +40,9 @@ import urllib.request
 MODEL_BASE_URL = os.environ.get("MODEL_BASE_URL", "https://api.openai.com/v1")
 MODEL_API_KEY = os.environ.get("MODEL_API_KEY", "dummy")
 MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")
+# Langsame Lanes (dichte 32B auf CPU: 1–2,5 t/s) brauchen je Aufruf
+# Minuten statt Sekunden — pro Lane hochsetzen, z. B. MODEL_TIMEOUT=900.
+MODEL_TIMEOUT = int(os.environ.get("MODEL_TIMEOUT", "300"))
 DICT_API_URL = os.environ.get("DICT_API_URL", "http://127.0.0.1:8000")
 
 LANG_NAMES = {
@@ -367,7 +370,7 @@ def chat(prompt: str, temperature: float) -> str:
     last_err: Exception | None = None
     for versuch in range(4):
         try:
-            with urllib.request.urlopen(req, timeout=300) as resp:
+            with urllib.request.urlopen(req, timeout=MODEL_TIMEOUT) as resp:
                 data = json.loads(resp.read())
             break
         except urllib.error.HTTPError as e:
@@ -397,7 +400,7 @@ def chat(prompt: str, temperature: float) -> str:
             req.full_url, data=json.dumps(body).encode(),
             headers=dict(req.header_items()))
         try:
-            with urllib.request.urlopen(req2, timeout=300) as resp:
+            with urllib.request.urlopen(req2, timeout=MODEL_TIMEOUT) as resp:
                 data = json.loads(resp.read())
             content = data["choices"][0]["message"]["content"]
         except Exception:

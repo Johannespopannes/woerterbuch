@@ -67,7 +67,7 @@ def put_def(entry_id: int, lang: str, text: str, source: str) -> bool:
             headers={"Content-Type": "application/json",
                      "X-API-Key": DICT_API_KEY}, method="PUT")
         try:
-            with urllib.request.urlopen(req, timeout=60) as r:
+            with urllib.request.urlopen(req, timeout=int(os.environ.get('MODEL_TIMEOUT', '60'))) as r:
                 json.load(r)
                 return True
         except urllib.error.HTTPError as e:

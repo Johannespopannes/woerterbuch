@@ -29,6 +29,17 @@ QWEN=qwen3.8-max
 LANGS_TXT=(de en es fr it ru zh ja hi)
 LANGS_IMG=(de en es fr it ru zh ja hi ar tn tlh)
 
+# --- Harvest-Lanes über den ModelHub (Sprachspezialisten auf dem
+# Laptop johannes-sein-l) — Regeln, sobald sie existieren:
+#   * NIE zwei Lanes parallel belasten: „verfügbar" != „parallel nutzbar"
+#     (12 Threads geteilt → beide kriechen). Unser Zyklus ist ohnehin
+#     streng sequentiell — so lassen.
+#   * Durchsatz dichte 32B auf CPU: 1–2,5 t/s → 7–12B-Lanes zuerst
+#     (über Nacht sinnvoll), 32B+ nur kleine Batches (per-round/batch
+#     halbieren) und MODEL_TIMEOUT=900 setzen.
+#   * Modell je Sprache hier in modell_fuer() eintragen, wenn die Lane
+#     im ModelHub live ist.
+
 log()  { echo; echo "======== $(date '+%d.%m. %H:%M:%S')  $1 ========"; }
 run()  { echo "---- $(date '+%H:%M:%S') START: $*"; python -u "$@" || echo "!! $* (rc=$?)"; echo "---- $(date '+%H:%M:%S') ENDE: $1 $2 $3"; }
 

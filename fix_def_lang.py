@@ -88,7 +88,7 @@ def sprachen_erkennen(model: str, texte: list[str]) -> dict:
         headers={"Content-Type": "application/json",
                  "Authorization": f"Bearer {MODEL_API_KEY}"})
     try:
-        r = json.load(urllib.request.urlopen(req, timeout=180))
+        r = json.load(urllib.request.urlopen(req, timeout=int(os.environ.get('MODEL_TIMEOUT', '180'))))
         out = r["choices"][0]["message"].get("content") or ""
     except Exception as e:
         print(f"  Modellfehler: {e}", file=sys.stderr)
