@@ -386,6 +386,15 @@ def wb_js():
                         media_type="application/javascript")
 
 
+@app.get("/tlh-grammatik.json", include_in_schema=False)
+def tlh_grammatik_json():
+    """Klingonische Affix-Tabellen (boQwI' book, Apache-2.0) fuer die
+    Wortseite — kanonische Grammatik statt Modellgenerierung."""
+    return FileResponse(Path(__file__).parent / "static" /
+                        "tlh-grammatik.json",
+                        media_type="application/json")
+
+
 @app.post("/entries", response_model=EntryOut, status_code=201)
 def create_entry(entry: EntryIn, _=Depends(require_api_key)):
     conn = get_conn()

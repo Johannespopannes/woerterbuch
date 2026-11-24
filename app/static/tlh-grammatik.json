@@ -1,0 +1,51 @@
+{
+  "quelle": "boQwI' — The Klingon Dictionary (Marc Okrand, ed. David Yonge-Mallo), Abschnitt „Affix tables“, Apache-2.0",
+  "verb_prefixes": {
+    "titel": "Verbpräfixe (Subjekt × Objekt)",
+    "hinweis": "Das Präfix kodiert Subjekt und Objekt gleichzeitig; ∅- bedeutet kein Präfix (Nullpräfix).",
+    "objects": ["jIH", "maH", "SoH", "tlhIH", "ghaH/'oH", "chaH/bIH", "— (kein Objekt)"],
+    "rows": [
+      { "subject": "jIH", "prefixes": ["—", "—", "qa-", "Sa-", "vI-", "vI-", "jI-"] },
+      { "subject": "maH", "prefixes": ["—", "—", "pI-", "re-", "wI-", "DI-", "ma-"] },
+      { "subject": "SoH", "prefixes": ["cho-", "ju-", "—", "—", "Da-", "Da-", "bI-"] },
+      { "subject": "tlhIH", "prefixes": ["tu-", "che-", "—", "—", "bo-", "bo-", "Su-"] },
+      { "subject": "ghaH/'oH", "prefixes": ["mu-", "nu-", "Du-", "lI-", "∅-", "∅-", "∅-"] },
+      { "subject": "chaH/bIH", "prefixes": ["mu-", "nu-", "nI-", "lI-", "lu-", "∅-", "∅-"] }
+    ],
+    "unpersoenlich": {
+      "label": "Unpersönlich (Das Subjekt ist unbestimmt: „jemand/something …“)",
+      "prefixes": ["vI-lu'", "wI-lu'", "Da-lu'", "bo-lu'", "∅-lu'", "lu-lu'", "—"]
+    },
+    "imperativ": [
+      { "subject": "SoH (Imp.)", "prefixes": ["HI-", "gho-", "—", "—", "yI-", "tI-", "yI-"] },
+      { "subject": "tlhIH (Imp.)", "prefixes": ["—", "—", "—", "—", "—", "—", "pe-"] }
+    ]
+  },
+  "noun_suffixes": {
+    "titel": "Nominalsuffixe (Typ 1–5)",
+    "hinweis": "Reihenfolge: Ein Nomen nimmt höchstens ein Suffix je Typ, in Typ-Reihenfolge.",
+    "types": {
+      "1": ["-'a'", "-Hom", "-oy"],
+      "2": ["-pu'", "-Du'", "-mey"],
+      "3": ["-na'", "-Hey", "-qoq"],
+      "4": ["-wIj", "-wI'", "-lIj", "-lI'", "-maj", "-ma'", "-raj", "-ra'", "-Daj", "-chaj", "-vam", "-vetlh"],
+      "5": ["-Daq", "-vo'", "-vaD", "-mo'", "-'e'"]
+    }
+  },
+  "verb_suffixes": {
+    "titel": "Verbal suffixe (Typ 1–9 + Rover)",
+    "hinweis": "Ein Verb nimmt höchstens ein Suffix je Typ (1–9), in Typ-Reihenfolge; Rover (-be', -Qo', -Ha', -qu') stehen nach Typ 9.",
+    "types": {
+      "1": ["-'egh", "-chuq"],
+      "2": ["-nIS", "-qang", "-rup", "-beH", "-vIp"],
+      "3": ["-choH", "-qa'"],
+      "4": ["-moH"],
+      "5": ["-lu'", "-laH"],
+      "6": ["-chu'", "-bej", "-ba'", "-law'"],
+      "7": ["-pu'", "-ta'", "-taH", "-lI'"],
+      "8": ["-neS"],
+      "9": ["-chugh", "-pa'", "-DI'", "-vIS", "-mo'", "-meH", "-bogh", "-'a'", "-jaj", "-wI'", "-ghach"],
+      "Rover": ["-be'", "-Qo'", "-Ha'", "-qu'"]
+    }
+  }
+}

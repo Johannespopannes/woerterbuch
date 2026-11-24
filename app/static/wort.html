@@ -210,6 +210,11 @@
         </div>
       </div>
 
+      <div class="neben" id="tlhgram" style="display:none">
+        <h2 class="sec">Klingonische Grammatik</h2>
+        <div id="tlhgrambody"></div>
+      </div>
+
       <div class="sprachcheck">
         <div class="frage" id="sprachfrage">Ist dies ein Wort dieser Sprache?</div>
         <div class="votebtns">
@@ -265,6 +270,18 @@ document.getElementById('wort').textContent = word;
 
 const STOP = new Set(('der die das den dem des ein eine und oder aber mit von zu in im an auf aus bei nach über als auch nicht ich du er sie es wir ihr man sich so wie wenn dann noch schon zum zur vom').split(' '));
 
+// Klingonische Affix-Tabellen (boQwI') — einmal laden, cachen
+let tlhGramCache = null;
+function ladeTlhGrammatik() {
+  if (!tlhGramCache) {
+    tlhGramCache = fetch('/tlh-grammatik.json').then(r => {
+      if (!r.ok) throw new Error('tlh-grammatik: ' + r.status);
+      return r.json();
+    }).catch(() => null);
+  }
+  return tlhGramCache;
+}
+
 function linkify(el, text) {
   el.innerHTML = '';
   for (const tok of text.split(/(\s+)/)) {
@@ -311,6 +328,123 @@ async function load() {
       flexwrap: document.getElementById('gramflexwrap'),
       flexbox: document.getElementById('gramflex'),
     }, ev.grammar, word, lang);
+  }
+
+  // Klingonische Affix-Tabellen (boQwI', kanonisch): Nomina bekommen die
+  // Nominalsuffix-Tabelle, Verben Präfix- + Verbal­suffix-Tabellen. Jede
+  // Zelle verlinkt auf den Affix-Eintrag mit deutscher boQwI'-Definition.
+  if (lang === 'tlh') {
+    ladeTlhGrammatik().then(g => {
+      if (!g) return;
+      const body = document.getElementById('tlhgrambody');
+      body.textContent = '';
+      const cls = (ev.grammar || {}).word_class || '';
+      const titel = t => {
+        const h = document.createElement('h3');
+        h.style.cssText = 'margin:.7rem 0 .2rem;font-size:.95rem';
+        h.textContent = t;
+        body.appendChild(h);
+      };
+      const hinweis = t => {
+        const p = document.createElement('p');
+        p.style.cssText = 'opacity:.75;font-size:.82rem;margin:.1rem 0 .4rem';
+        p.textContent = t;
+        body.appendChild(p);
+      };
+      const affixLink = a => {
+        const x = document.createElement('a');
+        x.textContent = a;
+        x.href = '/worteintrag?' +
+          new URLSearchParams({ word: a, lang: 'tlh' });
+        return x;
+      };
+      const suffixTabelle = (data) => {
+        titel(data.titel);
+        hinweis(data.hinweis);
+        const grid = document.createElement('div');
+        grid.style.cssText = 'display:flex;flex-wrap:wrap;gap:.35rem .8rem';
+        for (const [typ, suffixe] of Object.entries(data.types)) {
+          const grp = document.createElement('span');
+          const lab = document.createElement('b');
+          lab.textContent = typ + ': ';
+          grp.appendChild(lab);
+          suffixe.forEach((s, i) => {
+            if (i) grp.appendChild(document.createTextNode(' '));
+            grp.appendChild(affixLink(s));
+          });
+          grid.appendChild(grp);
+        }
+        body.appendChild(grid);
+      };
+      const prefixTabelle = (data) => {
+        titel(data.titel);
+        hinweis(data.hinweis);
+        const tab = document.createElement('table');
+        tab.style.cssText =
+          'border-collapse:collapse;font-size:.85rem;margin:.2rem 0';
+        const zelle = (txt, kopf) => {
+          const td = document.createElement(kopf ? 'th' : 'td');
+          td.style.cssText = 'padding:.15rem .45rem;text-align:center;'
+            + 'border-bottom:1px solid var(--linie,#ccc)';
+          td.textContent = txt;
+          return td;
+        };
+        const hkopf = document.createElement('tr');
+        hkopf.appendChild(zelle('Subjekt ↓ / Objekt →', true));
+        data.objects.forEach(o => hkopf.appendChild(zelle(o, true)));
+        tab.appendChild(hkopf);
+        const zeile = (label, prefixes) => {
+          const tr = document.createElement('tr');
+          const th = document.createElement('th');
+          th.style.cssText = 'padding:.15rem .45rem;text-align:left;'
+            + 'border-bottom:1px solid var(--linie,#ccc)';
+          th.textContent = label;
+          tr.appendChild(th);
+          prefixes.forEach(p => {
+            const td = document.createElement('td');
+            td.style.cssText = 'padding:.15rem .45rem;text-align:center;'
+              + 'border-bottom:1px solid var(--linie,#ccc)';
+            if (p && p !== '—' && !p.startsWith('∅'))
+              td.appendChild(affixLink(p));
+            else td.textContent = p;
+            tr.appendChild(td);
+          });
+          tab.appendChild(tr);
+        };
+        data.rows.forEach(r => zeile(r.subject, r.prefixes));
+        zeile(data.unpersoenlich.label, data.unpersoenlich.prefixes);
+        data.imperativ.forEach(r => zeile(r.subject, r.prefixes));
+        body.appendChild(tab);
+      };
+      if (cls === 'noun') suffixTabelle(g.noun_suffixes);
+      else if (cls === 'verb') {
+        prefixTabelle(g.verb_prefixes);
+        suffixTabelle(g.verb_suffixes);
+      } else if (cls === 'affix') {
+        // Affix-Eintrag: Stelle im Regelwerk (Typ + Tabelle) nennen
+        const treffer = [];
+        for (const [typ, list] of Object.entries(g.noun_suffixes.types))
+          if (list.includes(word)) treffer.push('Nominalsuffix, Typ ' + typ);
+        for (const [typ, list] of Object.entries(g.verb_suffixes.types))
+          if (list.includes(word)) treffer.push('Verbal suffix, Typ ' + typ);
+        const istPraefix = g.verb_prefixes.rows.some(r =>
+          r.prefixes.includes(word));
+        if (istPraefix) treffer.push('Verbpräfix (Subjekt×Objekt)');
+        if (treffer.length) {
+          titel('Affix-Typ');
+          hinweis(treffer.join(' · '));
+        }
+      } else if (cls) {
+        // sonstige Wortklassen: beide Übersichten als Referenz
+        suffixTabelle(g.noun_suffixes);
+        prefixTabelle(g.verb_prefixes);
+      }
+      const q = document.createElement('p');
+      q.style.cssText = 'opacity:.6;font-size:.75rem;margin-top:.5rem';
+      q.textContent = g.quelle;
+      body.appendChild(q);
+      show(document.getElementById('tlhgram'), body.children.length > 1);
+    });
   }
 
   // Konfidenz als klarer Textstatus statt Fortschrittsbalken
