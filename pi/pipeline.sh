@@ -52,6 +52,7 @@ run()  { echo "---- $(date '+%H:%M:%S') START: $*"; python -u "$@" || echo "!! $
 # th trotz Q2_K auf Lane: siamgpt liefert brauchbare Listen.
 modell_fuer() {
   case "$1" in
+    de) echo "kolibri-1:schleppi" ;;
     ja) echo "llm-jp-4.1-32b:laptop" ;;
     ru) echo "t-pro-it-2.0:laptop" ;;
     zh) echo "yi-1.5-34b:laptop" ;;
@@ -69,6 +70,7 @@ modell_fuer() {
 # Übersetzungs-Ziele: Cloud-Generalisten (kein Lane-Wechsel pro Zyklus).
 cloud_modell() {
   case "$1" in
+    de)          echo "kolibri-1:schleppi" ;;
     zh|ja|hi|ru) echo "$QWEN" ;;
     *)           echo "$MISTRAL" ;;
   esac
