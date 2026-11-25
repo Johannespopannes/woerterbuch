@@ -41,7 +41,7 @@ LANGS_IMG=(de en es fr it ru zh ja hi ar tn tlh ko tr th bg uk)
 #     im ModelHub live ist.
 
 log()  { echo; echo "======== $(date '+%d.%m. %H:%M:%S')  $1 ========"; }
-run()  { echo "---- $(date '+%H:%M:%S') START: $*"; python -u "$@" || echo "!! $* (rc=$?)"; echo "---- $(date '+%H:%M:%S') ENDE: $1 $2 $3"; }
+run()  { echo "---- $(date '+%H:%M:%S') START: $*"; python -u "$@" || echo "!! $* (rc=$?)"; echo "---- $(date '+%H:%M:%S') ENDE: $*"; }
 
 # Sprachspezialisten-Lanes (Laptop, CPU, 64 GB RAM — NIE parallel laden,
 # deshalb: je Zyklus genau EINE Lane, die der gerade abgearbeiteten
