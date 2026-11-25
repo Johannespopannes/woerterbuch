@@ -43,7 +43,24 @@ LANGS_IMG=(de en es fr it ru zh ja hi ar tn tlh)
 log()  { echo; echo "======== $(date '+%d.%m. %H:%M:%S')  $1 ========"; }
 run()  { echo "---- $(date '+%H:%M:%S') START: $*"; python -u "$@" || echo "!! $* (rc=$?)"; echo "---- $(date '+%H:%M:%S') ENDE: $1 $2 $3"; }
 
+# Sprachspezialisten-Lanes (Laptop, CPU, 64 GB RAM — NIE parallel laden,
+# deshalb: je Zyklus genau EINE Lane, die der gerade abgearbeiteten
+# Textsprache). Übersetzungen laufen über cloud_modell(), damit der
+# Übersetzungs-Rotationsslot nicht ständig die Lane wechselt.
+# it bleibt bewusst auf Cloud: fantastica liefert Repetition-Loops.
 modell_fuer() {
+  case "$1" in
+    ja) echo "llm-jp-4.1-32b:laptop" ;;
+    ru) echo "t-pro-it-2.0:laptop" ;;
+    zh) echo "yi-1.5-34b:laptop" ;;
+    ar) echo "fanar-2-27b:laptop" ;;
+    hi) echo "$QWEN" ;;
+    *)  echo "$MISTRAL" ;;   # de en es fr it tn tlh + Fallback
+  esac
+}
+
+# Übersetzungs-Ziele: Cloud-Generalisten (kein Lane-Wechsel pro Zyklus).
+cloud_modell() {
   case "$1" in
     zh|ja|hi|ru) echo "$QWEN" ;;
     *)           echo "$MISTRAL" ;;
@@ -88,9 +105,17 @@ while true; do
   run tlh_senses.py
 
   # --- Bedeutungs-Matrix: je Zyklus ein Ziel rotieren ---
+  # Ziel: kein ständiger Lane-Wechsel (CPU/RAM). Nur wenn das Ziel
+  # zufällig die aktive Kettensprache ist, bleibt es auf der warmen
+  # Lane; sonst Cloud-Generalist.
   T=${LANGS_IMG[$(( (zyklen - 1) % ${#LANGS_IMG[@]} ))]}
-  export MODEL_NAME=$(modell_fuer "$T")
-  log "Bedeutungs-Übersetzung -> $T via $MODEL_NAME"
+  if [ "$T" = "${LANGS_TXT[$idx]}" ]; then
+    export MODEL_NAME=$(modell_fuer "$T")
+    log "Bedeutungs-Übersetzung -> $T via $MODEL_NAME (Lane noch warm)"
+  else
+    export MODEL_NAME=$(cloud_modell "$T")
+    log "Bedeutungs-Übersetzung -> $T via $MODEL_NAME (Cloud)"
+  fi
   run define_langs.py --mode translate --target "$T" --limit 400 --batch 15 --delay 0.5
 
   # --- Sinn-Ebene: Übersetzungsverbindungen bedeutungsgerecht über die

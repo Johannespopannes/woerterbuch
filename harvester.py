@@ -346,6 +346,18 @@ SEEDS = {
 
 # ---------- API-Hilfen ----------
 
+def _strip_harmony(content: str) -> str:
+    """llm-jp (Harmony/gpt-oss-Format) liefert die Analysis IM content;
+    die eigentliche Antwort steht im final-Channel."""
+    if content and "<|channel|>" in content:
+        marker = "<|channel|> final<|message|>"
+        idx = content.rfind(marker)
+        if idx < 0:
+            return ""   # analysis-only, kein final-Channel
+        return content[idx + len(marker):].split("<|")[0]
+    return content
+
+
 def chat(prompt: str, temperature: float) -> str:
     """Ein Chat-Request gegen einen OpenAI-kompatiblen Endpunkt (nur stdlib).
 
@@ -353,15 +365,23 @@ def chat(prompt: str, temperature: float) -> str:
     produzieren und den eigentlichen Inhalt erst nach tausenden Tokens
     liefern. llama-server übergibt das Kwarg nur an Templates, die es
     kennen; Kolibri/Mistral/Jais ignorieren es schadlos."""
+    # Laptop-Lanes (llama-server auf johannes-sein-l):
+    # * enable_thinking-Kwarg leert den content der Lane-Templates —
+    #   NUR bei Cloud-Modellen senden (Qwen braucht es gegen Reasoning).
+    # * max_tokens runter: das Gateway setzt einen Floor von 2048, ohne
+    #   Grenze generiert jede Lane bis zur Cap (~5 Min. verschwendet).
+    _lane = ":laptop" in MODEL_NAME
+    body = {
+        "model": MODEL_NAME,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": temperature,
+        "max_tokens": 1600 if _lane else 8000,
+    }
+    if not _lane:
+        body["chat_template_kwargs"] = {"enable_thinking": False}
     req = urllib.request.Request(
         f"{MODEL_BASE_URL}/chat/completions",
-        data=json.dumps({
-            "model": MODEL_NAME,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": temperature,
-            "max_tokens": 8000,
-            "chat_template_kwargs": {"enable_thinking": False},
-        }).encode(),
+        data=json.dumps(body).encode(),
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {MODEL_API_KEY}",
@@ -387,22 +407,24 @@ def chat(prompt: str, temperature: float) -> str:
             time.sleep(5 * (versuch + 1))
     else:
         raise last_err or RuntimeError("chat unbekannter Fehler")
-    content = data["choices"][0]["message"]["content"]
+    content = _strip_harmony(data["choices"][0]["message"]["content"])
     # Jais & Co. denken trotz enable_thinking und können bei kniffligen
     # Prompts das komplette Budget verbrauchen — dann ist content leer.
     # Strategisch nachladen: zweiter Versuch mit doppeltem Budget.
+    base_max = json.loads(req.data.decode())["max_tokens"]
     for faktor in (2, 4):
         if content and content.strip():
             break
         body = json.loads(req.data.decode())
-        body["max_tokens"] = 8000 * faktor
+        body["max_tokens"] = base_max * faktor
         req2 = urllib.request.Request(
             req.full_url, data=json.dumps(body).encode(),
             headers=dict(req.header_items()))
         try:
             with urllib.request.urlopen(req2, timeout=MODEL_TIMEOUT) as resp:
                 data = json.loads(resp.read())
-            content = data["choices"][0]["message"]["content"]
+            content = _strip_harmony(
+                data["choices"][0]["message"]["content"])
         except Exception:
             break
     if not content or not content.strip():
@@ -411,22 +433,33 @@ def chat(prompt: str, temperature: float) -> str:
 
 
 def parse_words(raw: str) -> list[str]:
-    """JSON-Array aus der Modellantwort kratzen (tolerant gegen Markdown-Fences)."""
+    """JSON-Array aus der Modellantwort kratzen (tolerant gegen Markdown-Fences).
+
+    Fallback: kleine Lanes (z. B. Fantastica) halten das JSON-Format nicht
+    immer ein — dann komma-/zeilengetrennte Plain-Liste nehmen. Der
+    Letter-Filter und die DB-Dedupe fangen den Rest."""
     raw = raw.strip()
     raw = re.sub(r"^```(json)?|```$", "", raw, flags=re.MULTILINE).strip()
+    items = None
     try:
         items = json.loads(raw)
     except json.JSONDecodeError:
         m = re.search(r"\[.*\]", raw, flags=re.DOTALL)
-        if not m:
-            return []
-        try:
-            items = json.loads(m.group(0))
-        except json.JSONDecodeError:
-            return []
-    if not isinstance(items, list):
-        return []
-    return [str(w).strip() for w in items if isinstance(w, (str, int))]
+        if m:
+            try:
+                items = json.loads(m.group(0))
+            except json.JSONDecodeError:
+                items = None
+    if isinstance(items, list):
+        return [str(w).strip() for w in items if isinstance(w, (str, int))]
+    parts = re.split(r"[,;\n•]| - ", raw)
+    out = []
+    for p in parts:
+        w = p.strip().strip("\"'-*•· ")
+        w = re.sub(r"^\d+[.)]\s*", "", w)
+        if w and len(w) <= 40 and not any(t in w for t in (" ", "{", "}")):
+            out.append(w)
+    return out[:60]
 
 
 def parse_definitions(raw: str) -> dict[str, str]:
