@@ -20,7 +20,8 @@ cd "$(dirname "$0")/.."   # /home/johannes/woerterbuch
 
 export DICT_API_URL=http://127.0.0.1:8805
 export DICT_API_KEY="VHixW4pMVFCX_aaVD6TwTsbECZkqDPcM"
-export MODEL_BASE_URL=https://modelhub.tassekaffee.com/v1 MODEL_API_KEY=dummy
+GATEWAY_URL=https://modelhub.tassekaffee.com/v1
+export MODEL_BASE_URL=$GATEWAY_URL MODEL_API_KEY=dummy
 export WB_RENDER_CLOUD=1
 export WB_PICK_MODEL=qwen3.8-flash
 
@@ -39,6 +40,9 @@ LANGS_IMG=(de en es fr it ru zh ja hi ar tn tlh ko tr th bg uk)
 #     halbieren) und MODEL_TIMEOUT=900 setzen.
 #   * Modell je Sprache hier in modell_fuer() eintragen, wenn die Lane
 #     im ModelHub live ist.
+#   * Ausnahme ar: Direkt-Lane auf dem Arbeitsplatz-Rechner (siehe
+#     baseurl_fuer()) — fanar laeuft dort fest, auch wenn der
+#     Harvest-Laptop schlaeft. Kein Gateway-Hop, kein Key.
 
 log()  { echo; echo "======== $(date '+%d.%m. %H:%M:%S')  $1 ========"; }
 run()  { echo "---- $(date '+%H:%M:%S') START: $*"; python -u "$@" || echo "!! $* (rc=$?)"; echo "---- $(date '+%H:%M:%S') ENDE: $1 $2 $3"; }
@@ -56,7 +60,7 @@ modell_fuer() {
     ja) echo "llm-jp-4.1-32b:laptop" ;;
     ru) echo "t-pro-it-2.0:laptop" ;;
     zh) echo "yi-1.5-34b:laptop" ;;
-    ar) echo "fanar-2-27b:laptop" ;;
+    ar) echo "fanar-2-27b:workstation" ;;
     ko) echo "exaone-3.5-32b:laptop" ;;
     tr) echo "turkish-llm-32b:laptop" ;;
     th) echo "siamgpt-32b:laptop" ;;
@@ -64,6 +68,20 @@ modell_fuer() {
     uk) echo "lapa-12b:laptop" ;;
     hi) echo "$QWEN" ;;
     *)  echo "$MISTRAL" ;;   # de en fr it tn tlh + Fallback
+  esac
+}
+
+# Direkt-Lanes: Harvester spricht diesen einen llama-server DIREKT an (ohne
+# Gateway-Hop). fanar laeuft fest auf dem Arbeitsplatz-Rechner (Ryzen AI
+# Max+ 395, 96 GB, IP .165, Port 9101) — immer an, auch wenn der
+# Harvest-Laptop (Keller) schlaeft/aus ist. Geht der Rechner mal aus,
+# schlaegt ar-define in dem Zyklus fehl und der naechste Zyklus wiederholt
+# es — kein Failover auf die Laptop-Lane noetig (sie ist ohnehin gleich
+# daselbe Modell). Neu: erst Binary+Modell verifizieren, dann hier aktiv.
+baseurl_fuer() {
+  case "$1" in
+    ar) echo "http://192.168.178.165:9101/v1" ;;
+    *)  echo "$GATEWAY_URL" ;;
   esac
 }
 
@@ -81,8 +99,8 @@ cloud_modell() {
 # Sprache trotzdem komplett gelaufen.
 kette() {
   local lang=$1
-  export MODEL_NAME=$(modell_fuer "$lang")
-  log "Kette $lang via $MODEL_NAME"
+  export MODEL_NAME=$(modell_fuer "$lang") MODEL_BASE_URL=$(baseurl_fuer "$lang")
+  log "Kette $lang via $MODEL_NAME @ $MODEL_BASE_URL"
   run harvester.py --seed --language "$lang"
   run harvester.py --mode define  --language "$lang" --per-round 30 --delay 0.3
   run define_langs.py --mode own --language "$lang" --limit 300 --batch 20 --delay 0.4
@@ -119,10 +137,10 @@ while true; do
   # Lane; sonst Cloud-Generalist.
   T=${LANGS_IMG[$(( (zyklen - 1) % ${#LANGS_IMG[@]} ))]}
   if [ "$T" = "${LANGS_TXT[$idx]}" ]; then
-    export MODEL_NAME=$(modell_fuer "$T")
+    export MODEL_NAME=$(modell_fuer "$T") MODEL_BASE_URL=$(baseurl_fuer "$T")
     log "Bedeutungs-Übersetzung -> $T via $MODEL_NAME (Lane noch warm)"
   else
-    export MODEL_NAME=$(cloud_modell "$T")
+    export MODEL_NAME=$(cloud_modell "$T") MODEL_BASE_URL=$GATEWAY_URL
     log "Bedeutungs-Übersetzung -> $T via $MODEL_NAME (Cloud)"
   fi
   run define_langs.py --mode translate --target "$T" --limit 400 --batch 15 --delay 0.5
@@ -139,7 +157,10 @@ while true; do
 
   # --- Definitions-Sprachaudit: pauschal als 'de' übernommene Legacy-
   # Texte per Modell prüfen, falsch zugeordnete in die richtige Sprache
-  # verschieben (entries.definition-Cache wird dabei sauber frei) ---
+  # verschieben (entries.definition-Cache wird dabei sauber frei).
+  # Nutzt bewusst den Cloud-Generalisten: Base-URL hier hart aufs Gateway
+  # zurücksetzen (kann sonst noch auf einer Direkt-Lane stehen). ---
+  export MODEL_BASE_URL=$GATEWAY_URL MODEL_NAME=$MISTRAL
   log "Definitions-Sprachaudit (Legacy-de)"
   run fix_def_lang.py --limit 100 --batch 10 --model "$MISTRAL"
 
