@@ -31,7 +31,7 @@ UA = {"User-Agent": "woerterbuch-tassekaffee-sourcecheck/1.0 "
 # Wikidata kennt kein tunesisches Label -> nur diese Sprachen.
 WIKIS = ["wiktionary", "wikipedia"]
 WIKIDATA_SPRACHEN = ["de", "en", "fr", "it", "es", "ru", "zh", "ja", "hi",
-                     "ar"]
+                     "ar", "ko", "tr", "th", "bg", "uk"]
 
 
 def post_link(entry_id: int, kind: str, url: str) -> bool:

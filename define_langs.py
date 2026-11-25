@@ -34,6 +34,8 @@ LANG_EN = {
     "de": "German", "en": "English", "es": "Spanish", "fr": "French",
     "it": "Italian", "ru": "Russian", "zh": "Chinese", "ja": "Japanese",
     "hi": "Hindi", "ar": "Arabic", "tn": "Tunisian Arabic (Derja)",
+    "ko": "Korean", "tr": "Turkish", "th": "Thai", "bg": "Bulgarian",
+    "uk": "Ukrainian",
 }
 
 PROMPT_OWN = (

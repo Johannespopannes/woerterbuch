@@ -98,18 +98,23 @@ def probe(lane, lang, letter):
     return {"lane": lane, "lang": lang, "error": detail}
 
 
-results = []
-for lane, lang, letter in LANES:
-    H.MODEL_NAME = lane
-    res = probe(lane, lang, letter)
-    results.append(res)
-    print(json.dumps(res, ensure_ascii=False), flush=True)
-    time.sleep(30)   # Abstand zwischen den Lanes
+def main():
+    results = []
+    for lane, lang, letter in LANES:
+        H.MODEL_NAME = lane
+        res = probe(lane, lang, letter)
+        results.append(res)
+        print(json.dumps(res, ensure_ascii=False), flush=True)
+        time.sleep(30)   # Abstand zwischen den Lanes
 
-print("\n=== ZUSAMMENFASSUNG ===")
-for r in results:
-    if "error" in r:
-        print(f"{r['lane']:28s} FEHLER: {r['error']}")
-    else:
-        print(f"{r['lane']:28s} {r['sec']:7.1f}s  {r['words']:3d} Wörter "
-              f"({r['letter_ok']} im Buchstaben)  {r['sample'][:4]}")
+    print("\n=== ZUSAMMENFASSUNG ===")
+    for r in results:
+        if "error" in r:
+            print(f"{r['lane']:28s} FEHLER: {r['error']}")
+        else:
+            print(f"{r['lane']:28s} {r['sec']:7.1f}s  {r['words']:3d} Wörter "
+                  f"({r['letter_ok']} im Buchstaben)  {r['sample'][:4]}")
+
+
+if __name__ == "__main__":
+    main()

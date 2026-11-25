@@ -26,8 +26,8 @@ export WB_PICK_MODEL=qwen3.8-flash
 
 MISTRAL=mistral-large-4:cloud
 QWEN=qwen3.8-max
-LANGS_TXT=(de en es fr it ru zh ja hi)
-LANGS_IMG=(de en es fr it ru zh ja hi ar tn tlh)
+LANGS_TXT=(de en es fr it ru zh ja hi ko tr th bg uk)
+LANGS_IMG=(de en es fr it ru zh ja hi ar tn tlh ko tr th bg uk)
 
 # --- Harvest-Lanes über den ModelHub (Sprachspezialisten auf dem
 # Laptop johannes-sein-l) — Regeln, sobald sie existieren:
@@ -47,15 +47,22 @@ run()  { echo "---- $(date '+%H:%M:%S') START: $*"; python -u "$@" || echo "!! $
 # deshalb: je Zyklus genau EINE Lane, die der gerade abgearbeiteten
 # Textsprache). Übersetzungen laufen über cloud_modell(), damit der
 # Übersetzungs-Rotationsslot nicht ständig die Lane wechselt.
-# it bleibt bewusst auf Cloud: fantastica liefert Repetition-Loops.
+# it/es bleiben bewusst auf Cloud: fantastica liefert Repetition-Loops,
+# alia liefert nichts Parsebares (Runde-2-Probe: 0 Wörter im Stream).
+# th trotz Q2_K auf Lane: siamgpt liefert brauchbare Listen.
 modell_fuer() {
   case "$1" in
     ja) echo "llm-jp-4.1-32b:laptop" ;;
     ru) echo "t-pro-it-2.0:laptop" ;;
     zh) echo "yi-1.5-34b:laptop" ;;
     ar) echo "fanar-2-27b:laptop" ;;
+    ko) echo "exaone-3.5-32b:laptop" ;;
+    tr) echo "turkish-llm-32b:laptop" ;;
+    th) echo "siamgpt-32b:laptop" ;;
+    bg) echo "bggpt-gemma-3-27b:laptop" ;;
+    uk) echo "lapa-12b:laptop" ;;
     hi) echo "$QWEN" ;;
-    *)  echo "$MISTRAL" ;;   # de en es fr it tn tlh + Fallback
+    *)  echo "$MISTRAL" ;;   # de en fr it tn tlh + Fallback
   esac
 }
 

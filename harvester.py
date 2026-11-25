@@ -57,6 +57,11 @@ LANG_NAMES = {
     "zh": "chinesische (Mandarin, vereinfachte Schriftzeichen)",
     "ja": "japanische",
     "hi": "Hindi",
+    "ko": "koreanische",
+    "tr": "türkische",
+    "th": "thailändische",
+    "bg": "bulgarische",
+    "uk": "ukrainische",
 }
 
 # Arabisches Alphabet (28 Buchstaben) für free/suggest in ar/tn
@@ -71,6 +76,18 @@ HI_LETTERS = list("अइउएओकखगघङचछजझञटठडढण�
 # Pinyin-Anfangslaute (zh): Buchstaben-Modus nutzt lateinische
 # Anfangsbuchstaben des Pinyin statt eines Zeichen-Alphabets.
 ZH_PINYIN_LETTERS = list("abcdefghijklmnopqrstuvwxyz")
+# Bulgarisch (kyrillisch, ohne ё; ъ/ь als eigene Indexbuchstaben).
+BG_LETTERS = list("абвгдежзийклмнопрстуфхцчшщъьюя")
+# Ukrainisch (kyrillisch + і ї є ґ, ohne ё/ъ/ы/э).
+UK_LETTERS = list("абвгдеєжзиіїйклмнопрстуфхцчшщьюяґ")
+# Türkisch: lateinisches Alphabet (Faltung über TR_FOLD unten).
+TR_LETTERS = list(string.ascii_lowercase)
+# Koreanisch: 19 Anlaute (Chosŏng). Die Laute stehen nie am Wort —
+# Wörter sind Hangul-Silben; der Prompt steuert, der Filter prüft nur
+# die Schrift (Zwei-Ebenen-Prüfung wie zh).
+KO_INITIALS = list("ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ")
+# Thailändisch: 44 Anfangskonsonanten (Zwei-Ebenen-Prüfung wie zh).
+TH_CONSONANTS = list("กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ")
 
 # Dakuten/Handakuten → stimmlose Basiszeichen (nur Index-Faltung,
 # niemals in der gespeicherten Lemmaform).
@@ -90,6 +107,11 @@ ACCENT_FOLD_LANGS = {"en", "fr", "es", "it"}
 # (_first_letter) — NIEMALS in der gespeicherten Lemmaform: سأل (fragen)
 # und سال (fließen) sind verschiedene Wörter!
 AR_FOLD = {"أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ى": "ي", "ئ": "ي", "ؤ": "و"}
+
+# Türkisch: gepunktetes I und die diakritisierten Buchstaben werden auf
+# die Basisbuchstaben gefaltet (ç->c usw.) — nur Index, nie Lemmaform.
+TR_FOLD = {"ç": "c", "ğ": "g", "ı": "i", "ö": "o", "ş": "s", "ü": "u",
+           "â": "a", "î": "i", "û": "u"}
 
 # Harakat/Tanwin (U+064B–0652), Dolch-Alif (U+0670), koranische Zeichen
 # (U+06D6–06ED) und Tatweel/Kashida (U+0640) — wie in arabischen
@@ -121,6 +143,8 @@ def _first_letter(word: str, language: str) -> str:
         c = JA_FOLD.get(c, c)
     elif language == "hi":
         c = HI_FOLD.get(c, c)
+    elif language == "tr":
+        c = TR_FOLD.get(c, c)
     elif language == "ru":
         if c == "ё":
             c = "е"
@@ -128,16 +152,23 @@ def _first_letter(word: str, language: str) -> str:
 
 
 def _matches_letter(word: str, letter: str, language: str) -> bool:
-    """Buchstaben-Filter. Für Chinesisch ist der 'Buchstabe' ein
-    Pinyin-Anfangslaut — der lässt sich aus dem Schriftzeichen nicht
-    ableiten, darum: Zwei-Ebenen-Prüfung (Zeichen gültig? Modell wurde
-    nach Pinyin-X gefragt und liefert nur passende Wörter)."""
+    """Buchstaben-Filter. Für Chinesisch, Koreanisch und Thailändisch ist
+    der 'Buchstabe' ein Pinyin-Anfangslaut bzw. ein Anlaut/Konsonant, der
+    sich aus dem Schriftzeichen nicht ableiten lässt — darum dort
+    Zwei-Ebenen-Prüfung (Zeichen gültig? + Modell wurde nach X gefragt und
+    liefert nur passende Wörter)."""
     if not word:
         return False
     if language == "zh":
         # Nur echte Schriftzeichen annehmen — keine Pinyin-/Lateinwörter,
         # keine Interpunktion. Modell-Prompt sorgt für den Pinyin-Filter.
         return any("一" <= ch <= "鿿" for ch in word)
+    if language == "ko":
+        # Hangul-Silben (auch ältere Jamo-Kompatibilität)
+        return any("가" <= ch <= "힯" or "ㄱ" <= ch <= "ㅎ"
+                   for ch in word)
+    if language == "th":
+        return any("ก" <= ch <= "๛" for ch in word)
     return _first_letter(word, language) == letter
 
 # ---------- Prompts ----------
@@ -713,9 +744,10 @@ def harvest_suggest(language, letters, max_rounds, per_round, temperature, delay
 def harvest_gap(language, letters, max_rounds, per_round, temperature, delay, pairs_per_round):
     """Gezielt Lücken schließen: Wörter zwischen zwei Nachbarn erfragen."""
     lang = LANG_NAMES.get(language, f"{language}-Sprachige")
-    if language == "zh":
-        # Kein zeichenbasierter Index: ein Durchlauf über den ganzen
-        # Bestand, Kandidaten werden nicht auf Unicode-Position geprüft.
+    if language in ("zh", "ko", "th"):
+        # Kein zeichenbasierter Index (Pinyin-/Anlaut-Steuerung statt
+        # Präfix): ein Durchlauf über den ganzen Bestand, Kandidaten
+        # werden nicht auf Unicode-Position geprüft.
         letters = [""]
     for letter in letters:
         rnd = 0
@@ -855,6 +887,16 @@ def parse_letters(spec: str) -> list[str]:
     if spec == "zh":
         # Pinyin-Anfangslaute statt Zeichen-Alphabet
         return list(ZH_PINYIN_LETTERS)
+    if spec == "bg":
+        return list(BG_LETTERS)
+    if spec == "uk":
+        return list(UK_LETTERS)
+    if spec == "tr":
+        return list(TR_LETTERS)
+    if spec == "ko":
+        return list(KO_INITIALS)
+    if spec == "th":
+        return list(TH_CONSONANTS)
     if re.fullmatch(r"[a-z]-[a-z]", spec):
         return list(string.ascii_lowercase[
             string.ascii_lowercase.index(spec[0]):

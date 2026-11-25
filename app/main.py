@@ -129,7 +129,8 @@ AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 # Apostrophe, Bindestrich/Leerzeichen
 ANHOEREN_RE = re.compile(
     r"^[\wÄÖÜäöüßÀ-ÿ'’ \-\u0600-\u06FF\u0400-\u04FF"
-    r"\u4E00-\u9FFF\u3040-\u30FF\u0900-\u097F]{1,100}$", re.UNICODE)
+    r"\u4E00-\u9FFF\u3040-\u30FF\u0900-\u097F"
+    r"\uAC00-\uD7A3\u0E00-\u0E7F]{1,100}$", re.UNICODE)
 FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 
 app = FastAPI(title="Wörterbuch API", version="0.2.0")
