@@ -401,7 +401,7 @@ def chat(prompt: str, temperature: float) -> str:
     #   NUR bei Cloud-Modellen senden (Qwen braucht es gegen Reasoning).
     # * max_tokens runter: das Gateway setzt einen Floor von 2048, ohne
     #   Grenze generiert jede Lane bis zur Cap (~5 Min. verschwendet).
-    _lane = (":laptop" in MODEL_NAME) or (":workstation" in MODEL_NAME)
+    _lane = ":laptop" in MODEL_NAME
     body = {
         "model": MODEL_NAME,
         "messages": [{"role": "user", "content": prompt}],
