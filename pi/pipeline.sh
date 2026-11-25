@@ -76,12 +76,26 @@ cloud_modell() {
   esac
 }
 
+# Cloud-Quota-Fallback (429): mistral-small-4-119b laeuft lokal auf
+# diesem Rechner (Schleppi, Port 8081) und ist ueber den ModelHub
+# erreichbar. NUR fuer Sprachen einschalten, die es sauber beherrscht —
+# zh/ja/hi/ko/th/ar bleiben ohne Fallback (dort lieber abbrechen als
+# Murks eintragen). harvester.post_chat_completions wechselt bei einem
+# 429 einmalig aufs Fallback; das Kontingent bleibt geschont.
+MISTRAL_SMALL=mistral-small-4-119b:schleppi
+fallback_fuer() {
+  case "$1" in
+    de|en|es|fr|it|tr) echo "$MISTRAL_SMALL" ;;
+    *)                 echo "" ;;
+  esac
+}
+
 # Sprachkette: Verarbeitung ZUERST (garantiert dran), Ernte danach.
 # Fällt der Zyklus mitten in suggest/gap aus, ist die Verarbeitung der
 # Sprache trotzdem komplett gelaufen.
 kette() {
   local lang=$1
-  export MODEL_NAME=$(modell_fuer "$lang")
+  export MODEL_NAME=$(modell_fuer "$lang") FALLBACK_MODEL=$(fallback_fuer "$lang")
   log "Kette $lang via $MODEL_NAME"
   run harvester.py --seed --language "$lang"
   run harvester.py --mode define  --language "$lang" --per-round 30 --delay 0.3
@@ -99,9 +113,19 @@ while true; do
   zyklen=$((zyklen+1))
   log "ZYKLUS $zyklen startet"
   idx=$(( (zyklen - 1) % ${#LANGS_TXT[@]} ))
+  lang=${LANGS_TXT[$idx]}
 
-  # --- 1 Textsprache je Zyklus (Round-Robin über alle 9) ---
-  kette "${LANGS_TXT[$idx]}"
+  # --- 1 Textsprache je Zyklus (Round-Robin über alle 14), aber:
+  # Lane-Sprachen K Zyklen am Stueck (LANE_K, default 3). So bleibt das
+  # Lane-Modell zwischen den Ketten geladen (Proxy-Idle 30 min) und die
+  # ~1-min-Kaltstarts fallen nur einmal pro Block statt pro Zyklus an.
+  # Cloud-Sprachen rotieren wie gehabt weiter (keine Ladezeit dahinter). ---
+  K=1
+  case "$lang" in ru|zh|ja|ar|ko|tr|th|bg|uk) K=${LANE_K:-3} ;; esac
+  for runde in $(seq 1 "$K"); do
+    [ "$K" -gt 1 ] && log "Lane-Block $lang $runde/$K"
+    kette "$lang"
+  done
 
   # --- ar/tn: Ernte/Audit/Franco laufen auf dem LAPTOP via Jais (Sonder-
   # modelle, staerkste Arabisch-Qualitaet) — siehe ar-tn-loop.sh/franco-loop.sh.
@@ -118,7 +142,8 @@ while true; do
   # zufällig die aktive Kettensprache ist, bleibt es auf der warmen
   # Lane; sonst Cloud-Generalist.
   T=${LANGS_IMG[$(( (zyklen - 1) % ${#LANGS_IMG[@]} ))]}
-  if [ "$T" = "${LANGS_TXT[$idx]}" ]; then
+  export FALLBACK_MODEL=$(fallback_fuer "$T")
+  if [ "$T" = "$lang" ]; then
     export MODEL_NAME=$(modell_fuer "$T")
     log "Bedeutungs-Übersetzung -> $T via $MODEL_NAME (Lane noch warm)"
   else
@@ -139,7 +164,10 @@ while true; do
 
   # --- Definitions-Sprachaudit: pauschal als 'de' übernommene Legacy-
   # Texte per Modell prüfen, falsch zugeordnete in die richtige Sprache
-  # verschieben (entries.definition-Cache wird dabei sauber frei) ---
+  # verschieben (entries.definition-Cache wird dabei sauber frei).
+  # Sprachgemischt — Fallback immer erlaubt (mistral-small kann Sprach-
+  # identifikation der grossen europaeischen Sprachen) ---
+  export FALLBACK_MODEL=$MISTRAL_SMALL
   log "Definitions-Sprachaudit (Legacy-de)"
   run fix_def_lang.py --limit 100 --batch 10 --model "$MISTRAL"
 

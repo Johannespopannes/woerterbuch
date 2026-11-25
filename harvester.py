@@ -38,6 +38,39 @@ import urllib.parse
 import urllib.request
 
 MODEL_BASE_URL = os.environ.get("MODEL_BASE_URL", "https://api.openai.com/v1")
+# Cloud-Quota-Fallback: bei 429 (Kontingent aufgebraucht) wechselt chat()
+# fuer den Rest dieses Prozesses auf dieses Modell. Die Pipeline setzt es
+# nur fuer Sprachen, die das Fallback-Modell beherrscht (de en es fr it tr).
+FALLBACK_MODEL = os.environ.get("FALLBACK_MODEL", "")
+
+
+def post_chat_completions(body: dict, timeout: int) -> dict:
+    """POST /chat/completions mit 429-Fallback auf FALLBACK_MODEL.
+
+    body["model"] wird bei einem 429 einmalig auf das Fallback umgestellt
+    und der Request wiederholt; danach laeuft der Rest des Prozesses auf
+    dem Fallback (globales MODEL_NAME zieht mit). Andere Fehler werden
+    weitergeworfen. Rueckgabe: die Response-JSON."""
+    global MODEL_NAME
+    for _ in range(3):
+        req = urllib.request.Request(
+            f"{MODEL_BASE_URL}/chat/completions",
+            data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json",
+                     "Authorization": f"Bearer {MODEL_API_KEY}"})
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            if (e.code == 429 and FALLBACK_MODEL
+                    and body.get("model") != FALLBACK_MODEL):
+                print(f"  Cloud-Quota 429 — Fallback: {FALLBACK_MODEL}")
+                body["model"] = FALLBACK_MODEL
+                if MODEL_NAME != FALLBACK_MODEL:
+                    MODEL_NAME = FALLBACK_MODEL
+                continue
+            raise
+    raise RuntimeError("chat/completions: wiederholt 429, Fallback schon aktiv")
 MODEL_API_KEY = os.environ.get("MODEL_API_KEY", "dummy")
 MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")
 # Langsame Lanes (dichte 32B auf CPU: 1–2,5 t/s) brauchen je Aufruf
@@ -396,12 +429,16 @@ def chat(prompt: str, temperature: float) -> str:
     produzieren und den eigentlichen Inhalt erst nach tausenden Tokens
     liefern. llama-server übergibt das Kwarg nur an Templates, die es
     kennen; Kolibri/Mistral/Jais ignorieren es schadlos."""
-    # Laptop-Lanes (llama-server auf johannes-sein-l):
-    # * enable_thinking-Kwarg leert den content der Lane-Templates —
-    #   NUR bei Cloud-Modellen senden (Qwen braucht es gegen Reasoning).
-    # * max_tokens runter: das Gateway setzt einen Floor von 2048, ohne
-    #   Grenze generiert jede Lane bis zur Cap (~5 Min. verschwendet).
-    _lane = ":laptop" in MODEL_NAME
+    global MODEL_NAME
+
+    # Lane-Modell-Namen tragen einen Host-Suffix — fuer sie gelten
+    # Lane-Regeln (max_tokens runter: ohne Grenze generiert jede Lane
+    # bis zur Cap; kein enable_thinking-Kwarg: leert Lane-Templates).
+    # Lane-Modell-Namen tragen einen Host-Suffix — fuer sie gelten
+    # Lane-Regeln (max_tokens runter: ohne Grenze generiert jede Lane
+    # bis zur Cap; kein enable_thinking-Kwarg: leert Lane-Templates).
+    _lane = any(t in MODEL_NAME
+                for t in (":laptop", ":workstation", ":schleppi"))
     body = {
         "model": MODEL_NAME,
         "messages": [{"role": "user", "content": prompt}],
@@ -410,19 +447,12 @@ def chat(prompt: str, temperature: float) -> str:
     }
     if not _lane:
         body["chat_template_kwargs"] = {"enable_thinking": False}
-    req = urllib.request.Request(
-        f"{MODEL_BASE_URL}/chat/completions",
-        data=json.dumps(body).encode(),
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {MODEL_API_KEY}",
-        },
-    )
+
     last_err: Exception | None = None
     for versuch in range(4):
         try:
-            with urllib.request.urlopen(req, timeout=MODEL_TIMEOUT) as resp:
-                data = json.loads(resp.read())
+            # post_chat_completions wechselt bei 429 selbst aufs Fallback
+            data = post_chat_completions(body, MODEL_TIMEOUT)
             break
         except urllib.error.HTTPError as e:
             # 502/503 (ModelHub-Upstream flackert gelegentlich) — warten
@@ -442,18 +472,14 @@ def chat(prompt: str, temperature: float) -> str:
     # Jais & Co. denken trotz enable_thinking und können bei kniffligen
     # Prompts das komplette Budget verbrauchen — dann ist content leer.
     # Strategisch nachladen: zweiter Versuch mit doppeltem Budget.
-    base_max = json.loads(req.data.decode())["max_tokens"]
+    base_max = body["max_tokens"]
     for faktor in (2, 4):
         if content and content.strip():
             break
-        body = json.loads(req.data.decode())
-        body["max_tokens"] = base_max * faktor
-        req2 = urllib.request.Request(
-            req.full_url, data=json.dumps(body).encode(),
-            headers=dict(req.header_items()))
+        body2 = dict(body)
+        body2["max_tokens"] = base_max * faktor
         try:
-            with urllib.request.urlopen(req2, timeout=MODEL_TIMEOUT) as resp:
-                data = json.loads(resp.read())
+            data = post_chat_completions(body2, MODEL_TIMEOUT)
             content = _strip_harmony(
                 data["choices"][0]["message"]["content"])
         except Exception:
