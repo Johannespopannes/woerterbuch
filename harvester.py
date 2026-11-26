@@ -462,7 +462,12 @@ def chat(prompt: str, temperature: float) -> str:
         "model": MODEL_NAME,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": temperature,
-        "max_tokens": 1600 if _lane else 8000,
+        # 4096 statt 1600: denkende Lanes (t-pro-it!) verbrauchen
+        # 2-5k Tokens Reasoning BEVOR die Antwort beginnt — mit 1600
+        # bleibt content leer und die Nachlade-Schleife frisst ~1-2 h
+        # CPU (beobachtet: ru-define hing 104 min im Leerlauf-Retry).
+        # Nicht-denkende Lanes stoppen am EOS, Mehrkosten ~0.
+        "max_tokens": 4096 if _lane else 8000,
     }
     if not _lane:
         body["chat_template_kwargs"] = {"enable_thinking": False}
