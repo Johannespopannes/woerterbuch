@@ -26,7 +26,13 @@ export WB_PICK_MODEL=qwen3.8-flash
 
 MISTRAL=mistral-large-4:cloud
 QWEN=qwen3.8-max
-LANGS_TXT=(de en es fr it ru zh ja hi ko tr th bg uk)
+LANGS_TXT=(de ru zh ja ar ko tr th bg uk en es fr it hi)
+# Reihenfolge bewusst: de (schnell, Pivot) zuerst, dann ALLE Lane-
+# Sprachen — ein en/es/fr-Cloud-Zyklus dauert ~18 h, stuende die
+# Lane-Sprachen hinten, wuerde der Keller-Laptop tagelang nicht gefragt.
+# ar ist seit 26.11. wieder dabei (frueher eigene Laptop-Loops, die es
+# nicht mehr gibt — deshalb war der ar-Rueststand seit Wochen statisch).
+
 LANGS_IMG=(de en es fr it ru zh ja hi ar tn tlh ko tr th bg uk)
 
 # --- Harvest-Lanes über den ModelHub (Sprachspezialisten auf dem
@@ -115,7 +121,7 @@ while true; do
   idx=$(( (zyklen - 1) % ${#LANGS_TXT[@]} ))
   lang=${LANGS_TXT[$idx]}
 
-  # --- 1 Textsprache je Zyklus (Round-Robin über alle 14), aber:
+  # --- 1 Textsprache je Zyklus (Round-Robin über alle 15), aber:
   # Lane-Sprachen K Zyklen am Stueck (LANE_K, default 3). So bleibt das
   # Lane-Modell zwischen den Ketten geladen (Proxy-Idle 30 min) und die
   # ~1-min-Kaltstarts fallen nur einmal pro Block statt pro Zyklus an.
@@ -127,10 +133,8 @@ while true; do
     kette "$lang"
   done
 
-  # --- ar/tn: Ernte/Audit/Franco laufen auf dem LAPTOP via Jais (Sonder-
-  # modelle, staerkste Arabisch-Qualitaet) — siehe ar-tn-loop.sh/franco-loop.sh.
-  # Der Pi pflegt hier nur die ar-Quellenlinks (ar-Wiki existiert; tn hat
-  # kein eigenes Wiki und wird deshalb uebersprungen).
+  # --- ar-Quellenlinks (idempotent, kein LLM). Die ar-KETTE laeuft
+  # seit 26.11. wieder in der Rotation (siehe LANGS_TXT). ---
   run source_links.py --language ar --limit 300
 
   # --- tlh: kanonische Sinne aus den boQwI'-Tabellen/Homonymen (ohne LLM,

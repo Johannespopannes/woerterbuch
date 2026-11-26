@@ -31,7 +31,8 @@ API = os.environ["DICT_API_URL"].rstrip("/")
 KEY = os.environ["DICT_API_KEY"]
 UA = {"User-Agent": "woerterbuch-audit/1.0 (privates Nachschlagewerk)"}
 
-WIKTIONARY_LANGS = {"en", "fr", "es", "it", "ru", "zh", "ja", "hi"}
+WIKTIONARY_LANGS = {"en", "fr", "es", "it", "ru", "zh", "ja", "hi",
+                    "ar", "ko", "tr", "th", "bg", "uk"}
 
 
 def api(method: str, path: str, body: dict | None = None) -> tuple[int, object]:
