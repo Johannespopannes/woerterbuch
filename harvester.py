@@ -45,14 +45,23 @@ FALLBACK_MODEL = os.environ.get("FALLBACK_MODEL", "")
 
 
 def post_chat_completions(body: dict, timeout: int) -> dict:
-    """POST /chat/completions mit 429-Fallback auf FALLBACK_MODEL.
+    """POST /chat/completions mit 429-Backoff und Quota-Fallback.
 
-    body["model"] wird bei einem 429 einmalig auf das Fallback umgestellt
-    und der Request wiederholt; danach laeuft der Rest des Prozesses auf
-    dem Fallback (globales MODEL_NAME zieht mit). Andere Fehler werden
-    weitergeworfen. Rueckgabe: die Response-JSON."""
+    429-Semantik des Gateways ist zweigeteilt:
+    * Lanes (':laptop'/':workstation'/':schleppi'): Modell startet gerade
+      -> Backoff-Signal: mit Retry-After/ab 20 s Abstand wiederholen.
+    * Cloud (mistral-large-4:cloud & Co.): anhaltende 429 = Kontingent
+      aufgebraucht -> nach ~3 Fehlversuchen auf FALLBACK_MODEL umschalten;
+      der Prozess bleibt danach prozessweit auf dem Fallback.
+    Andere Fehler werden sofort weitergeworfen."""
     global MODEL_NAME
-    for _ in range(3):
+    lane_markers = (":laptop", ":workstation", ":schleppi")
+    if FALLBACK_MODEL and MODEL_NAME == FALLBACK_MODEL:
+        # Prozessweit persistieren: Caller mit eigenem Modell-Parameter
+        # (z. B. fix_def_lang) laufen nicht zurueck auf die Cloud.
+        body["model"] = FALLBACK_MODEL
+    retries = 0
+    while True:
         req = urllib.request.Request(
             f"{MODEL_BASE_URL}/chat/completions",
             data=json.dumps(body).encode(),
@@ -62,15 +71,25 @@ def post_chat_completions(body: dict, timeout: int) -> dict:
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
-            if (e.code == 429 and FALLBACK_MODEL
-                    and body.get("model") != FALLBACK_MODEL):
-                print(f"  Cloud-Quota 429 — Fallback: {FALLBACK_MODEL}")
+            if e.code != 429:
+                raise
+            retries += 1
+            _cloud = not any(t in str(body.get("model", ""))
+                             for t in lane_markers)
+            if (_cloud and FALLBACK_MODEL
+                    and body.get("model") != FALLBACK_MODEL and retries >= 3):
+                print(f"  Cloud-429 anhaltend — Fallback: {FALLBACK_MODEL}")
                 body["model"] = FALLBACK_MODEL
-                if MODEL_NAME != FALLBACK_MODEL:
-                    MODEL_NAME = FALLBACK_MODEL
+                MODEL_NAME = FALLBACK_MODEL
                 continue
-            raise
-    raise RuntimeError("chat/completions: wiederholt 429, Fallback schon aktiv")
+            if retries >= 6:
+                raise
+            wait = 20
+            try:
+                wait = max(5, int(e.headers.get("Retry-After") or 20))
+            except (TypeError, ValueError):
+                pass
+            time.sleep(wait)
 MODEL_API_KEY = os.environ.get("MODEL_API_KEY", "dummy")
 MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")
 # Langsame Lanes (dichte 32B auf CPU: 1–2,5 t/s) brauchen je Aufruf
