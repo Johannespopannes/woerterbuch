@@ -26,6 +26,9 @@ export MODEL_BASE_URL=https://modelhub.tassekaffee.com/v1 MODEL_API_KEY=dummy
 # ModelHub-Handoff fuer dichte Lanes.
 export MODEL_TIMEOUT=900
 export WB_RENDER_CLOUD=1
+# Wan-Cloud ist fürs Wörterbuch aufgebraucht (Monatskontingent, Reset erst
+# in ~3 Wochen) — Bilder laufen ab jetzt über die lokale Flux-Lane.
+export WB_CLOUD_IMAGE_MODEL=flux-schnell-q4k:schleppi
 export WB_PICK_MODEL=qwen3.8-flash
 
 MISTRAL=mistral-large-4:cloud

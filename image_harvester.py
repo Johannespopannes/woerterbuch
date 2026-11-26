@@ -204,29 +204,52 @@ def render(concept: str, out_path: Path, size: int, steps: int,
 
 def render_cloud(concept: str, out_path: Path, size: int, steps: int,
                  seed: int) -> bool:
-    """Piktogramm über ModelHub-Cloud rendern (Wan, auf dem Pi).
+    """Piktogramm über ModelHub-Cloud rendern (Flux-Lane, lokal auf Schleppi).
 
     OpenAI-kompatibles /v1/images/generations; kein API-Key nötig.
-    Wan kennt kein Negativ-Prompt — Ausschlüsse fließen in den Prompt.
-    Liefert 1024x1024 RGBA-PNG (~1,2 MB); Eintrags-PNGs werden beim
-    Upload ohnehin skaliert/verarbeitet.
+    Die Lane startet on-demand — erster Request nach Leerlauf zahlt den
+    Kaltstart (~10 min Modellladung), danach ~17 s pro Bild. Läuft auf
+    Schleppi parallel ein anderes Supervisor-Modell (z. B. Kolibri),
+    antwortet die Lane 429 modelhub_busy: dann bis zu 8x mit Retry-After
+    warten (Ein-Modell-Regel des Supervisors).
     """
     prompt = (PROMPT_TEMPLATE.format(concept=concept)
               + ", no text, no letters, no watermark, not photorealistic")
     body = {"prompt": prompt, "size": "1024x1024"}
     if CLOUD_IMAGE_MODEL:
         body["model"] = CLOUD_IMAGE_MODEL
-    req = urllib.request.Request(
-        CLOUD_IMAGE_URL, data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=300) as resp:
-            data = json.loads(resp.read())
-        out_path.write_bytes(base64.b64decode(data["data"][0]["b64_json"]))
-    except Exception as e:
-        print(f"  cloud-render Fehler: {e}", file=sys.stderr)
-        return False
-    return out_path.is_file() and out_path.stat().st_size > 1000
+    for versuch in range(1, 9):
+        req = urllib.request.Request(
+            CLOUD_IMAGE_URL, data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=660) as resp:
+                data = json.loads(resp.read())
+            out_path.write_bytes(
+                base64.b64decode(data["data"][0]["b64_json"]))
+            return out_path.is_file() and out_path.stat().st_size > 1000
+        except urllib.error.HTTPError as e:
+            code = e.code
+            retry_after = 40
+            try:
+                info = json.loads(e.read())
+                retry_after = int(
+                    info.get("error", {}).get("retry_after", retry_after))
+            except Exception:
+                pass
+            if code in (429, 503, 408) and versuch < 8:
+                print(f"  cloud-render {code}, Versuch {versuch}/8, "
+                      f"warte {retry_after + 5}s ...", file=sys.stderr)
+                time.sleep(retry_after + 5)
+                continue
+            print(f"  cloud-render Fehler: HTTP {code}", file=sys.stderr)
+            return False
+        except Exception as e:
+            print(f"  cloud-render Fehler: {e}", file=sys.stderr)
+            return False
+    print("  cloud-render Fehler: nach 8 Versuchen noch blockiert",
+          file=sys.stderr)
+    return False
 
 
 # ---------- Gemeinsame GPU-Queue (FIFO mit icons.tassekaffee.com) ----------
