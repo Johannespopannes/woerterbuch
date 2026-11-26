@@ -21,6 +21,10 @@ cd "$(dirname "$0")/.."   # /home/johannes/woerterbuch
 export DICT_API_URL=http://127.0.0.1:8805
 export DICT_API_KEY="VHixW4pMVFCX_aaVD6TwTsbECZkqDPcM"
 export MODEL_BASE_URL=https://modelhub.tassekaffee.com/v1 MODEL_API_KEY=dummy
+# Lanes denken (t-pro-it!) und kriechen auf CPU (33B ~1-2,5 t/s) — 240 s
+# Default reicht fuer Batch-Antworten oft nicht; 900 s Deckel laut
+# ModelHub-Handoff fuer dichte Lanes.
+export MODEL_TIMEOUT=900
 export WB_RENDER_CLOUD=1
 export WB_PICK_MODEL=qwen3.8-flash
 
