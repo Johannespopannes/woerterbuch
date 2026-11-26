@@ -472,8 +472,11 @@ def chat(prompt: str, temperature: float) -> str:
     # Jais & Co. denken trotz enable_thinking und können bei kniffligen
     # Prompts das komplette Budget verbrauchen — dann ist content leer.
     # Strategisch nachladen: zweiter Versuch mit doppeltem Budget.
+    # NICHT 4x bei Cloud-Modellen: ein Fehlversuch frisst dort bis zu
+    # 32k Tokens des bezahlten Kontingents (s. en-gap 26.11.).
     base_max = body["max_tokens"]
-    for faktor in (2, 4):
+    faktoren = (2, 4) if _lane else (2,)
+    for faktor in faktoren:
         if content and content.strip():
             break
         body2 = dict(body)
