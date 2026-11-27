@@ -53,6 +53,8 @@ def post_chat_completions(body: dict, timeout: int) -> dict:
     * Cloud (mistral-large-4:cloud & Co.): anhaltende 429 = Kontingent
       aufgebraucht -> nach ~3 Fehlversuchen auf FALLBACK_MODEL umschalten;
       der Prozess bleibt danach prozessweit auf dem Fallback.
+    409 (modelhub_busy) wird wie Lane-429 gebackofft, gilt aber NIE als
+    Cloud-Quota-Signal (kein Fallback-Trigger).
     Andere Fehler werden sofort weitergeworfen."""
     global MODEL_NAME
     lane_markers = (":laptop", ":workstation", ":schleppi")
@@ -71,11 +73,12 @@ def post_chat_completions(body: dict, timeout: int) -> dict:
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
-            if e.code != 429:
+            if e.code not in (429, 409):
                 raise
             retries += 1
-            _cloud = not any(t in str(body.get("model", ""))
-                             for t in lane_markers)
+            _cloud = (e.code == 429
+                      and not any(t in str(body.get("model", ""))
+                                  for t in lane_markers))
             if (_cloud and FALLBACK_MODEL
                     and body.get("model") != FALLBACK_MODEL and retries >= 3):
                 print(f"  Cloud-429 anhaltend — Fallback: {FALLBACK_MODEL}")
