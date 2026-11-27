@@ -22,6 +22,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import time
 import urllib.request
@@ -252,21 +253,62 @@ def render_cloud(concept: str, out_path: Path, size: int, steps: int,
     return False
 
 
-# ---------- Gemeinsame GPU-Queue (FIFO mit icons.tassekaffee.com) ----------
-# Client liegt im Chain-Verzeichnis (ORIGIN woerterbuch.tassekaffee.com).
-# Fehlt er oder ist die Queue nicht erreichbar, fällt render_queued()
-# transparent auf den Direkt-Modus zurück.
-_GPUQ = None
-try:
-    sys.path.insert(0, r"C:\Repos\_scratch\woerterbuch-chain")
-    import gpuq_client as _gpuq_mod  # noqa: E402
-    _GPUQ = _gpuq_mod
-except Exception as e:
-    print(f"gpuq_client nicht verfügbar ({e}) — Direkt-Modus",
-          file=sys.stderr)
+# ---------- Gemeinsame GPU-Queue (icons.tassekaffee.com / pipeline.gpuq) ----------
+# Der Icons-Kimi stellt die dateibasierte Queue (pending/claimed/done/
+# failed); Worker laufen auf dem Pi und orchestrieren GPU-Jobs ueber das
+# Gateway (RAM-Guard GPUQ_MIN_FREE_GB, Prioritaeten high/medium/low).
+# Wir reihen pro Bild einen Job ein ("image_harvester.py --render-one"),
+# der auf dem Worker uebers Gateway rendert (Env muss im cmd stehen —
+# gpuq-Jobs tragen kein eigenes env-Feld). Aktiv nur mit WB_RENDER_QUEUE=1;
+# sonst Direkt-Cloud wie bisher. Einreihen schlaegt fehl → Direkt-Cloud.
+_ICONS_REPO = os.environ.get(
+    "WB_ICONS_REPO", "/home/johannes/icons.tassekaffee.com")
+_ICONS_VENV_PY = os.environ.get(
+    "WB_ICONS_VENV_PY", f"{_ICONS_REPO}/.venv-factory/bin/python")
+if os.name == "nt":
+    _QUEUE_DIR = Path(os.environ.get(
+        "WB_GPUQ_DIR", r"C:\Repos\_scratch\agent-tasks"))
+else:
+    _QUEUE_DIR = Path(os.environ.get(
+        "WB_GPUQ_DIR", "/mnt/disk2/icons-factory/queue"))
 
-# Einmal pro Lauf sicherstellen, dass ein Worker existiert
-_worker_versucht = False
+
+def _gpuq_submit(cmd: list, priority: str) -> str | None:
+    """Job in die icons-Queue einreihen; liefert job_id oder None."""
+    try:
+        p = subprocess.run(
+            [_ICONS_VENV_PY, "-m", "pipeline.gpuq", "submit",
+             "--kind", "gpu", "--priority", priority, "--", *cmd],
+            cwd=_ICONS_REPO, capture_output=True, text=True, timeout=120)
+        out = (p.stdout or "") + (p.stderr or "")
+        m = re.search(r"eingereiht \[[^\]]+\]:\s+(\S+)", out)
+        if p.returncode == 0 and m:
+            return m.group(1)
+        print(f"gpuq-submit fehlgeschlagen rc={p.returncode}: {out[:300]}",
+              file=sys.stderr)
+    except Exception as e:
+        print(f"gpuq-submit fehlgeschlagen ({e})", file=sys.stderr)
+    return None
+
+
+def _gpuq_wait(job_id: str, timeout_s: int = 2700) -> bool:
+    """Auf done/failed warten (Kaltstart der Lane braucht es bei ~10 min)."""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        if (_QUEUE_DIR / "done" / f"{job_id}.json").is_file():
+            return True
+        f = _QUEUE_DIR / "failed" / f"{job_id}.json"
+        if f.is_file():
+            try:
+                rec = json.loads(f.read_text(encoding="utf-8"))
+                print(f"Queue-Job FEHLGESCHLAGEN (exit {rec.get('exit')}): "
+                      f"{f}", file=sys.stderr)
+            except Exception:
+                pass
+            return False
+        time.sleep(10)
+    print(f"Queue-Job {job_id}: Timeout nach {timeout_s}s", file=sys.stderr)
+    return False
 
 
 def render_queued(concept: str, out_path: Path, size: int, steps: int,
@@ -279,36 +321,35 @@ def render_queued(concept: str, out_path: Path, size: int, steps: int,
     """
     if out_path.is_file() and out_path.stat().st_size > 1000:
         return True  # Cache-Treffer
-    # Cloud-Modus: Wan auf dem Pi — braucht weder lokale GPU noch Queue.
+    # Cloud-Modus: Bilder ueber das ModelHub-Gateway (Flux-Lane auf
+    # Schleppi). Mit WB_RENDER_QUEUE=1 wird jedes Bild als Job in die
+    # icons-GPU-Queue eingereiht (Serialisierung + RAM-Guard); sonst
+    # direkt rendern.
     if os.environ.get("WB_RENDER_CLOUD") == "1":
-        return render_cloud(concept, out_path, size, steps, seed)
+        if os.environ.get("WB_RENDER_QUEUE") != "1":
+            return render_cloud(concept, out_path, size, steps, seed)
+        job_env = [
+            "WB_RENDER_CLOUD=1",
+            f"WB_CLOUD_IMAGE_MODEL={CLOUD_IMAGE_MODEL}",
+            f"MODEL_BASE_URL={MODELHUB_URL}",
+            f"MODEL_API_KEY={os.environ.get('MODEL_API_KEY', 'dummy')}",
+        ]
+        cmd = ["/usr/bin/env", *job_env, sys.executable,
+               str(Path(__file__).resolve()),
+               "--render-one", concept, str(out_path), str(size),
+               str(steps), str(seed)]
+        job_id = _gpuq_submit(cmd, os.environ.get("WB_QUEUE_PRIO", "medium"))
+        if not job_id:
+            return render_cloud(concept, out_path, size, steps, seed)
+        ok = _gpuq_wait(job_id)
+        return ok and out_path.is_file() and out_path.stat().st_size > 1000
     # Läuft der Harvester selbst ALS Queue-Job (gpu), hält der Worker
     # bereits das GPU-Lock — innere Render-Jobs doppelt einzureihen
     # würde sich gegenseitig aushungern (Deadlock bis Timeout).
     if os.environ.get("GPUQ_MANAGED") == "1":
         return render(concept, out_path, size, steps, seed)
-    if direct or _GPUQ is None:
+    if direct:
         return render(concept, out_path, size, steps, seed)
-    global _worker_versucht
-    if not _worker_versucht:
-        _worker_versucht = True
-        try:
-            _GPUQ.ensure_worker()
-        except Exception as e:
-            print(f"Worker-Start fehlgeschlagen ({e}) — Direkt-Modus "
-                  f"für diesen Lauf", file=sys.stderr)
-            return render(concept, out_path, size, steps, seed)
-    cmd = [sys.executable, str(Path(__file__).resolve()),
-           "--render-one", concept, str(out_path), str(size), str(steps),
-           str(seed)]
-    try:
-        job_id = _GPUQ.submit_job(cmd, priority="medium")
-    except Exception as e:
-        print(f"Queue-Einreihen fehlgeschlagen ({e}) — Direkt-Modus "
-              f"für diesen Render", file=sys.stderr)
-        return render(concept, out_path, size, steps, seed)
-    ok = _GPUQ.wait_job(job_id)
-    return ok and out_path.is_file() and out_path.stat().st_size > 1000
 
 
 GEMMA_URL = os.environ.get("GEMMA_URL", "http://127.0.0.1:8082/v1")
@@ -420,11 +461,18 @@ def main() -> None:
                     help=argparse.SUPPRESS)  # intern: wird als Queue-Job aufgerufen
     args = ap.parse_args()
 
-    # Queue-Worker-Modus: genau ein Rendervorgang, Ergebnis = Exit-Code
+    # Queue-Worker-Modus: genau ein Rendervorgang, Ergebnis = Exit-Code.
+    # Cloud-Modus rendert uebers Gateway (Job kommt mit WB_RENDER_CLOUD=1
+    # aus der Queue eingereiht), sonst lokaler sd-server.
     if args.render_one:
         concept, out, size, steps, seed = args.render_one
-        sys.exit(0 if render(concept, Path(out), int(size), int(steps),
-                             int(seed)) else 1)
+        if os.environ.get("WB_RENDER_CLOUD") == "1":
+            ok = render_cloud(concept, Path(out), int(size), int(steps),
+                              int(seed))
+        else:
+            ok = render(concept, Path(out), int(size), int(steps),
+                        int(seed))
+        sys.exit(0 if ok else 1)
 
     lang_name = LANG_NAMES.get(args.language, f"{args.language}-sprachige")
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
