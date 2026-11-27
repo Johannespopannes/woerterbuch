@@ -185,10 +185,14 @@ while true; do
   log "Definitions-Sprachaudit (Legacy-de)"
   run fix_def_lang.py --limit 100 --batch 10 --model "$MISTRAL"
 
-  # --- Bilder: eine Sprache je Zyklus (Wan-Cloudrender, Vision-Pick) ---
+  # --- Bilder: eine Sprache je Zyklus (Flux-Queue-Render, Vision-Pick) ---
+  # Übersetzung/Pick NICHT über Schleppi: Die Supervisor-Ein-Modell-Regel
+  # teilt die eine GPU mit den Icons-Jobs — ein haengender Flux-Server
+  # blockiert Kolibri mit 409 (vom 27.11.). qwen3.8-flash (Cloud) ist
+  # ohnehin das Pick-Modell und antwortet zuverlaessig.
   I=${LANGS_IMG[$(( (zyklen - 1) % ${#LANGS_IMG[@]} ))]}
   log "Bilder-Runde $I"
-  run image_harvester.py --language "$I" --limit 60
+  MODEL_NAME=qwen3.8-flash run image_harvester.py --language "$I" --limit 60
 
   log "ZYKLUS $zyklen fertig — Pause 5 min"
   sleep 300
