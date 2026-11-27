@@ -341,7 +341,10 @@ def render_queued(concept: str, out_path: Path, size: int, steps: int,
         job_id = _gpuq_submit(cmd, os.environ.get("WB_QUEUE_PRIO", "medium"))
         if not job_id:
             return render_cloud(concept, out_path, size, steps, seed)
-        ok = _gpuq_wait(job_id)
+        # Stau-Abbau übers Wochenende: ein Bild darf bis zu 3 h in der
+        # Queue warten, bevor es verfällt (dann Direkt-Cloud-Fallback im
+        # nächsten Zyklus statt sofort).
+        ok = _gpuq_wait(job_id, timeout_s=10_800)
         return ok and out_path.is_file() and out_path.stat().st_size > 1000
     # Läuft der Harvester selbst ALS Queue-Job (gpu), hält der Worker
     # bereits das GPU-Lock — innere Render-Jobs doppelt einzureihen
