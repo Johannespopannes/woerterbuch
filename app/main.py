@@ -714,29 +714,37 @@ def analyze_word_form(body: LexemeAnalysisIn, _=Depends(require_api_key)):
             conn.commit()
             row = _find_word(conn, form["word"], form["language"])
             return _entry_from_row(conn, row)
-        # Getrennte Identitäten, aber für die alten Pipeline-Payloads bleibt
-        # die numerische ID bei neu analysierten Trägerformen stabil.
+        # IDs sind fachlich unabhängig. Wo die alte Träger-ID noch frei ist,
+        # bleibt sie aus Kompatibilität stabil; andernfalls erhält das Lexem
+        # regulär eine eigene ID.
         collision = conn.execute(
             "SELECT id FROM lexemes WHERE id = ?", (body.form_id,)).fetchone()
         if collision:
-            raise HTTPException(
-                409, f"Lexem-ID {body.form_id} ist bereits belegt")
-        conn.execute(
-            "INSERT INTO lexemes"
-            " (id, language, lemma, word_class, status, source)"
-            " VALUES (?, ?, ?, ?, 'provisional', ?)",
-            (body.form_id, form["language"], body.lemma.strip(),
-             body.word_class.strip(), body.source))
+            cur = conn.execute(
+                "INSERT INTO lexemes"
+                " (language, lemma, word_class, status, source)"
+                " VALUES (?, ?, ?, 'provisional', ?)",
+                (form["language"], body.lemma.strip(),
+                 body.word_class.strip(), body.source))
+            lexeme_id = cur.lastrowid
+        else:
+            conn.execute(
+                "INSERT INTO lexemes"
+                " (id, language, lemma, word_class, status, source)"
+                " VALUES (?, ?, ?, ?, 'provisional', ?)",
+                (body.form_id, form["language"], body.lemma.strip(),
+                 body.word_class.strip(), body.source))
+            lexeme_id = body.form_id
         conn.execute(
             "INSERT INTO readings (form_id, lexeme_id, source)"
-            " VALUES (?, ?, ?)", (body.form_id, body.form_id, body.source))
+            " VALUES (?, ?, ?)", (body.form_id, lexeme_id, body.source))
         conn.execute(
             "INSERT INTO lexeme_forms (lexeme_id, form_id, cell)"
-            " VALUES (?, ?, '')", (body.form_id, body.form_id))
+            " VALUES (?, ?, '')", (lexeme_id, body.form_id))
         conn.execute(
             "INSERT INTO lexeme_defs (lexeme_id, lang, text, source)"
             " VALUES (?, ?, ?, ?)",
-            (body.form_id, form["language"], body.definition.strip(),
+            (lexeme_id, form["language"], body.definition.strip(),
              body.source))
         conn.commit()
         row = _find_word(conn, form["word"], form["language"])

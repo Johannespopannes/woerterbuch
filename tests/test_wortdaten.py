@@ -162,3 +162,30 @@ def test_flexionsform_verweist_auf_dasselbe_lexem():
     ).json()
     assert [lex["id"] for lex in bundle["lexemes"]] == [eid]
     assert bundle["lexemes"][0]["lemma"] == "Flexkopf"
+
+
+def test_wortform_und_lexem_ids_sind_unabhaengig():
+    r = client.post(
+        "/word-forms/batch",
+        json={"forms": [{"word": "IdKollision", "language": "de"}]},
+        headers=KEY)
+    assert r.status_code == 200
+    form = client.get(
+        "/word-forms", params={"language": "de", "prefix": "IdKollision"}
+    ).json()[0]
+    conn = db.get_conn()
+    try:
+        conn.execute(
+            "INSERT INTO lexemes (id, language, lemma, source)"
+            " VALUES (?, 'de', 'anderes Lexem', 'test')",
+            (form["form_id"],))
+        conn.commit()
+    finally:
+        conn.close()
+    r = client.post(
+        "/lexemes/analyze",
+        json={"form_id": form["form_id"], "lemma": "IdKollision",
+              "definition": "belegte Analyse", "source": "test-analyse"},
+        headers=KEY)
+    assert r.status_code == 201, r.text
+    assert r.json()["id"] != form["form_id"]
