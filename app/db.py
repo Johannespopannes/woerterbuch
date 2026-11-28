@@ -38,6 +38,7 @@ Daten erhalten (status='provisional').
 import os
 import re
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -443,10 +444,21 @@ class MyConn:
         self._conn.close()
 
 
+_mysql_migration_done = False
+_mysql_migration_lock = threading.Lock()
+
+
 def get_conn():
     """Backend-Auswahl: WB_DB=mysql → MariaDB, sonst SQLite."""
     if BACKEND == "mysql":
-        return MyConn()
+        global _mysql_migration_done
+        conn = MyConn()
+        if not _mysql_migration_done:
+            with _mysql_migration_lock:
+                if not _mysql_migration_done:
+                    _migrate(conn)
+                    _mysql_migration_done = True
+        return conn
     return _get_sqlite_conn()
 
 
