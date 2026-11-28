@@ -56,10 +56,15 @@ if unbekannt:
     print(f"!! Unerwartete Legacy-Tabellen: {sorted(unbekannt)} — Abbruch.")
     sys.exit(1)
 
+# Fremdschlüssel zwischen Legacy-Tabellen (z. B. senses -> entries)
+# während des Drops außer Kraft setzen.
+cur.execute("SET FOREIGN_KEY_CHECKS=0")
 for t in sorted(legacy):
     n = q(f"SELECT COUNT(*) c FROM `{t}`")[0]["c"]
     cur.execute(f"DROP TABLE `{t}`")
-    print(f"   gedroppt: {t} ({n} Zeilen)")
+    print(f"   gedroppt: {t} ({n} Zeilen)", flush=True)
 
+conn.commit()
+cur.execute("SET FOREIGN_KEY_CHECKS=1")
 conn.commit()
 print(f"Fertig: {len(legacy)} Legacy-Tabellen entfernt.")
