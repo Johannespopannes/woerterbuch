@@ -399,10 +399,13 @@ def _entry_from_row(conn, row, with_evidence: bool = True) -> dict:
 
 
 _ENTRY_SELECT = (
-    "SELECT w.id, w.word, w.language, w.script, w.source, w.created_at,"
+    "SELECT l.id, w.id AS form_id, w.word, w.language, w.script,"
+    " w.source, w.created_at,"
     " l.lemma, l.word_class, l.status, l.attrs, l.confidence, l.evidence,"
     " l.sprache_unsicher"
-    " FROM word_forms w JOIN lexemes l ON l.id = w.id"
+    " FROM word_forms w"
+    " JOIN readings rd0 ON rd0.form_id = w.id"
+    " JOIN lexemes l ON l.id = rd0.lexeme_id"
 )
 
 
@@ -800,16 +803,16 @@ def list_entries(
         _count_search(q, language or "")
     if undefined:
         sql += (" AND NOT EXISTS (SELECT 1 FROM lexeme_defs d"
-                " WHERE d.lexeme_id = w.id AND d.lang = 'de')")
+                " WHERE d.lexeme_id = l.id AND d.lang = 'de')")
     if noimage:
         sql += (" AND NOT EXISTS (SELECT 1 FROM lexeme_images li"
-                " WHERE li.lexeme_id = w.id)")
+                " WHERE li.lexeme_id = l.id)")
     if nolemma:
         sql += " AND (l.lemma IS NULL OR l.lemma = '')"
     if no_def:
         dl = no_def.lower()
         sql += (" AND NOT EXISTS (SELECT 1 FROM lexeme_defs d"
-                " WHERE d.lexeme_id = w.id AND d.lang = ?)")
+                " WHERE d.lexeme_id = l.id AND d.lang = ?)")
         params.append(dl)
     if nolinks:
         # Vollständig = alle Wikis + Wikidata (+ DWDS bei de). Unvollständige
@@ -817,7 +820,7 @@ def list_entries(
         l = (language or "").lower()
         erwartet = 4 if l == "de" else (0 if l == "tn" else 3)
         sql += (" AND (SELECT COUNT(*) FROM source_links s"
-                " WHERE s.lexeme_id = w.id) < ?")
+                " WHERE s.lexeme_id = l.id) < ?")
         params.append(erwartet)
     sql += " ORDER BY w.id DESC" if neu else " ORDER BY w.word"
     sql += " LIMIT ? OFFSET ?"
@@ -1198,7 +1201,8 @@ def grammatik_batch(batch: GrammarBatchIn, _=Depends(require_api_key)):
                      json.dumps(attrs, ensure_ascii=False) or "", lex_id))
                 # Paradigma ersetzen: alte Zellen weg, neue aus dem Dict
                 conn.execute(
-                    "DELETE FROM lexeme_forms WHERE lexeme_id = ?", (lex_id,))
+                    "DELETE FROM lexeme_forms"
+                    " WHERE lexeme_id = ? AND cell <> ''", (lex_id,))
                 if it.flexion:
                     def walk(node, path):
                         if isinstance(node, dict):
@@ -1223,6 +1227,11 @@ def grammatik_batch(batch: GrammarBatchIn, _=Depends(require_api_key)):
                                 " (lexeme_id, form_id, cell) VALUES (?, ?, ?)",
                                 (lex_id, wf_id,
                                  json.dumps(path, ensure_ascii=False)))
+                            conn.execute(
+                                "INSERT OR IGNORE INTO readings"
+                                " (form_id, lexeme_id, source)"
+                                " VALUES (?, ?, 'paradigm')",
+                                (wf_id, lex_id))
                     walk(it.flexion, [])
         conn.commit()
     finally:
@@ -2182,9 +2191,8 @@ def wortdaten(word: str, language: str):
             raise HTTPException(404, f"'{word}' nicht gefunden ({language})")
         # Lesarten = (form, lexeme)-Paare; Fallback: das 1:1-Lexem der Form
         lesarten = conn.execute(
-            f"{_ENTRY_SELECT} JOIN readings r"
-            " ON r.form_id = w.id AND r.lexeme_id = l.id"
-            " WHERE w.id = ? AND l.status <> 'candidate' ORDER BY l.id",
+            f"{_ENTRY_SELECT} WHERE w.id = ?"
+            " AND l.status <> 'candidate' ORDER BY l.id",
             (form["id"],)).fetchall()
         if not lesarten:
             lex = conn.execute(

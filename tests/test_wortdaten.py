@@ -144,3 +144,21 @@ def test_wortform_begruendet_nicht_automatisch_lexem():
     assert bundle["lexemes"][0]["lemma"] == wort
     assert bundle["lexemes"][0]["definitions"]["de"]["text"].startswith(
         "eine regulär untersuchte")
+
+
+def test_flexionsform_verweist_auf_dasselbe_lexem():
+    eid = _eintrag("Flexkopf", "de")
+    r = client.post(
+        "/grammatik/batch",
+        json={"items": [{
+            "language": "de", "lemma": "Flexkopf",
+            "word_class": "Substantiv",
+            "flexion": {"Numerus": {"Plural": "Flexkoepfe"}},
+        }]},
+        headers=KEY)
+    assert r.status_code == 200, r.text
+    bundle = client.get(
+        "/wortdaten", params={"word": "Flexkoepfe", "language": "de"}
+    ).json()
+    assert [lex["id"] for lex in bundle["lexemes"]] == [eid]
+    assert bundle["lexemes"][0]["lemma"] == "Flexkopf"

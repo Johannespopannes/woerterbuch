@@ -291,6 +291,10 @@ INSERT OR IGNORE INTO lexeme_forms (lexeme_id, form_id, cell)
 SELECT lexeme_id, form_id, '' FROM readings
 WHERE lexeme_id IS NOT NULL;
 """),
+    ("v2_all_form_readings", """
+INSERT OR IGNORE INTO readings (form_id, lexeme_id, source)
+SELECT form_id, lexeme_id, 'paradigm-link' FROM lexeme_forms;
+"""),
     ("v2_unsubstantiated_candidates", """
 UPDATE lexemes SET status = 'candidate'
 WHERE status = 'provisional'

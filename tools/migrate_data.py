@@ -381,6 +381,8 @@ executemany("INSERT IGNORE INTO readings (form_id, lexeme_id, source)"
 executemany("INSERT IGNORE INTO lexeme_forms (lexeme_id, form_id, cell)"
             " VALUES (%s,%s,'')",
             [(e["id"], e["id"]) for e in entries])
+run("INSERT IGNORE INTO readings (form_id, lexeme_id, source)"
+    " SELECT form_id, lexeme_id, 'paradigm-link' FROM lexeme_forms")
 # Audiodateien: <lang>-<id>-<voice>[-ls<x>].wav; stimmenlose Altdateien
 # (<lang>-<id>.wav) → voice='' = Default-Stimme der Sprache.
 # _t-*-Dateien sind Test-Cache, kein Bestand, werden nicht migriert.
