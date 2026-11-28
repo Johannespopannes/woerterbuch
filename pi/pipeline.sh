@@ -19,7 +19,17 @@ set -u
 cd "$(dirname "$0")/.."   # /home/johannes/woerterbuch
 
 export DICT_API_URL=http://127.0.0.1:8805
-export DICT_API_KEY="VHixW4pMVFCX_aaVD6TwTsbECZkqDPcM"
+# API-Key NICHT im Repo halten: aus der lokalen .env lesen (dort API_KEY=...).
+# Greift der grep nicht (alte .env), darf die Pipeline nicht mit einem
+# geratenen Key laufen — hart abbrechen statt still 401er produzieren.
+if [[ -z "${DICT_API_KEY:-}" ]]; then
+    DICT_API_KEY="$(sed -n 's/^API_KEY=//p' .env 2>/dev/null | head -1)"
+fi
+if [[ -z "${DICT_API_KEY:-}" ]]; then
+    echo "!! DICT_API_KEY fehlt (.env ohne API_KEY=)" >&2
+    exit 1
+fi
+export DICT_API_KEY
 export MODEL_BASE_URL=https://modelhub.tassekaffee.com/v1 MODEL_API_KEY=dummy
 # Lanes denken (t-pro-it!) und kriechen auf CPU (33B ~1-2,5 t/s) — 240 s
 # Default reicht fuer Batch-Antworten oft nicht; 900 s Deckel laut

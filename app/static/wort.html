@@ -12,7 +12,6 @@
          padding: 3vh 1rem 3rem; display: flex; flex-direction: column;
          align-items: center; }
   main { width: min(760px, 100%); }
-  /* kleiner fester Markenbereich statt riesiger Ueberschrift */
   .brand { width: 100%; display: flex; justify-content: space-between;
            align-items: baseline; margin-bottom: 1.2rem; }
   .brand a { color: var(--accent); text-decoration: none; font-size: .95rem; }
@@ -23,6 +22,8 @@
   .wortkopf h1 { font-size: clamp(1.9rem, 5vw, 2.6rem); font-weight: normal;
                  margin: 0 0 .2rem; }
   .wsub { color: var(--muted); letter-spacing: .06em; font-size: .85rem; }
+  .aussprache { color: var(--muted); font-size: .88rem; margin-top: .3rem; }
+  .aussprache .transkript { margin-right: .8rem; }
   .schriften { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0 .25rem; }
   .schriften a {
     display: inline-block; padding: .18rem .7rem; border-radius: 999px;
@@ -52,8 +53,18 @@
           border-radius: 10px; padding: .6rem .9rem; margin-bottom: 1rem;
           font-size: .9rem; }
 
-  /* Bild und Bedeutung nebeneinander, auf dem Smartphone untereinander.
-     Ohne Bild laeuft der Text ueber die volle Breite. */
+  /* Eine Lesart (Lexem) pro Abschnitt; bei mehreren Lesarten rahmt eine
+     Leiste die Zuordnung Wortform -> Lexem -> Bedeutungen. */
+  section.lexem { margin-bottom: 2rem; }
+  .lesartkopf { display: flex; align-items: baseline; gap: .6rem;
+                flex-wrap: wrap; margin-bottom: .8rem;
+                border-bottom: 1px solid var(--line); padding-bottom: .45rem; }
+  .lesartkopf h2 { font-size: 1.15rem; font-weight: normal; margin: 0; }
+  .lesartkopf .lk-meta { color: var(--muted); font-size: .85rem; }
+  .statusbadge { font-size: .75rem; border: 1px solid var(--muted);
+                 color: var(--muted); border-radius: 999px;
+                 padding: .1rem .55rem; }
+
   .inhalt { display: grid; grid-template-columns: 240px 1fr; gap: 1.4rem;
             align-items: start; }
   .inhalt.ohne-bild { display: block; }
@@ -63,18 +74,35 @@
   .bildbox { text-align: center; }
   img.wbild { width: 220px; max-width: 100%; border-radius: 12px;
               border: 1px solid var(--line); background: var(--card); }
-  #galerie { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .5rem;
+  .galerie { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .5rem;
              justify-content: center; }
-  #galerie img { width: 64px; height: 64px; object-fit: cover;
+  .galerie img { width: 64px; height: 64px; object-fit: cover;
                  border-radius: 8px; border: 1px solid var(--line);
                  cursor: pointer; background: var(--card); }
-  #galerie img:hover { border-color: var(--accent); }
+  .galerie img:hover { border-color: var(--accent); }
 
   .def { font-size: 1.05rem; line-height: 1.55; }
+  /* Bilder, die einer konkreten Bedeutung zugeordnet sind, erscheinen
+     direkt beim Sinn statt unzugeordnet neben der Wortebene */
+  .sinn-bilder { display: flex; flex-wrap: wrap; gap: .45rem;
+                 margin: .55rem 0 .2rem; }
+  .sinn-bilder img { width: 88px; height: 88px; object-fit: cover;
+                     border-radius: 10px; border: 1px solid var(--line);
+                     background: var(--card); }
   h2.sec { font-size: .85rem; margin: 0 0 .5rem; color: var(--muted);
            text-transform: uppercase; letter-spacing: .06em; font-weight: normal; }
+  h3.sinnlabel { font-size: 1.05rem; margin: .9rem 0 .3rem; }
+  .sinn { margin-bottom: .9rem; }
 
-  /* Sprachpruefung: kleine Aktion statt dominierendem Kasten */
+  /* Wortebenen-Bestand ohne Bedeutungszuordnung: sichtbar, aber gedämpft —
+     er ist noch keine autoritative Aussage einer Lesart. */
+  .unzugeordnet { margin-top: 1rem; border: 1px dashed var(--line);
+                  border-radius: 12px; padding: .7rem .9rem;
+                  opacity: .85; background: var(--card); }
+  .unzugeordnet h2.sec { margin-bottom: .35rem; }
+  .unzugeordnet .hinweis { color: var(--muted); font-size: .78rem;
+                           margin: 0 0 .5rem; }
+
   .sprachcheck { margin-top: 1.1rem; border-top: 1px solid var(--line);
                  padding-top: .8rem; }
   .sprachcheck .frage { font-size: .95rem; margin-bottom: .5rem; }
@@ -83,12 +111,12 @@
                      padding: .35rem .85rem;
                      border-radius: 999px; cursor: pointer;
                      border: 1px solid var(--line); background: var(--card); }
-  #dazu { border-color: var(--ok); color: var(--ok); }
-  #dazu:hover { background: var(--ok); color: #fff; }
-  #nicht { border-color: var(--no); color: var(--no); }
-  #nicht:hover { background: var(--no); color: #fff; }
-  #unsicher { border-color: var(--muted); color: var(--muted); }
-  #unsicher:hover { background: var(--muted); color: #fff; }
+  .v-dazu { border-color: var(--ok); color: var(--ok); }
+  .v-dazu:hover { background: var(--ok); color: #fff; }
+  .v-nicht { border-color: var(--no); color: var(--no); }
+  .v-nicht:hover { background: var(--no); color: #fff; }
+  .v-unsicher { border-color: var(--muted); color: var(--muted); }
+  .v-unsicher:hover { background: var(--muted); color: #fff; }
   .meta { color: var(--muted); font-size: .8rem; }
 
   ul.fam { list-style: none; padding: 0; margin: .4rem 0 0;
@@ -105,7 +133,6 @@
           border-bottom: 1px dotted var(--accent); }
   a.ext:hover { border-bottom-style: solid; }
 
-  /* aufklappbar: Bildwertungen, Quellen, technische Nachweise */
   details.pruef { margin-top: 1.4rem; border: 1px solid var(--line);
                   border-radius: 12px; background: var(--card);
                   padding: .7rem 1rem; }
@@ -141,10 +168,10 @@
   }
   .bvbtns button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
   .bvbtns button:disabled { opacity: .5; cursor: default; }
-  #bja { border-color: #4a7c59; color: #4a7c59; }
-  #bja:hover:not(:disabled) { background: #4a7c59; color: #fff; }
-  #bnein { border-color: #a0442c; color: #a0442c; }
-  #bnein:hover:not(:disabled) { background: #a0442c; color: #fff; }
+  .bv-ja { border-color: #4a7c59 !important; color: #4a7c59; }
+  .bv-ja:hover:not(:disabled) { background: #4a7c59; color: #fff; }
+  .bv-nein { border-color: #a0442c !important; color: #a0442c; }
+  .bv-nein:hover:not(:disabled) { background: #a0442c; color: #fff; }
 
   footer { margin-top: 2.5rem; color: var(--muted); font-size: .8rem; }
   footer a { color: var(--accent); text-decoration: none; }
@@ -159,6 +186,7 @@
   <div class="wortkopf">
     <h1 id="wort">…</h1>
     <div class="wsub" id="wsub"></div>
+    <div class="aussprache" id="aussprache" style="display:none"></div>
     <div class="schriften" id="schriften" style="display:none"></div>
     <button id="ton" title="Wort anhören">🔊 Anhören</button>
     <div class="stimmezeile" id="stimmezeile" style="display:none">
@@ -171,86 +199,17 @@
     </div>
   </div>
 
-  <div class="warn" id="warn" style="display:none">
-    Dieses Wort ist <strong>beanstandet</strong> — die Sprachzugehörigkeit ist
-    unsicher. Deine Stimme hilft bei der Klärung.
+  <div id="lexeme"></div>
+
+  <div class="neben" id="famcard" style="display:none">
+    <h2 class="sec">Wortfamilie</h2>
+    <ul class="fam" id="fam"></ul>
   </div>
 
-  <div class="inhalt ohne-bild">
-    <div class="bildbox" id="bildcard" style="display:none">
-      <img id="hauptbild" class="wbild" alt="Bild zum Wort">
-      <div class="bildvote">
-        <span class="frage-klein">Versteht man das Bild?</span>
-        <span class="bvbtns">
-          <button id="bja" title="Das Bild beschreibt das Wort gut">Ja</button>
-          <button id="bnein" title="Das Bild passt nicht">Nein</button>
-          <span class="meta" id="bstand"></span>
-        </span>
-      </div>
-      <div id="galerie"></div>
-    </div>
-
-    <div>
-      <div id="defcard" style="display:none">
-        <h2 class="sec">Bedeutung</h2>
-        <div class="schriften" id="defsprachen" style="margin-top:.25rem"></div>
-        <div class="def" id="def"></div>
-      </div>
-
-      <div id="sinncard" style="display:none">
-        <h2 class="sec">Bedeutungen</h2>
-        <div id="sinne"></div>
-      </div>
-
-      <div class="neben" id="gramcard" style="display:none">
-        <h2 class="sec">Grammatik</h2>
-        <div class="gramzeile" id="gramzeile"></div>
-        <div class="gramflex" id="gramflexwrap" style="display:none">
-          <div id="gramflex"></div>
-        </div>
-      </div>
-
-      <div class="neben" id="tlhgram" style="display:none">
-        <h2 class="sec">Klingonische Grammatik</h2>
-        <div id="tlhgrambody"></div>
-      </div>
-
-      <div class="sprachcheck">
-        <div class="frage" id="sprachfrage">Ist dies ein Wort dieser Sprache?</div>
-        <div class="votebtns">
-          <button id="dazu" title="Gebräuchliches Wort dieser Sprache">Gehört dazu</button>
-          <button id="nicht" title="Falsche Sprache oder kein Wort">Gehört nicht dazu</button>
-          <button id="unsicher">Unsicher</button>
-          <span class="meta" id="votestand"></span>
-        </div>
-      </div>
-
-      <div class="neben" id="famcard" style="display:none">
-        <h2 class="sec">Wortfamilie</h2>
-        <ul class="fam" id="fam"></ul>
-      </div>
-
-      <div class="neben" id="compcard" style="display:none">
-        <h2 class="sec">Zusammensetzung</h2>
-        <div id="comp"></div>
-      </div>
-    </div>
+  <div class="neben" id="compcard" style="display:none">
+    <h2 class="sec">Zusammensetzung</h2>
+    <div id="comp"></div>
   </div>
-
-  <details class="pruef" id="pruefcard">
-    <summary>Bild bewerten · Weitere Bilder · Quellen · Prüfdetails</summary>
-    <div class="pruef-inhalt">
-      <div class="bildstimmen" id="bildstimmen"></div>
-      <div class="meta" id="bildvotes"></div>
-      <ul class="evi" id="extlinks" style="display:none"></ul>
-      <ul class="evi" id="evi"></ul>
-      <div class="meta" id="quelle" style="margin-top:.6rem"></div>
-      <div id="satzeCard" style="display:none; margin-top:.6rem">
-        <h2 class="sec">Beispielsätze</h2>
-        <ul class="evi satze" id="satze"></ul>
-      </div>
-    </div>
-  </details>
 </main>
 <footer>
   <a href="/">Zur Suche</a> · <a href="/verzeichnis">Stichwortverzeichnis</a> · <a href="/bewerten">Bilder bewerten</a> · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
@@ -258,10 +217,8 @@
 
 <script src="/wb.js"></script>
 <script>
-// Verbindliche Bildfrage aus dem gemeinsamen Modul
-document.querySelector('.frage-klein').textContent = WB.BILD_FRAGEN.frage;
-document.getElementById('bja').textContent = WB.BILD_FRAGEN.ja;
-document.getElementById('bnein').textContent = WB.BILD_FRAGEN.nein;
+// Verbindliche Bildfrage aus dem gemeinsamen Modul.
+const BILD_FRAGE = WB.BILD_FRAGEN;
 
 const p = new URLSearchParams(location.search);
 const word = p.get('word') || '';
@@ -270,21 +227,9 @@ document.getElementById('wort').textContent = word;
 
 const STOP = new Set(('der die das den dem des ein eine und oder aber mit von zu in im an auf aus bei nach über als auch nicht ich du er sie es wir ihr man sich so wie wenn dann noch schon zum zur vom').split(' '));
 
-// Klingonische Affix-Tabellen (boQwI') — einmal laden, cachen
-let tlhGramCache = null;
-function ladeTlhGrammatik() {
-  if (!tlhGramCache) {
-    tlhGramCache = fetch('/tlh-grammatik.json').then(r => {
-      if (!r.ok) throw new Error('tlh-grammatik: ' + r.status);
-      return r.json();
-    }).catch(() => null);
-  }
-  return tlhGramCache;
-}
-
 function linkify(el, text) {
   el.innerHTML = '';
-  for (const tok of text.split(/(\s+)/)) {
+  for (const tok of String(text).split(/(\s+)/)) {
     const clean = tok.replace(/[^\p{L}\p{N}-]/gu, '');
     if (clean.length >= 3 && !STOP.has(clean.toLowerCase())) {
       const a = document.createElement('a');
@@ -300,384 +245,696 @@ function linkify(el, text) {
 
 function show(el, on) { el.style.display = on ? '' : 'none'; }
 
+// Wortart-Präfix («Substantiv, m: …») aus Definitionstexten entfernen
+function stripWortart(t) {
+  const m = String(t).match(/^\s*[\p{L}][\p{L}\s,()]{0,30}?:\s+(.*)$/us);
+  return m ? m[1] : t;
+}
 
-async function load() {
-  const lu = await fetch('/lookup?' + new URLSearchParams({ word, language: lang }));
-  if (!lu.ok) { document.getElementById('wort').textContent = word + ' — nicht gefunden'; return; }
-  const e = await lu.json();
-  const ev = await fetch(`/entries/${e.id}/evidence`).then(r => r.json());
-
-  // Kopf: Sprache (+ Wortart aus Grammatik-Ebene, Fallback Definitionseinstieg)
-  let wortart = '';
-  if (ev.grammar && ev.grammar.word_class) wortart = ' · ' + ev.grammar.word_class;
-  else {
-    const mArt = (ev.definition || '').match(/^\s*([\p{L}]+)\s*:/u);
-    if (mArt) wortart = ' · ' + mArt[1];
-  }
-  document.getElementById('wsub').textContent =
-    WB.sprachName(lang) + wortart;
-  const adj = WB.sprachAdj(lang);
-  document.getElementById('sprachfrage').textContent =
-    'Ist „' + word + '“ ein ' + (adj.endsWith('-') ? adj + 'Wort' : adj + ' Wort') + '?';
-
-  // Grammatik-Karte komplett aus dem gemeinsamen Modul (FUNKTIONSKATALOG)
-  if (ev.grammar) {
-    show(document.getElementById('gramcard'), true);
-    WB.grammatikKarte({
-      zeile: document.getElementById('gramzeile'),
-      flexwrap: document.getElementById('gramflexwrap'),
-      flexbox: document.getElementById('gramflex'),
-    }, ev.grammar, word, lang);
-  }
-
-  // Klingonische Affix-Tabellen (boQwI', kanonisch): Nomina bekommen die
-  // Nominalsuffix-Tabelle, Verben Präfix- + Verbal­suffix-Tabellen. Jede
-  // Zelle verlinkt auf den Affix-Eintrag mit deutscher boQwI'-Definition.
-  if (lang === 'tlh') {
-    ladeTlhGrammatik().then(g => {
-      if (!g) return;
-      const body = document.getElementById('tlhgrambody');
-      body.textContent = '';
-      const cls = (ev.grammar || {}).word_class || '';
-      const titel = t => {
-        const h = document.createElement('h3');
-        h.style.cssText = 'margin:.7rem 0 .2rem;font-size:.95rem';
-        h.textContent = t;
-        body.appendChild(h);
-      };
-      const hinweis = t => {
-        const p = document.createElement('p');
-        p.style.cssText = 'opacity:.75;font-size:.82rem;margin:.1rem 0 .4rem';
-        p.textContent = t;
-        body.appendChild(p);
-      };
-      const affixLink = (a, f) => {
-        const x = document.createElement('a');
-        x.textContent = a;
-        const q = { word: a, lang: 'tlh' };
-        if (f) q.f = f;  // verlinkt den Sinn der konkreten Funktion
-        x.href = '/worteintrag?' + new URLSearchParams(q);
-        return x;
-      };
-      const suffixTabelle = (data) => {
-        titel(data.titel);
-        hinweis(data.hinweis);
-        const grid = document.createElement('div');
-        grid.style.cssText = 'display:flex;flex-wrap:wrap;gap:.35rem .8rem';
-        for (const [typ, suffixe] of Object.entries(data.types)) {
-          const grp = document.createElement('span');
-          const lab = document.createElement('b');
-          lab.textContent = typ + ': ';
-          grp.appendChild(lab);
-          const f = data === g.noun_suffixes
-            ? (s => `Nominalsuffix (Typ ${typ})`)
-            : (typ === 'Rover'
-               ? (s => 'Verbal suffix (Rover)')
-               : (s => `Verbal suffix (Typ ${typ})`));
-          suffixe.forEach((s, i) => {
-            if (i) grp.appendChild(document.createTextNode(' '));
-            grp.appendChild(affixLink(s, f(s)));
-          });
-          grid.appendChild(grp);
-        }
-        body.appendChild(grid);
-      };
-      const prefixTabelle = (data) => {
-        titel(data.titel);
-        hinweis(data.hinweis);
-        const tab = document.createElement('table');
-        tab.style.cssText =
-          'border-collapse:collapse;font-size:.85rem;margin:.2rem 0';
-        const zelle = (txt, kopf) => {
-          const td = document.createElement(kopf ? 'th' : 'td');
-          td.style.cssText = 'padding:.15rem .45rem;text-align:center;'
-            + 'border-bottom:1px solid var(--linie,#ccc)';
-          td.textContent = txt;
-          return td;
-        };
-        const hkopf = document.createElement('tr');
-        hkopf.appendChild(zelle('Subjekt ↓ / Objekt →', true));
-        data.objects.forEach(o => hkopf.appendChild(zelle(o, true)));
-        tab.appendChild(hkopf);
-        const zeile = (label, prefixes, f) => {
-          const tr = document.createElement('tr');
-          const th = document.createElement('th');
-          th.style.cssText = 'padding:.15rem .45rem;text-align:left;'
-            + 'border-bottom:1px solid var(--linie,#ccc)';
-          th.textContent = label;
-          tr.appendChild(th);
-          prefixes.forEach(p => {
-            const td = document.createElement('td');
-            td.style.cssText = 'padding:.15rem .45rem;text-align:center;'
-              + 'border-bottom:1px solid var(--linie,#ccc)';
-            if (p && p !== '—' && !p.startsWith('∅'))
-              td.appendChild(affixLink(p, f || 'Verbpräfix'));
-            else td.textContent = p;
-            tr.appendChild(td);
-          });
-          tab.appendChild(tr);
-        };
-        data.rows.forEach(r => zeile(r.subject, r.prefixes));
-        zeile(data.unpersoenlich.label, data.unpersoenlich.prefixes,
-              'Verbpräfix (unpersönlich)');
-        data.imperativ.forEach(r => zeile(r.subject, r.prefixes));
-        body.appendChild(tab);
-      };
-      if (cls === 'noun') suffixTabelle(g.noun_suffixes);
-      else if (cls === 'verb') {
-        prefixTabelle(g.verb_prefixes);
-        suffixTabelle(g.verb_suffixes);
-      } else if (cls === 'affix') {
-        // Affix-Eintrag: Stelle im Regelwerk (Typ + Tabelle) nennen
-        const treffer = [];
-        for (const [typ, list] of Object.entries(g.noun_suffixes.types))
-          if (list.includes(word)) treffer.push('Nominalsuffix, Typ ' + typ);
-        for (const [typ, list] of Object.entries(g.verb_suffixes.types))
-          if (list.includes(word)) treffer.push('Verbal suffix, Typ ' + typ);
-        const istPraefix = g.verb_prefixes.rows.some(r =>
-          r.prefixes.includes(word));
-        if (istPraefix) treffer.push('Verbpräfix (Subjekt×Objekt)');
-        if (treffer.length) {
-          titel('Affix-Typ');
-          hinweis(treffer.join(' · '));
-        }
-      } else if (cls) {
-        // sonstige Wortklassen: beide Übersichten als Referenz
-        suffixTabelle(g.noun_suffixes);
-        prefixTabelle(g.verb_prefixes);
-      }
-      const q = document.createElement('p');
-      q.style.cssText = 'opacity:.6;font-size:.75rem;margin-top:.5rem';
-      q.textContent = g.quelle;
-      body.appendChild(q);
-      show(document.getElementById('tlhgram'), body.children.length > 1);
-    });
-  }
-
-  // Konfidenz als klarer Textstatus statt Fortschrittsbalken
-  const cs = document.getElementById('confstand');
-  if (ev.confidence != null) {
-    const pct = Math.round(ev.confidence * 1000) / 10;
-    cs.textContent = 'Sprach-Konfidenz: ' + pct.toLocaleString('de-DE') + ' %' +
-      (ev.confidence >= 0.8 ? ' — gut belegt'
-        : ev.confidence >= 0.5 ? ' — wahrscheinlich' : ' — unsicher');
-  } else {
-    cs.textContent = ev.sprache_unsicher ? 'Sprachzugehörigkeit beanstandet'
-                                         : 'ungeprüft';
-  }
-
-  if (ev.sprache_unsicher) show(document.getElementById('warn'), true);
-
-  // Gepruefte Externquellen (Existenz wurde von der Pipeline verifiziert)
-  if (ev.source_links && ev.source_links.length) {
-    const ul = document.getElementById('extlinks');
-    ul.innerHTML = '';
-    const namen = { wiktionary: 'Wiktionary', wikipedia: 'Wikipedia',
-                    dwds: 'DWDS (Wortgeschichte)' };
-    for (const l of ev.source_links) {
-      const li = document.createElement('li');
+// Mehrsprachige Texte (Definitionen/Beschreibungen) mit Chips umschalten.
+// codes: {lang: text}; quelle: {lang: herkunftstext} für Tooltips.
+// Nur bei echter Auswahl (> 1 Sprache) werden Chips gezeichnet.
+function sprachUmschalter(box, codes, quelle) {
+  box.innerHTML = '';
+  const pEl = document.createElement('p');
+  pEl.className = 'def';
+  const chips = document.createElement('div');
+  chips.className = 'schriften';
+  let aktuell = codes[lang] !== undefined ? lang
+    : (codes.de !== undefined ? 'de' : Object.keys(codes)[0]);
+  const render = () => {
+    linkify(pEl, stripWortart(codes[aktuell]));
+    for (const c of chips.children)
+      c.classList.toggle('aktiv', c.dataset.l === aktuell);
+  };
+  const quellTitel = c => {
+    const s = (quelle && quelle[c]) || '';
+    if (s.startsWith('translate:'))
+      return 'Übersetzung aus ' + (WB.sprachName(s.slice(10)) || s.slice(10));
+    return { legacy: 'Bestandsdefinition', harvester: 'Modell (de)',
+             'define-own': 'Modell (Eintragssprache)',
+             'legacy-checked': 'Geprüfter Bestand',
+             'model': 'Modell', 'harvest': 'Ernte',
+             'translation-carrier': 'Platzhalter (vorläufig)' }[s] || (s || '');
+  };
+  if (Object.keys(codes).length > 1) {
+    for (const c of Object.keys(codes)) {
       const a = document.createElement('a');
-      a.href = l.url;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      a.textContent = namen[l.kind] || l.kind;
-      li.appendChild(a);
-      ul.appendChild(li);
+      a.textContent = WB.sprachName(c) || c;
+      a.dataset.l = c;
+      a.href = '#';
+      const t = quellTitel(c);
+      if (t) a.title = t;
+      a.addEventListener('click', ev2 => {
+        ev2.preventDefault(); aktuell = c; render();
+      });
+      chips.appendChild(a);
     }
-    show(ul, true);
+  }
+  box.appendChild(pEl);
+  if (chips.children.length) box.appendChild(chips);
+  render();
+}
+
+// ---------- Klingonische Affix-Tabellen (boQwI') — einmal laden, cachen
+let tlhGramCache = null;
+function ladeTlhGrammatik() {
+  if (!tlhGramCache) {
+    tlhGramCache = fetch('/tlh-grammatik.json').then(r => {
+      if (!r.ok) throw new Error('tlh-grammatik: ' + r.status);
+      return r.json();
+    }).catch(() => null);
+  }
+  return tlhGramCache;
+}
+
+// ---------- Eine Lesart (Lexem) komplett generisch aus dem Bundle rendern
+function renderLexem(lex, index, anzahl) {
+  const sec = document.createElement('section');
+  sec.className = 'lexem';
+
+  // Kopfzeile der Lesart: bei mehreren Lesarten die Zuordnung zeigen
+  if (anzahl > 1) {
+    const kopf = document.createElement('div');
+    kopf.className = 'lesartkopf';
+    const h = document.createElement('h2');
+    h.textContent = (lex.lemma && lex.lemma !== word ? lex.lemma : word);
+    kopf.appendChild(h);
+    const meta = document.createElement('span');
+    meta.className = 'lk-meta';
+    const teile = [];
+    if (lex.word_class) teile.push(lex.word_class);
+    if (lex.attrs && lex.attrs.genus) teile.push(lex.attrs.genus);
+    meta.textContent = teile.join(' · ');
+    if (meta.textContent) kopf.appendChild(meta);
+    if (lex.status === 'provisional') {
+      const b = document.createElement('span');
+      b.className = 'statusbadge';
+      b.textContent = 'vorläufig';
+      b.title = 'Diese Lesart ist noch nicht abschließend geprüft';
+      kopf.appendChild(b);
+    }
+    sec.appendChild(kopf);
   }
 
-  // Bild + Galerie-Thumbs (Kombination beschreibt den Begriff)
-  const bilder = ev.bilder || [];
-  if (bilder.length) {
-    show(document.getElementById('bildcard'), true);
-    document.querySelector('.inhalt').classList.remove('ohne-bild');
-    const main = bilder.find(b => b.main) || bilder[0];
-    const hb = document.getElementById('hauptbild');
-    hb.src = '/bilder/' + main.filename;
-    const g = document.getElementById('galerie');
-    g.innerHTML = '';
-    const zeilen = [];
-    for (const b of bilder) {
-      if (b.main) continue;
+  if (lex.sprache_unsicher) {
+    const w = document.createElement('div');
+    w.className = 'warn';
+    w.innerHTML = 'Diese Lesart ist <strong>beanstandet</strong> — die ' +
+      'Sprachzugehörigkeit ist unsicher. Deine Stimme hilft bei der Klärung.';
+    sec.appendChild(w);
+  }
+
+  // Bild (Lexemebene) + Inhalt nebeneinander
+  const inhalt = document.createElement('div');
+  inhalt.className = 'inhalt' + (lex.images.main ? '' : ' ohne-bild');
+  const spalte = document.createElement('div');
+
+  if (lex.images.main) {
+    const bildbox = document.createElement('div');
+    bildbox.className = 'bildbox';
+    const hb = document.createElement('img');
+    hb.className = 'wbild';
+    hb.alt = 'Bild zur Lesart';
+    hb.src = '/bilder/' + lex.images.main;
+    bildbox.appendChild(hb);
+    const g = document.createElement('div');
+    g.className = 'galerie';
+    for (const fn of lex.images.gallery) {
       const img = document.createElement('img');
-      img.src = '/bilder/' + b.filename;
-      img.title = b.filename + ' — antippen zum Vergrößern';
+      img.src = '/bilder/' + fn;
+      img.title = fn + ' — antippen zum Vergrößern';
+      img.loading = 'lazy';
       img.addEventListener('click', () => { hb.src = img.src; });
       g.appendChild(img);
     }
-    // Stimmen pro Bilddatei in die Prüfdetails
-    for (const b of bilder) {
+    if (g.children.length) bildbox.appendChild(g);
+
+    // Bildbewertung direkt an der Bildkarte — eine Frage, ein Ort
+    const bv = document.createElement('div');
+    bv.className = 'bildvote';
+    const fr = document.createElement('span');
+    fr.className = 'frage-klein';
+    fr.textContent = BILD_FRAGE.frage;
+    const btns = document.createElement('span');
+    btns.className = 'bvbtns';
+    const stand = document.createElement('span');
+    stand.className = 'meta';
+    const bja = document.createElement('button');
+    bja.className = 'bv-ja';
+    bja.textContent = BILD_FRAGE.ja;
+    const bnein = document.createElement('button');
+    bnein.className = 'bv-nein';
+    bnein.textContent = BILD_FRAGE.nein;
+    const iv = (lex.ratings && lex.ratings.image) || { ja: 0, nein: 0 };
+    let voted = false;
+    const bildStand = (xJa, xNein) => {
+      stand.textContent = `${iv.ja + (xJa || 0)}× ja · ${iv.nein + (xNein || 0)}× nein`;
+    };
+    bildStand();
+    const bvVote = async (understood) => {
+      if (voted) return;
+      voted = true;
+      bja.disabled = true; bnein.disabled = true;
+      const r = await WB.bildVote({ entryId: lex.id, understood,
+                                    session: 'wortseite' });
+      if (r.ok) bildStand(understood ? 1 : 0, understood ? 0 : 1);
+      else { voted = false; bja.disabled = false; bnein.disabled = false; }
+    };
+    bja.addEventListener('click', () => bvVote(true));
+    bnein.addEventListener('click', () => bvVote(false));
+    btns.append(bja, bnein, stand);
+    bv.append(fr, btns);
+    bildbox.appendChild(bv);
+    inhalt.appendChild(bildbox);
+  }
+
+  // --- Bedeutungen: jede mit eigenen Beschreibungen, Bildern,
+  //     Übersetzungen und Belegen
+  const sinne = lex.meanings || [];
+  if (sinne.length) {
+    const card = document.createElement('div');
+    card.id = 'sinncard-' + lex.id;
+    const h = document.createElement('h2');
+    h.className = 'sec';
+    h.textContent = anzahl > 1 ? 'Bedeutungen dieser Lesart' : 'Bedeutungen';
+    card.appendChild(h);
+    const box = document.createElement('div');
+    const fokus = p.get('f');
+    for (const s of sinne) {
       const d = document.createElement('div');
-      d.textContent = (b.main ? 'Hauptbild ' : b.filename + ' ') +
-        `— verstanden: ${b.ja} · nicht: ${b.nein}`;
-      document.getElementById('bildstimmen').appendChild(d);
+      d.className = 'sinn';
+      if (fokus && s.label === fokus) {
+        d.style.cssText = 'outline:2px solid var(--accent);'
+          + 'outline-offset:4px;border-radius:4px';
+        setTimeout(() => d.scrollIntoView({ behavior: 'smooth',
+                                            block: 'center' }), 150);
+      }
+      const h3 = document.createElement('h3');
+      h3.className = 'sinnlabel';
+      h3.textContent = s.label + (s.word_class ? ' · ' + s.word_class : '');
+      d.appendChild(h3);
+      // Beschreibungen pro Bedeutung (leere Texte fallen weg)
+      const sd = {};
+      for (const [lc, t] of Object.entries(s.definitions || {}))
+        if (String(t || '').trim()) sd[lc] = t;
+      if (Object.keys(sd).length) {
+        const db = document.createElement('div');
+        sprachUmschalter(db, sd, s.def_sources || {});
+        d.appendChild(db);
+      }
+      if (s.status === 'provisional') {
+        const b = document.createElement('span');
+        b.className = 'statusbadge';
+        b.textContent = 'vorläufig';
+        d.appendChild(b);
+      }
+      // dem Sinn zugeordnete Bilder direkt bei der Bedeutung
+      if (s.images && s.images.length) {
+        const ib = document.createElement('div');
+        ib.className = 'sinn-bilder';
+        for (const fn of s.images) {
+          const img = document.createElement('img');
+          img.src = '/bilder/' + fn;
+          img.alt = 'Bild zur Bedeutung „' + s.label + '“';
+          img.title = fn;
+          img.loading = 'lazy';
+          ib.appendChild(img);
+        }
+        d.appendChild(ib);
+      }
+      if (s.translations && s.translations.length) {
+        const tdiv = document.createElement('div');
+        tdiv.className = 'schriften';
+        for (const t of s.translations) {
+          const a = document.createElement('a');
+          a.textContent = (t.approx ? '≈ ' : '') + t.word + ' ' +
+                          t.language.toUpperCase();
+          a.href = '/worteintrag?' + new URLSearchParams(
+            { word: t.word, lang: t.language });
+          if (t.approx)
+            a.title = 'Ungefähre Entsprechung, keine 1:1-Übersetzung';
+          else if (t.source && t.source.startsWith('verify:'))
+            a.title = 'Gegengeprüfte Übersetzung';
+          else if (t.source)
+            a.title = 'Modell-Vorschlag, noch nicht gegengeprüft';
+          tdiv.appendChild(a);
+        }
+        d.appendChild(tdiv);
+      }
+      if (s.links && s.links.length) {
+        const ul = document.createElement('ul');
+        ul.className = 'evi';
+        const namen = { wiktionary: 'Wiktionary', wikipedia: 'Wikipedia',
+                        dwds: 'DWDS', wortbildung: 'Wortbildung' };
+        for (const l of s.links) {
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = l.url;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.textContent = namen[l.kind] || l.kind;
+          if (l.source && l.source.startsWith('vermutung:')) {
+            a.textContent = '⚠ ' + a.textContent;
+            a.title = 'Vermutung (unbelegt): ' + (l.claim || '');
+          } else if (l.claim) {
+            a.title = 'Belegt: ' + l.claim;
+          }
+          li.appendChild(a);
+          ul.appendChild(li);
+        }
+        d.appendChild(ul);
+      }
+      box.appendChild(d);
     }
-    const iv = ev.image_votes || { ja: 0, nein: 0 };
-    const un = ev.unknown_votes || 0;
-    document.getElementById('bildvotes').textContent =
-      `Gesamt: ${iv.ja}× verstanden · ${iv.nein}× nicht verstanden` +
+    card.appendChild(box);
+    spalte.appendChild(card);
+  }
+
+  // --- Wortebenen-Bestand (noch keiner Bedeutung zugeordnet): gedämpft.
+  //     Sprachen, die die Bedeutungen bereits beschreiben, wiederholen
+  //     die Wortebene nicht.
+  const wortDefs = {};
+  for (const [lc, d] of Object.entries(lex.definitions || {})) {
+    if (d && String(d.text || '').trim()) wortDefs[lc] = d.text;
+  }
+  if (sinne.length) {
+    const sinnSprachen = new Set();
+    for (const s of sinne)
+      for (const [lc, t] of Object.entries(s.definitions || {}))
+        if (String(t || '').trim()) sinnSprachen.add(lc);
+    for (const lc of Object.keys(wortDefs))
+      if (sinnSprachen.has(lc)) delete wortDefs[lc];
+  }
+  const beispiele = lex.examples || [];
+  if (Object.keys(wortDefs).length || beispiele.length) {
+    const u = document.createElement('div');
+    u.className = 'unzugeordnet';
+    const h = document.createElement('h2');
+    h.className = 'sec';
+    h.textContent = 'Weitere Angaben (Wortebene)';
+    u.appendChild(h);
+    const hin = document.createElement('p');
+    hin.className = 'hinweis';
+    hin.textContent = 'Diese Angaben gehören noch keiner einzelnen Bedeutung ' +
+      '— die Zuordnung erfolgt durch die laufende Prüfung.';
+    u.appendChild(hin);
+    if (Object.keys(wortDefs).length) {
+      const quellen = {};
+      for (const [lc, d] of Object.entries(lex.definitions || {}))
+        if (wortDefs[lc] !== undefined) quellen[lc] = d.source;
+      const db = document.createElement('div');
+      sprachUmschalter(db, wortDefs, quellen);
+      u.appendChild(db);
+    }
+    if (beispiele.length) {
+      const ul = document.createElement('ul');
+      ul.className = 'evi satze';
+      for (const s of beispiele.slice(0, 4)) {
+        const li = document.createElement('li');
+        linkify(li, s);
+        ul.appendChild(li);
+      }
+      u.appendChild(ul);
+    }
+    spalte.appendChild(u);
+  }
+
+  // --- Grammatik dieser Lesart
+  if (lex.grammar) {
+    const card = document.createElement('div');
+    card.className = 'neben';
+    const h = document.createElement('h2');
+    h.className = 'sec';
+    h.textContent = 'Grammatik';
+    card.appendChild(h);
+    const zeile = document.createElement('div');
+    zeile.className = 'gramzeile';
+    const flexwrap = document.createElement('div');
+    flexwrap.className = 'gramflex';
+    flexwrap.style.display = 'none';
+    const flexbox = document.createElement('div');
+    flexwrap.appendChild(flexbox);
+    card.append(zeile, flexwrap);
+    spalte.appendChild(card);
+    WB.grammatikKarte({ zeile, flexwrap, flexbox }, lex.grammar, word, lang);
+  }
+
+  // --- Sprachzugehörigkeit bewerten (pro Lesart)
+  {
+    const sc = document.createElement('div');
+    sc.className = 'sprachcheck';
+    const fr = document.createElement('div');
+    fr.className = 'frage';
+    const adj = WB.sprachAdj(lang);
+    fr.textContent = 'Ist „' + word + '“ ein ' +
+      (adj.endsWith('-') ? adj + 'Wort' : adj + ' Wort') + '?';
+    const btns = document.createElement('div');
+    btns.className = 'votebtns';
+    const stand = document.createElement('span');
+    stand.className = 'meta';
+    const wv = (lex.ratings && lex.ratings.word) ||
+               { dazu: 0, nicht: 0, unsicher: 0 };
+    const voteStand = () => {
+      stand.textContent = `Stimmen: ${wv.dazu}× dazu · ${wv.nicht}× nicht dazu · ${wv.unsicher}× unsicher`;
+    };
+    voteStand();
+    for (const kind of ['dazu', 'nicht', 'unsicher']) {
+      const b = document.createElement('button');
+      b.className = 'v-' + kind;
+      b.textContent = kind === 'dazu' ? 'Gehört dazu'
+        : kind === 'nicht' ? 'Gehört nicht dazu' : 'Unsicher';
+      b.title = kind === 'dazu' ? 'Gebräuchliches Wort dieser Sprache'
+        : kind === 'nicht' ? 'Falsche Sprache oder kein Wort' : '';
+      b.addEventListener('click', async () => {
+        if (await WB.wortVote(lex.id, kind)) { wv[kind]++; voteStand(); }
+      });
+      btns.appendChild(b);
+    }
+    btns.appendChild(stand);
+    sc.append(fr, btns);
+    spalte.appendChild(sc);
+  }
+
+  inhalt.appendChild(spalte);
+  sec.appendChild(inhalt);
+
+  // --- Prüfdetails: Konfidenz, Quellen, Belege, Stimmbilanzen
+  {
+    const det = document.createElement('details');
+    det.className = 'pruef';
+    const sum = document.createElement('summary');
+    sum.textContent = 'Bild bewerten · Weitere Bilder · Quellen · Prüfdetails';
+    det.appendChild(sum);
+    const body = document.createElement('div');
+    body.className = 'pruef-inhalt';
+
+    // Stimmen pro Bilddatei
+    const perImg = (lex.ratings && lex.ratings.per_image) || {};
+    const eintraege = [];
+    if (lex.images.main) {
+      const d = document.createElement('div');
+      const v = perImg[lex.images.main] || perImg[''] || { ja: 0, nein: 0 };
+      d.textContent = `Hauptbild — verstanden: ${v.ja} · nicht: ${v.nein}`;
+      body.appendChild(d);
+    }
+    for (const fn of lex.images.gallery) {
+      const v = perImg[fn] || { ja: 0, nein: 0 };
+      const d = document.createElement('div');
+      d.textContent = `${fn} — verstanden: ${v.ja} · nicht: ${v.nein}`;
+      body.appendChild(d);
+    }
+    const iv = (lex.ratings && lex.ratings.image) || { ja: 0, nein: 0 };
+    const un = (lex.ratings && lex.ratings.unknown) || 0;
+    const g = document.createElement('div');
+    g.className = 'meta';
+    g.textContent = `Gesamt: ${iv.ja}× verstanden · ${iv.nein}× nicht verstanden` +
       (un ? ` · ${un}× Wort unbekannt` : '');
-  }
+    body.appendChild(g);
 
-  // Bedeutung — in allen verfügbaren Sprachen (Eintragssprache bevorzugt)
-  try {
-    const defs = await fetch(`/entries/${e.id}/definitions`)
-      .then(r => r.ok ? r.json() : null);
-    const dmap = (defs && defs.definitions)
-      || (ev.definition ? { de: ev.definition } : {});
-    const codes = Object.keys(dmap);
-    if (codes.length) {
-      show(document.getElementById('defcard'), true);
-      // Wortart-Präfix («Substantiv, m: …») nicht wiederholen
-      const strip = t => {
-        const m = t.match(/^\s*[\p{L}][\p{L}\s,()]{0,30}?:\s+(.*)$/us);
-        return m ? m[1] : t;
-      };
-      const chips = document.getElementById('defsprachen');
-      chips.innerHTML = '';
-      let aktuell = codes.includes(lang) ? lang
-        : (codes.includes('de') ? 'de' : codes[0]);
-      const render = () => {
-        linkify(document.getElementById('def'), strip(dmap[aktuell]));
-        for (const c of chips.children)
-          c.classList.toggle('aktiv', c.dataset.l === aktuell);
-      };
-      const quelle = (defs && defs.sources) || {};
-      const quellTitel = c => {
-        const s = quelle[c] || '';
-        if (s.startsWith('translate:'))
-          return 'Übersetzung aus ' + (WB.sprachName(s.slice(10)) || s.slice(10));
-        return { legacy: 'Bestandsdefinition', harvester: 'Modell (de)',
-                 'define-own': 'Modell (Eintragssprache)' }[s] || '';
-      };
-      for (const c of codes) {
+    // Geprüfte Externquellen
+    if (lex.source_links && lex.source_links.length) {
+      const ul = document.createElement('ul');
+      ul.className = 'evi';
+      const namen = { wiktionary: 'Wiktionary', wikipedia: 'Wikipedia',
+                      dwds: 'DWDS (Wortgeschichte)' };
+      for (const l of lex.source_links) {
+        const li = document.createElement('li');
         const a = document.createElement('a');
-        a.textContent = WB.sprachName(c) || c;
-        a.dataset.l = c;
-        a.href = '#defcard';
-        const t = quellTitel(c);
-        if (t) a.title = t;
-        a.addEventListener('click', ev2 => {
-          ev2.preventDefault(); aktuell = c; render();
-        });
-        chips.appendChild(a);
+        a.href = l.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = namen[l.kind] || l.kind;
+        li.appendChild(a);
+        ul.appendChild(li);
       }
-      render();
+      body.appendChild(ul);
     }
-  } catch (_) {
-    if (ev.definition) {
-      const m = ev.definition.match(/^\s*[\p{L}]+\s*:\s*(.*)$/us);
-      show(document.getElementById('defcard'), true);
-      linkify(document.getElementById('def'), m ? m[1] : ev.definition);
+
+    // Evidenz
+    const ul = document.createElement('ul');
+    ul.className = 'evi';
+    const E = lex.evidence || {};
+    if (E.woerterbuch) {
+      const wb = E.woerterbuch;
+      eintraege.push(`<strong>${wb.quelle || 'Wörterbuch'}</strong>: Eintrag vorhanden` +
+        (wb.wortart ? ` (${wb.wortart})` : '') +
+        (wb.url ? ` — <a class="ext" href="${wb.url}" target="_blank" rel="noopener">nachschlagen</a>` : ''));
+    } else {
+      eintraege.push('<strong>Wörterbuch</strong>: kein Eintrag gefunden');
+    }
+    if (E.wikipedia) {
+      eintraege.push(`<strong>Wikipedia</strong>: <a class="ext" href="${E.wikipedia}" target="_blank" rel="noopener">Artikel vorhanden</a>`);
+    }
+    if (E.modell) {
+      const m = E.modell;
+      eintraege.push(`<strong>Modellprüfung</strong> (${Math.round((m.score || 0) * 100)} %): ${m.begruendung || ''}`);
+    }
+    if (E.pos_raw) {
+      const boq = (s) => String(s).replace(/[&<>"]/g,
+        c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+        .replace(/\{([^}:]+)(?::[^}]*)?\}/g,
+          (m, w) => `<a href="/worteintrag?word=${encodeURIComponent(w)}&lang=tlh">${w}</a>`);
+      const notiz = (E.notes || {}).de || (E.notes || {}).en;
+      if (notiz) eintraege.push(`<strong>Anmerkung</strong> (boQwI'): ${boq(notiz)}`);
+      if (E.definition_en)
+        eintraege.push(`<strong>English</strong>: ${boq(E.definition_en)}`);
+      if (E.components)
+        eintraege.push(`<strong>Bestandteile</strong>: ${boq(E.components)}`);
+      const saetze = Object.values(E.examples || {});
+      if (saetze.length)
+        eintraege.push(`<strong>Beispiele</strong>: ${saetze.map(boq).join(' · ')}`);
+      if (E.see_also)
+        eintraege.push(`<strong>Siehe auch</strong>: ${boq(E.see_also)}`);
+      if (E.synonyms)
+        eintraege.push(`<strong>Synonyme</strong>: ${boq(E.synonyms)}`);
+    }
+    if (lex.confidence != null) {
+      const pct = Math.round(lex.confidence * 1000) / 10;
+      eintraege.push(`<strong>Sprach-Konfidenz</strong>: ${pct.toLocaleString('de-DE')} %` +
+        (lex.confidence >= 0.8 ? ' — gut belegt'
+          : lex.confidence >= 0.5 ? ' — wahrscheinlich' : ' — unsicher'));
+    }
+    const wv = (lex.ratings && lex.ratings.word) ||
+               { dazu: 0, nicht: 0, unsicher: 0 };
+    eintraege.push(`<strong>Nutzer-Stimmen</strong>: ${wv.dazu}× gehört dazu · ` +
+      `${wv.nicht}× gehört nicht dazu · ${wv.unsicher}× unsicher`);
+    for (const s of eintraege) {
+      const li = document.createElement('li');
+      li.innerHTML = s;
+      ul.appendChild(li);
+    }
+    body.appendChild(ul);
+
+    if (E.beispielsaetze && E.beispielsaetze.length) {
+      const h = document.createElement('h2');
+      h.className = 'sec';
+      h.textContent = 'Beispielsätze';
+      body.appendChild(h);
+      const ul2 = document.createElement('ul');
+      ul2.className = 'evi satze';
+      for (const s of E.beispielsaetze.slice(0, 4)) {
+        const li = document.createElement('li');
+        linkify(li, s);
+        ul2.appendChild(li);
+      }
+      body.appendChild(ul2);
+    }
+
+    const qu = document.createElement('div');
+    qu.className = 'meta';
+    qu.style.marginTop = '.6rem';
+    qu.textContent = 'Eintrag von: ' + (lex.source || '?') +
+      (lex.created_at ? ' · angelegt ' + lex.created_at : '');
+    body.appendChild(qu);
+    det.appendChild(body);
+    sec.appendChild(det);
+  }
+
+  return sec;
+}
+
+// Klingonische Affix-Tabellen (boQwI', kanonisch) — unverändert aus dem
+// alten Aufbau; gesteuert über die Wortart der ersten Lesart.
+function renderTlhGrammatik(grammar) {
+  ladeTlhGrammatik().then(g => {
+    if (!g) return;
+    const card = document.createElement('div');
+    card.className = 'neben';
+    const h = document.createElement('h2');
+    h.className = 'sec';
+    h.textContent = 'Klingonische Grammatik';
+    const body = document.createElement('div');
+    card.append(h, body);
+    const cls = (grammar || {}).word_class || '';
+    const titel = t => {
+      const hh = document.createElement('h3');
+      hh.style.cssText = 'margin:.7rem 0 .2rem;font-size:.95rem';
+      hh.textContent = t;
+      body.appendChild(hh);
+    };
+    const hinweis = t => {
+      const pp = document.createElement('p');
+      pp.style.cssText = 'opacity:.75;font-size:.82rem;margin:.1rem 0 .4rem';
+      pp.textContent = t;
+      body.appendChild(pp);
+    };
+    const affixLink = (a, f) => {
+      const x = document.createElement('a');
+      x.textContent = a;
+      const q = { word: a, lang: 'tlh' };
+      if (f) q.f = f;
+      x.href = '/worteintrag?' + new URLSearchParams(q);
+      return x;
+    };
+    const suffixTabelle = (data) => {
+      titel(data.titel);
+      hinweis(data.hinweis);
+      const grid = document.createElement('div');
+      grid.style.cssText = 'display:flex;flex-wrap:wrap;gap:.35rem .8rem';
+      for (const [typ, suffixe] of Object.entries(data.types)) {
+        const grp = document.createElement('span');
+        const lab = document.createElement('b');
+        lab.textContent = typ + ': ';
+        grp.appendChild(lab);
+        const f = data === g.noun_suffixes
+          ? (s => `Nominalsuffix (Typ ${typ})`)
+          : (typ === 'Rover'
+             ? (s => 'Verbal suffix (Rover)')
+             : (s => `Verbal suffix (Typ ${typ})`));
+        suffixe.forEach((s, i) => {
+          if (i) grp.appendChild(document.createTextNode(' '));
+          grp.appendChild(affixLink(s, f(s)));
+        });
+        grid.appendChild(grp);
+      }
+      body.appendChild(grid);
+    };
+    const prefixTabelle = (data) => {
+      titel(data.titel);
+      hinweis(data.hinweis);
+      const tab = document.createElement('table');
+      tab.style.cssText =
+        'border-collapse:collapse;font-size:.85rem;margin:.2rem 0';
+      const zelle = (txt, kopf) => {
+        const td = document.createElement(kopf ? 'th' : 'td');
+        td.style.cssText = 'padding:.15rem .45rem;text-align:center;'
+          + 'border-bottom:1px solid var(--linie,#ccc)';
+        td.textContent = txt;
+        return td;
+      };
+      const hkopf = document.createElement('tr');
+      hkopf.appendChild(zelle('Subjekt ↓ / Objekt →', true));
+      data.objects.forEach(o => hkopf.appendChild(zelle(o, true)));
+      tab.appendChild(hkopf);
+      const zeile = (label, prefixes, f) => {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        th.style.cssText = 'padding:.15rem .45rem;text-align:left;'
+          + 'border-bottom:1px solid var(--linie,#ccc)';
+        th.textContent = label;
+        tr.appendChild(th);
+        prefixes.forEach(p => {
+          const td = document.createElement('td');
+          td.style.cssText = 'padding:.15rem .45rem;text-align:center;'
+            + 'border-bottom:1px solid var(--linie,#ccc)';
+          if (p && p !== '—' && !p.startsWith('∅'))
+            td.appendChild(affixLink(p, f || 'Verbpräfix'));
+          else td.textContent = p;
+          tr.appendChild(td);
+        });
+        tab.appendChild(tr);
+      };
+      data.rows.forEach(r => zeile(r.subject, r.prefixes));
+      zeile(data.unpersoenlich.label, data.unpersoenlich.prefixes,
+            'Verbpräfix (unpersönlich)');
+      data.imperativ.forEach(r => zeile(r.subject, r.prefixes));
+      body.appendChild(tab);
+    };
+    if (cls === 'noun') suffixTabelle(g.noun_suffixes);
+    else if (cls === 'verb') {
+      prefixTabelle(g.verb_prefixes);
+      suffixTabelle(g.verb_suffixes);
+    } else if (cls === 'affix') {
+      const treffer = [];
+      for (const [typ, list] of Object.entries(g.noun_suffixes.types))
+        if (list.includes(word)) treffer.push('Nominalsuffix, Typ ' + typ);
+      for (const [typ, list] of Object.entries(g.verb_suffixes.types))
+        if (list.includes(word)) treffer.push('Verbal suffix, Typ ' + typ);
+      const istPraefix = g.verb_prefixes.rows.some(r =>
+        r.prefixes.includes(word));
+      if (istPraefix) treffer.push('Verbpräfix (Subjekt×Objekt)');
+      if (treffer.length) {
+        titel('Affix-Typ');
+        hinweis(treffer.join(' · '));
+      }
+    } else if (cls) {
+      suffixTabelle(g.noun_suffixes);
+      prefixTabelle(g.verb_prefixes);
+    }
+    const q = document.createElement('p');
+    q.style.cssText = 'opacity:.6;font-size:.75rem;margin-top:.5rem';
+    q.textContent = g.quelle;
+    body.appendChild(q);
+    if (body.children.length > 1) document.querySelector('main')
+      .insertBefore(card, document.getElementById('famcard'));
+  });
+}
+
+async function load() {
+  const r = await fetch('/wortdaten?' + new URLSearchParams({ word, language: lang }));
+  if (!r.ok) {
+    document.getElementById('wort').textContent = word + ' — nicht gefunden';
+    return;
+  }
+  const data = await r.json();
+  const lexemes = data.lexemes || [];
+  if (!lexemes.length) {
+    document.getElementById('wort').textContent = word + ' — keine Lesart vorhanden';
+    return;
+  }
+
+  // Kopf: Sprache + die unterschiedlichen Wortarten der Lesarten
+  const klassen = [...new Set(lexemes.map(l => l.word_class).filter(Boolean))];
+  document.getElementById('wsub').textContent =
+    WB.sprachName(lang) + (klassen.length ? ' · ' + klassen.join(' / ') : '');
+
+  // Aussprache der ersten Lesart, die Transkriptionen trägt
+  for (const lex of lexemes) {
+    const rd = (lex.readings || []).find(x => (x.pronunciations || []).length);
+    if (rd) {
+      const ap = document.getElementById('aussprache');
+      ap.innerHTML = '';
+      for (const pr of rd.pronunciations) {
+        const s = document.createElement('span');
+        s.className = 'transkript';
+        s.textContent = (pr.transcription || '') +
+          (pr.note ? ' (' + pr.note + ')' : '');
+        ap.appendChild(s);
+      }
+      show(ap, true);
+      break;
     }
   }
 
-  // Sinn-Ebene: getrennte Bedeutungen mit eigenen Definitionen,
-  // bedeutungsgerechten Übersetzungen und Belegen pro Aussage
-  try {
-    const senses = await fetch(`/entries/${e.id}/senses`)
-      .then(r => r.ok ? r.json() : null);
-    const sinne = (senses && senses.senses) || [];
-    if (sinne.length) {
-      show(document.getElementById('sinncard'), true);
-      const box = document.getElementById('sinne');
-      box.innerHTML = '';
-      const fokus = p.get('f');  // Tabellen-Link: konkrete Funktion markieren
-      for (const s of sinne) {
-        const d = document.createElement('div');
-        d.className = 'sinn';
-        if (fokus && s.label === fokus) {
-          d.style.cssText = 'outline:2px solid var(--akzent,#c96);'
-            + 'outline-offset:4px;border-radius:4px';
-          setTimeout(() => d.scrollIntoView({ behavior: 'smooth',
-                                              block: 'center' }), 150);
-        }
-        const h = document.createElement('h3');
-        h.textContent = s.label + (s.word_class ? ' · ' + s.word_class : '');
-        d.appendChild(h);
-        const sd = s.definitions || {};
-        const strip = t => {
-          const m2 = String(t).match(/^\s*[\p{L}][\p{L}\s,()]{0,30}?:\s+(.*)$/us);
-          return m2 ? m2[1] : t;
-        };
-        // Sinnbeschreibung: verfügbare Sprachen als Chips umschalten
-        const codes = Object.keys(sd);
-        if (codes.length) {
-          const p = document.createElement('p');
-          p.className = 'def';
-          const chips = document.createElement('div');
-          chips.className = 'schriften';
-          let aktuell = sd[lang] ? lang : (sd.de ? 'de' : codes[0]);
-          const quellen = s.def_sources || {};
-          const render = () => {
-            linkify(p, strip(sd[aktuell]));
-            for (const c of chips.children)
-              c.classList.toggle('aktiv', c.dataset.l === aktuell);
-          };
-          for (const c of codes) {
-            const a = document.createElement('a');
-            a.textContent = WB.sprachName(c) || c;
-            a.dataset.l = c;
-            const src = quellen[c] || '';
-            a.title = src.startsWith('translate:')
-              ? 'Übersetzung aus ' + (WB.sprachName(src.slice(10)) || src.slice(10))
-              : (src || 'Beschreibung');
-            a.addEventListener('click', ev2 => {
-              ev2.preventDefault(); aktuell = c; render();
-            });
-            chips.appendChild(a);
-          }
-          d.appendChild(p);
-          d.appendChild(chips);
-          render();
-        }
-        if (s.translations && s.translations.length) {
-          const tdiv = document.createElement('div');
-          tdiv.className = 'schriften';
-          for (const t of s.translations) {
-            const a = document.createElement('a');
-            a.textContent = (t.approx ? '≈ ' : '') + t.word + ' ' +
-                            t.language.toUpperCase();
-            a.href = '/worteintrag?' + new URLSearchParams(
-              { word: t.word, lang: t.language });
-            if (t.approx)
-              a.title = 'Ungefähre Entsprechung, keine 1:1-Übersetzung';
-            else if (t.source && t.source.startsWith('verify:'))
-              a.title = 'Gegengeprüfte Übersetzung';
-            else if (t.source)
-              a.title = 'Modell-Vorschlag, noch nicht gegengeprüft';
-            tdiv.appendChild(a);
-          }
-          d.appendChild(tdiv);
-        }
-        if (s.links && s.links.length) {
-          const ul = document.createElement('ul');
-          ul.className = 'evi';
-          const namen = { wiktionary: 'Wiktionary', wikipedia: 'Wikipedia',
-                          dwds: 'DWDS', wortbildung: 'Wortbildung' };
-          for (const l of s.links) {
-            const li = document.createElement('li');
-            const a = document.createElement('a');
-            a.href = l.url;
-            a.target = '_blank';
-            a.rel = 'noopener';
-            a.textContent = namen[l.kind] || l.kind;
-            if (l.source && l.source.startsWith('vermutung:')) {
-              a.textContent = '⚠ ' + a.textContent;
-              a.title = 'Vermutung (unbelegt): ' + (l.claim || '');
-            } else if (l.claim) {
-              a.title = 'Belegt: ' + l.claim;
-            }
-            li.appendChild(a);
-            ul.appendChild(li);
-          }
-          d.appendChild(ul);
-        }
-        box.appendChild(d);
-      }
-    }
-  } catch (_) {}
+  // Konfidenz-Status oben nur bei eindeutiger Lesart
+  const cs = document.getElementById('confstand');
+  if (lexemes.length === 1 && lexemes[0].confidence != null) {
+    const c = lexemes[0].confidence;
+    const pct = Math.round(c * 1000) / 10;
+    cs.textContent = 'Sprach-Konfidenz: ' + pct.toLocaleString('de-DE') + ' %' +
+      (c >= 0.8 ? ' — gut belegt'
+        : c >= 0.5 ? ' — wahrscheinlich' : ' — unsicher');
+  } else if (lexemes.length === 1) {
+    cs.textContent = lexemes[0].sprache_unsicher
+      ? 'Sprachzugehörigkeit beanstandet' : 'ungeprüft';
+  }
+
+  const box = document.getElementById('lexeme');
+  lexemes.forEach((lex, i) =>
+    box.appendChild(renderLexem(lex, i, lexemes.length)));
+
+  if (lang === 'tlh') renderTlhGrammatik(lexemes[0].grammar);
 
   // Wortfamilie
   try {
@@ -686,9 +943,9 @@ async function load() {
     if (f && f.forms && f.forms.length > 1) {
       show(document.getElementById('famcard'), true);
       const ul = document.getElementById('fam');
-      const box = document.getElementById('schriften');
+      const schriftBox = document.getElementById('schriften');
       const seen = new Set();
-      // Chips nur bei gemischten Schriften (z. B. Arabisch + Franco), nicht bei reinen Flexionsformen
+      // Chips nur bei gemischten Schriften (z. B. Arabisch + Franco)
       const gemischt = f.forms.some(x => x.script === 'latn') &&
                        f.forms.some(x => x.script !== 'latn');
       for (const fo of f.forms) {
@@ -703,7 +960,6 @@ async function load() {
           li.appendChild(s);
         }
         ul.appendChild(li);
-        // Schrift-Chip: jede abweichende Schreibform (z. B. Arabisch / Franco)
         if (gemischt && !seen.has(fo.word)) {
           seen.add(fo.word);
           const chip = document.createElement('a');
@@ -711,10 +967,10 @@ async function load() {
           chip.title = fo.form ? 'Wortform: ' + fo.form : fo.word;
           chip.href = '/worteintrag?' + new URLSearchParams({ word: fo.word, lang });
           if (fo.word === word) chip.className = 'aktiv';
-          box.appendChild(chip);
+          schriftBox.appendChild(chip);
         }
       }
-      if (box.children.length > 1) show(box, true);
+      if (schriftBox.children.length > 1) show(schriftBox, true);
     }
   } catch (_) {}
 
@@ -724,102 +980,30 @@ async function load() {
       .then(r => r.ok ? r.json() : null);
     if (z && z.parts && z.parts.length > 1) {
       show(document.getElementById('compcard'), true);
-      const box = document.getElementById('comp');
-      box.textContent = '= ';
+      const cb = document.getElementById('comp');
+      cb.textContent = '= ';
       z.parts.forEach((pt, i) => {
-        if (i) box.appendChild(document.createTextNode(' + '));
+        if (i) cb.appendChild(document.createTextNode(' + '));
         const a = document.createElement('a');
         a.className = 'ext'; a.textContent = pt.entry;
         a.href = '/worteintrag?' + new URLSearchParams({ word: pt.entry, lang });
-        box.appendChild(a);
+        cb.appendChild(a);
       });
     }
   } catch (_) {}
 
-  // Evidenz, Quellen, Beispielsätze — nachrangig in den Prüfdetails
-  const E = ev.evidence || {};
-  const evi = document.getElementById('evi');
-  const eintraege = [];
-  if (E.woerterbuch) {
-    const wb = E.woerterbuch;
-    eintraege.push(`<strong>${wb.quelle || 'Wörterbuch'}</strong>: Eintrag vorhanden` +
-      (wb.wortart ? ` (${wb.wortart})` : '') +
-      (wb.url ? ` — <a class="ext" href="${wb.url}" target="_blank" rel="noopener">nachschlagen</a>` : ''));
-  } else {
-    eintraege.push(`<strong>Wörterbuch</strong>: kein Eintrag gefunden`);
-  }
-  if (E.wikipedia) {
-    eintraege.push(`<strong>Wikipedia</strong>: <a class="ext" href="${E.wikipedia}" target="_blank" rel="noopener">Artikel vorhanden</a>`);
-  }
-  if (E.modell) {
-    const m = E.modell;
-    eintraege.push(`<strong>Modellprüfung</strong> (${Math.round((m.score || 0) * 100)} %): ${m.begruendung || ''}`);
-  }
-  // boQwI'-Evidenz (Klingonisch/tlh): kanonische Anmerkungen und
-  // Verweise aus dem evidence-JSON — {wort:pos}-Markup wird verlinkt
-  if (E.pos_raw) {
-    const boq = (s) => String(s).replace(/[&<>"]/g,
-      c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
-      .replace(/\{([^}:]+)(?::[^}]*)?\}/g,
-        (m, w) => `<a href="/worteintrag?word=${encodeURIComponent(w)}&lang=tlh">${w}</a>`);
-    const n = E.notes || {};
-    const notiz = n.de || n.en;
-    if (notiz) eintraege.push(`<strong>Anmerkung</strong> (boQwI'): ${boq(notiz)}`);
-    if (E.definition_en)
-      eintraege.push(`<strong>English</strong>: ${boq(E.definition_en)}`);
-    if (E.components)
-      eintraege.push(`<strong>Bestandteile</strong>: ${boq(E.components)}`);
-    const saetze = Object.values(E.examples || {});
-    if (saetze.length)
-      eintraege.push(`<strong>Beispiele</strong>: ${saetze.map(boq).join(' · ')}`);
-    if (E.see_also)
-      eintraege.push(`<strong>Siehe auch</strong>: ${boq(E.see_also)}`);
-    if (E.synonyms)
-      eintraege.push(`<strong>Synonyme</strong>: ${boq(E.synonyms)}`);
-  }
-  const wv = ev.word_votes || { dazu: 0, nicht: 0, unsicher: 0 };
-  eintraege.push(`<strong>Nutzer-Stimmen</strong>: ${wv.dazu}× gehört dazu · ` +
-    `${wv.nicht}× gehört nicht dazu · ${wv.unsicher}× unsicher`);
-  for (const s of eintraege) {
-    const li = document.createElement('li');
-    li.innerHTML = s;
-    evi.appendChild(li);
-  }
-  document.getElementById('quelle').textContent =
-    'Eintrag von: ' + (ev.source || '?') + ' · angelegt ' + (ev.created_at || '');
-
-  if (E.beispielsaetze && E.beispielsaetze.length) {
-    show(document.getElementById('satzeCard'), true);
-    const ul = document.getElementById('satze');
-    for (const s of E.beispielsaetze.slice(0, 4)) {
-      const li = document.createElement('li');
-      linkify(li, s);
-      ul.appendChild(li);
-    }
-  }
-
-  function voteStand() {
-    document.getElementById('votestand').textContent =
-      `Stimmen: ${wv.dazu}× dazu · ${wv.nicht}× nicht dazu · ${wv.unsicher}× unsicher`;
-  }
-  voteStand();
-
   // Wort anhören (Piper); Audio wird auf dem Server gecacht.
-  // Sprecherwahl: /stimmen liefert die Stimmen der aktuellen Sprache;
-  // die gewählte Stimme steckt in der Audio-URL, 👍/👎 bewertet sie.
   const stimmeSel = document.getElementById('stimme');
   let stimmenCache = null;
-  let eigeneStimme = null;   // 'gut' | 'schlecht' | null (diese Sitzung)
+  let eigeneStimme = null;
 
   function stimmeKey() { return stimmeSel.value || null; }
-
   function anhoerenUrl() {
-    const p = new URLSearchParams({ word, language: lang });
+    const q = new URLSearchParams({ word, language: lang });
     const v = stimmeKey();
-    if (v) p.set('voice', v);
-    return '/anhoeren?' + p;
+    if (v) q.set('voice', v);
+    return '/anhoeren?' + q;
   }
-
   function sbStand(v) {
     const d = (stimmenCache || []).find(x => x.language === lang);
     const vo = d && d.voices.find(x => x.key === v);
@@ -829,7 +1013,6 @@ async function load() {
     document.getElementById('sgut').classList.toggle('active', eigeneStimme === 'gut');
     document.getElementById('sschlecht').classList.toggle('active', eigeneStimme === 'schlecht');
   }
-
   async function ladeStimmen() {
     try {
       stimmenCache = await fetch('/stimmen').then(r => r.json());
@@ -850,9 +1033,7 @@ async function load() {
     document.getElementById('stimmezeile').style.display = 'flex';
     sbStand(stimmeKey());
   }
-
   stimmeSel.addEventListener('change', () => { eigeneStimme = null; sbStand(stimmeKey()); });
-
   async function sprecherBewerten(gut) {
     const v = stimmeKey();
     if (!v) return;
@@ -861,10 +1042,9 @@ async function load() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ language: lang, voice: v, gut }),
     });
-    if (r.status === 409) { sbStand(v); return; }  // schon bewertet
+    if (r.status === 409) { sbStand(v); return; }
     if (!r.ok) return;
     eigeneStimme = gut ? 'gut' : 'schlecht';
-    // Bilanz lokal nachführen, ohne die ganze Liste neu zu ziehen
     const d = (stimmenCache || []).find(x => x.language === lang);
     const vo = d && d.voices.find(x => x.key === v);
     if (vo) gut ? vo.bewertung.gut++ : vo.bewertung.nicht++;
@@ -887,44 +1067,6 @@ async function load() {
       btn.disabled = false; btn.textContent = '🔊 (nicht verfügbar)';
     });
   });
-
-  async function wvote(kind) {
-    if (await WB.wortVote(e.id, kind)) {
-      wv[kind]++;
-      voteStand();
-    }
-  }
-  document.getElementById('dazu').addEventListener('click', () => wvote('dazu'));
-  document.getElementById('nicht').addEventListener('click', () => wvote('nicht'));
-  document.getElementById('unsicher').addEventListener('click', () => wvote('unsicher'));
-
-  // Bild-Stimme direkt auf der Wortseite (Hauptbild)
-  const iv = ev.image_votes || { ja: 0, nein: 0 };
-  function bildStand(extraJa, extraNein) {
-    document.getElementById('bstand').textContent =
-      `${iv.ja + (extraJa || 0)}× ja · ${iv.nein + (extraNein || 0)}× nein`;
-  }
-  if (ev.image) {
-    bildStand();
-    let voted = false;
-    const bv = async (understood) => {
-      if (voted) return;
-      voted = true;
-      document.getElementById('bja').disabled = true;
-      document.getElementById('bnein').disabled = true;
-      const r = await WB.bildVote({ entryId: e.id, understood,
-                                    session: 'wortseite' });
-      if (r.ok) {
-        bildStand(understood ? 1 : 0, understood ? 0 : 1);
-      } else {
-        voted = false;
-        document.getElementById('bja').disabled = false;
-        document.getElementById('bnein').disabled = false;
-      }
-    };
-    document.getElementById('bja').addEventListener('click', () => bv(true));
-    document.getElementById('bnein').addEventListener('click', () => bv(false));
-  }
 }
 load();
 </script>

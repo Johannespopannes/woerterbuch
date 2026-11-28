@@ -104,19 +104,16 @@ def test_translate_queue():
     bench = _eintrag("bankbench", "en", "seat")
     client.post(f"/senses/{s1}/translations",
                 json={"entry_id": bench}, headers=KEY)
-    # Lockerung: bis zu 3 Zielwoerter pro Zielsprache — mit 1 Verbindung
-    # bleibt der Sinn in der Queue
-    rows = client.get("/senses/translate-queue?from=de&to=en&limit=50"
-                      ).json()["rows"]
-    assert any(r["sense_id"] == s1 for r in rows)
-    # 2 weitere Verbindungen -> raus aus der Queue
-    for w in ("bankcorp", "bankhouse"):
-        e = _eintrag(w, "en", "x")
-        client.post(f"/senses/{s1}/translations",
-                    json={"entry_id": e}, headers=KEY)
+    # Fachmodell: keine Obergrenze — der Sinn hat eine EN-Verbindung und
+    # ist damit raus aus der Queue (weitere Verbindungen bleiben möglich)
     rows = client.get("/senses/translate-queue?from=de&to=en&limit=50"
                       ).json()["rows"]
     assert all(r["sense_id"] != s1 for r in rows)
+    # zweite Verbindung zu einem anderen EN-Wort bleibt erlaubt (201)
+    corp = _eintrag("bankcorp", "en", "x")
+    r = client.post(f"/senses/{s1}/translations",
+                    json={"entry_id": corp}, headers=KEY)
+    assert r.status_code == 201, r.text
 
 
 def test_word_class_und_approx():
@@ -157,19 +154,19 @@ def test_def_queue():
 
 
 def test_mehrfachuebersetzungen_pro_sinn():
-    """Bis zu 3 Zielwoerter pro Zielsprache, Dubletten weiterhin 409."""
+    """Keine Obergrenze: beliebig viele Zielwoerter pro Zielsprache,
+    Dubletten (gleiche Ziel-Bedeutung) weiterhin 409."""
     eid = _eintrag("Mehrtest", "de", "x")
     sid = _sinn(eid, "Sinn")
-    ziele = [_eintrag(f"multi{i}", "en", "x") for i in range(3)]
+    ziele = [_eintrag(f"multi{i}", "en", "x") for i in range(4)]
     for z in ziele:
         r = client.post(f"/senses/{sid}/translations",
                         json={"entry_id": z}, headers=KEY)
         assert r.status_code == 201, r.text
-    # 4. Verbindung gleicher Sprache: 400 (Limit) statt Duplikat
-    viertes = _eintrag("multi3", "en", "x")
+    # erneute Verbindung zum selben Ziel -> 409 (Duplikat)
     r = client.post(f"/senses/{sid}/translations",
-                    json={"entry_id": viertes}, headers=KEY)
-    assert r.status_code in (400, 409)
+                    json={"entry_id": ziele[0]}, headers=KEY)
+    assert r.status_code == 409
 
 
 def test_sinn_loeschen_kaskadiert():
@@ -206,3 +203,38 @@ def test_etym_queue_nur_unbelegte():
     rows = client.get("/senses/etym-queue?language=de&limit=200"
                       ).json()["rows"]
     assert all(r["sense_id"] != sid for r in rows)
+
+
+def test_sinn_bilder_zuordnen():
+    """Bilder sind eintragsweit, können aber einem Sinn zugeordnet werden."""
+    import base64
+    from app.main import IMAGES_DIR
+    eid = _eintrag("Gerichtetest", "de", "mehrdeutig")
+    s1 = _sinn(eid, "Mahlzeit")
+    s2 = _sinn(eid, "juristisches Organ")
+    png = ("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
+           "AAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+    fn = "gerichtetest.png"
+    r = client.post(f"/entries/{eid}/image",
+                    json={"filename": fn, "data_b64": png}, headers=KEY)
+    assert r.status_code == 200, r.text
+    try:
+        # Zuordnung zum zweiten Sinn — erscheint nur dort
+        r = client.post(f"/senses/{s2}/images",
+                        json={"filename": fn}, headers=KEY)
+        assert r.status_code == 200, r.text
+        s = client.get(f"/entries/{eid}/senses").json()["senses"]
+        assert next(x for x in s if x["id"] == s2)["images"] == [fn]
+        assert next(x for x in s if x["id"] == s1)["images"] == []
+        # fremde Datei des Eintrags -> 404
+        r = client.post(f"/senses/{s2}/images",
+                        json={"filename": "fremd.png"}, headers=KEY)
+        assert r.status_code == 404
+        # Zuordnung aufheben
+        r = client.post(f"/senses/{s2}/images",
+                        json={"filename": fn, "assign": False}, headers=KEY)
+        assert r.status_code == 200, r.text
+        s = client.get(f"/entries/{eid}/senses").json()["senses"]
+        assert next(x for x in s if x["id"] == s2)["images"] == []
+    finally:
+        (IMAGES_DIR / fn).unlink(missing_ok=True)

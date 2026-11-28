@@ -1,17 +1,31 @@
-"""Wörterbuch-API: Einträge anlegen, suchen, löschen — per REST.
+"""Wörterbuch-API — Fachmodell v2 (docs/fachmodell.md).
 
 Start:  uvicorn app.main:app --reload
 Doku:   http://127.0.0.1:8000/docs  (Swagger UI)
+
+Datenmodell (drei Identitäten):
+  Wortform  = Schreibweise (word_forms, keine Grammatik/Semantik)
+  Lexem     = grammatische Identität (lexemes, eigene ID)
+  Bedeutung = Definition/Beispiele/Bilder/Belege (meanings)
+  Lesart    = (form, lexeme) in readings; Audio je (Lesart, Sprecher)
+
+Kompatibilität: Die öffentlichen Pfade der Pipeline (entries, senses,
+formen, grammatik, lookup, raten, anhoeren, ...) behalten Pfad und
+Payload-Form; dahinter liegt das neue Modell. Da die Migration ID-erhaltend
+ist (word_forms.id = lexemes.id = alte entries.id, meanings.id = alte
+senses.id), sind Fremdschlüssel stabil. Neue, generische Frontends nutzen
+das Bundle-Endpunkt-Paar /wortdaten (Wortseite) — die Darstellung baut
+sich vollständig aus den vorhandenen Daten.
 
 Schutz vor Missbrauch:
   - Schreibzugriffe (POST/DELETE) brauchen den Header X-API-Key,
     sofern die Umgebungsvariable API_KEY gesetzt ist. Ist sie nicht
     gesetzt, wird beim Start ein zufälliger Key generiert und einmalig
     geloggt — die API ist dann nie unbeabsichtigt offen.
-  - Rate-Limiting pro IP (in-Memory-Middleware): lesen 60/Min, schreiben
+  - Rate-Limiting pro IP (in-Memory-Middleware): lesen 240/Min, schreiben
     5/Min; bekanntgültiger Key: 600/Min (für den Harvester).
     Grenzen per Umgebungsvariable anpassbar: RATE_READ_PER_MIN,
-    RATE_WRITE_PER_MIN, RATE_WRITE_KEYED_PER_MIN.
+    RATE_WRITE_PER_MIN, RATE_WRITE_KEYED_PER_MIN, RATE_VOTE_PER_MIN.
     Achtung: Zähler pro Prozess — bei mehreren Workern nicht global.
   - Payload-Grenzen: Wort max. 100 Zeichen, Batch max. 500 Einträge.
 """
@@ -133,7 +147,7 @@ ANHOEREN_RE = re.compile(
     r"\uAC00-\uD7A3\u0E00-\u0E7F]{1,100}$", re.UNICODE)
 FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 
-app = FastAPI(title="Wörterbuch API", version="0.2.0")
+app = FastAPI(title="Wörterbuch API", version="1.0.0")
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -228,7 +242,7 @@ class EntryOut(BaseModel):
 class VoteIn(BaseModel):
     entry_id: int
     understood: bool
-    # Bewertetes Bild (Galerie/Dateiname); None = Hauptbild
+    # Bewertetes Bild (Galerie/Dateiname); None/'' = Hauptbild
     image: str | None = Field(
         default=None, pattern=r"^[A-Za-z0-9_-]{1,120}\.(png|webp)$")
     # 'image' = Passt-nicht-Stimme, 'unknown' = "Wort unbekannt"
@@ -304,15 +318,80 @@ class WordIn(BaseModel):
     word: str = Field(min_length=1, max_length=100)
 
 
-# ---------- Hilfsfunktionen ----------
+# ---------- Modell-Hilfsfunktionen ----------
+
+def _attrs(row) -> dict:
+    """lexemes.attrs-JSON sicher als Dict lesen."""
+    try:
+        return json.loads(row["attrs"] or "{}")
+    except Exception:
+        return {}
+
+
+def _main_image(conn, lexeme_id: int) -> str | None:
+    r = conn.execute(
+        "SELECT filename FROM lexeme_images"
+        " WHERE lexeme_id = ? AND is_main = 1 LIMIT 1", (lexeme_id,)
+    ).fetchone()
+    return r["filename"] if r else None
+
+
+def _de_definition(conn, lexeme_id: int) -> str | None:
+    r = conn.execute(
+        "SELECT text FROM lexeme_defs"
+        " WHERE lexeme_id = ? AND lang = 'de' LIMIT 1", (lexeme_id,)
+    ).fetchone()
+    return r["text"] if r else None
+
+
+def _entry_from_row(conn, row, with_evidence: bool = True) -> dict:
+    """word_forms+lexemes-Zeile als altes EntryOut-Dict aufbereiten.
+
+    Migration ist ID-erhaltend: w.id == lexeme_id == alte entries.id.
+    """
+    lex_id = row["id"]
+    d = {
+        "id": lex_id,
+        "word": row["word"],
+        "language": row["language"],
+        "definition": _de_definition(conn, lex_id),
+        "image": _main_image(conn, lex_id),
+        "source": row["source"],
+        "created_at": row["created_at"],
+        "lemma": row["lemma"],
+        "form": _attrs(row).get("form") or None,
+        "confidence": row["confidence"],
+        "sprache_unsicher": row["sprache_unsicher"],
+        "script": row["script"] or "",
+        "ja": None,
+        "nein": None,
+        "evidence": None,
+    }
+    if with_evidence:
+        ev = row["evidence"]
+        if isinstance(ev, str):
+            try:
+                d["evidence"] = json.loads(ev or "null")
+            except Exception:
+                d["evidence"] = None
+    return d
+
+
+_ENTRY_SELECT = (
+    "SELECT w.id, w.word, w.language, w.script, w.source, w.created_at,"
+    " l.lemma, l.word_class, l.status, l.attrs, l.confidence, l.evidence,"
+    " l.sprache_unsicher"
+    " FROM word_forms w JOIN lexemes l ON l.id = w.id"
+)
+
 
 def _fetch_existing(language: str, words: list[str]) -> set[str]:
     conn = get_conn()
     try:
         marks = ",".join("?" for _ in words)
         rows = conn.execute(
-            f"SELECT word FROM entries WHERE language = ? AND word IN ({marks})",
-            [language, *words],
+            f"SELECT word FROM word_forms WHERE language = ? "
+            f"AND word IN ({marks})", [language, *words],
         ).fetchall()
         return {r["word"] for r in rows}
     finally:
@@ -336,20 +415,26 @@ def _count_search(term: str, language: str) -> None:
         conn.close()
 
 
-def _entry(row):
-    """Eintrag als Dict; evidence-JSON-Text als Dict aufbereiten,
-    damit EntryOut.evidence (dict) validiert."""
-    d = row_to_dict(row)
-    ev = d.get("evidence")
-    if isinstance(ev, str):
-        try:
-            d["evidence"] = json.loads(ev or "null")
-        except Exception:
-            d["evidence"] = None
-    return d
+def _set_main_image(conn, lexeme_id: int, filename: str) -> None:
+    """Hauptbild setzen: genau eine is_main=1-Zeile pro Lexem."""
+    conn.execute(
+        "UPDATE lexeme_images SET is_main = 0 WHERE lexeme_id = ?", (lexeme_id,))
+    conn.execute(
+        "INSERT OR IGNORE INTO lexeme_images (lexeme_id, filename, is_main)"
+        " VALUES (?, ?, 0)", (lexeme_id, filename))
+    conn.execute(
+        "UPDATE lexeme_images SET is_main = 1"
+        " WHERE lexeme_id = ? AND filename = ?", (lexeme_id, filename))
 
 
-# ---------- Endpunkte ----------
+def _find_word(conn, word: str, language: str):
+    return conn.execute(
+        f"{_ENTRY_SELECT} WHERE w.word = ? AND w.language = ?",
+        (word, language.lower()),
+    ).fetchone()
+
+
+# ---------- Endpunkte: statische Seiten ----------
 
 @app.get("/", include_in_schema=False)
 def index():
@@ -396,24 +481,63 @@ def tlh_grammatik_json():
                         media_type="application/json")
 
 
+@app.get("/worteintrag", include_in_schema=False)
+def worteintrag():
+    """Wort-Detailseite: vollständig generisch aus /wortdaten aufgebaut."""
+    return FileResponse(Path(__file__).parent / "static" / "wort.html")
+
+
+@app.get("/bewerten", include_in_schema=False)
+def bewerten():
+    """Seite zum Bewerten der Wort-Bilder."""
+    return FileResponse(Path(__file__).parent / "static" / "bewerten.html")
+
+
+@app.get("/sprecher", include_in_schema=False)
+def sprecher_seite():
+    """Sprecher-Testseite: Stimmen anhören, Tempo testen, bewerten."""
+    return FileResponse(Path(__file__).parent / "static" / "sprecher.html")
+
+
+# ---------- Einträge (Adapter: word_forms + lexemes, IDs identisch) ----------
+
+def _create_entry(conn, word: str, language: str, definition: str | None,
+                  source: str, script: str) -> int:
+    """Wortform + 1:1-provisionales Lexem anlegen; liefert die neue ID."""
+    cur = conn.execute(
+        "INSERT INTO word_forms (word, language, source, script)"
+        " VALUES (?, ?, ?, ?)",
+        (word, language, source, script),
+    )
+    new_id = cur.lastrowid
+    conn.execute(
+        "INSERT INTO lexemes (id, language, lemma, source)"
+        " VALUES (?, ?, ?, ?)",
+        (new_id, language, word, source),
+    )
+    if definition:
+        conn.execute(
+            "INSERT OR REPLACE INTO lexeme_defs (lexeme_id, lang, text, source)"
+            " VALUES (?, 'de', ?, ?)", (new_id, definition, source))
+    return new_id
+
+
 @app.post("/entries", response_model=EntryOut, status_code=201)
 def create_entry(entry: EntryIn, _=Depends(require_api_key)):
     conn = get_conn()
     try:
-        cur = conn.execute(
-            "INSERT INTO entries (word, language, definition, source, script)"
-            " VALUES (?,?,?,?,?)",
-            (entry.word.strip(), entry.language.lower(), entry.definition,
-             entry.source, entry.script),
-        )
-        conn.commit()
-        row = conn.execute(
-            "SELECT * FROM entries WHERE id = ?", (cur.lastrowid,)
-        ).fetchone()
-        return _entry(row)
-    except Exception:
-        conn.rollback()
-        raise HTTPException(409, f"'{entry.word}' existiert bereits ({entry.language})")
+        try:
+            _create_entry(conn, entry.word.strip(), entry.language.lower(),
+                          entry.definition, entry.source, entry.script)
+            conn.commit()
+        except HTTPException:
+            raise
+        except Exception:
+            conn.rollback()
+            raise HTTPException(
+                409, f"'{entry.word}' existiert bereits ({entry.language})")
+        row = _find_word(conn, entry.word.strip(), entry.language)
+        return _entry_from_row(conn, row)
     finally:
         conn.close()
 
@@ -434,7 +558,7 @@ def create_batch(batch: BatchIn, _=Depends(require_api_key)):
             words = [e.word.strip() for e in items]
             marks = ",".join("?" for _ in words)
             rows = conn.execute(
-                f"SELECT word FROM entries WHERE language = ? "
+                f"SELECT word FROM word_forms WHERE language = ? "
                 f"AND word IN ({marks})", [lang, *words],
             ).fetchall()
             existing = {r["word"] for r in rows}
@@ -444,11 +568,8 @@ def create_batch(batch: BatchIn, _=Depends(require_api_key)):
                     duplicates += 1
                     continue
                 try:
-                    conn.execute(
-                        "INSERT INTO entries (word, language, definition, source, script)"
-                        " VALUES (?,?,?,?,?)",
-                        (word, lang, e.definition, e.source, e.script),
-                    )
+                    _create_entry(conn, word, lang, e.definition,
+                                  e.source, e.script)
                     existing.add(word)
                     inserted += 1
                 except Exception:
@@ -457,6 +578,131 @@ def create_batch(batch: BatchIn, _=Depends(require_api_key)):
     finally:
         conn.close()
     return BatchResult(inserted=inserted, duplicates=duplicates, errors=errors)
+
+
+@app.get("/entries", response_model=list[EntryOut])
+def list_entries(
+    language: str | None = None,
+    prefix: str | None = Query(default=None, description="Wörter, die so anfangen"),
+    q: str | None = Query(default=None, description="Teilstring-Suche im Wort"),
+    undefined: bool = Query(default=False,
+                            description="nur Einträge ohne Definition"),
+    noimage: bool = Query(default=False,
+                          description="nur Einträge ohne Bild"),
+    nolemma: bool = Query(default=False,
+                          description="nur Einträge ohne Grundform"),
+    with_votes: bool = Query(default=False,
+                             description="Ja/Nein-Bewertungen mit ausgeben"),
+    with_evidence: bool = Query(default=False,
+                                description="Evidenz-JSON mit ausgeben"),
+    neu: bool = Query(default=False,
+                      description="neueste Einträge zuerst (nach Anlage)"),
+    no_def: str | None = Query(
+        default=None,
+        description="nur Einträge ohne Definition in dieser Sprache"),
+    nolinks: bool = Query(
+        default=False,
+        description="nur Einträge mit unvollständigen Externquellen-Links"),
+    limit: int = Query(default=100, le=1000),
+    offset: int = 0,
+):
+    sql = (_ENTRY_SELECT.replace("SELECT", "SELECT", 1) + " WHERE 1=1")
+    params: list = []
+    if language:
+        sql += " AND w.language = ?"
+        params.append(language.lower())
+    if prefix:
+        # ULOWER(): SQLite foldet nur ASCII, Umlaute (Ö vs. ö) brauchen
+        # die in db.py registrierte Unicode-Funktion.
+        sql += " AND ULOWER(w.word) LIKE ULOWER(?)"
+        params.append(prefix + "%")
+    if q:
+        sql += " AND (w.word LIKE ?"
+        params.append(f"%{q}%")
+        # Franco-Eingabe? Zusätzlich die arabischen Kandidaten suchen
+        for v in franco_variants(q):
+            sql += " OR w.word LIKE ?"
+            params.append(f"%{v}%")
+        # ... und gespeicherte latn-Formen mit gleichem Skeleton
+        for v in franco_latn_matches(q):
+            sql += " OR w.word = ?"
+            params.append(v)
+        sql += ")"
+        _count_search(q, language or "")
+    if undefined:
+        sql += (" AND NOT EXISTS (SELECT 1 FROM lexeme_defs d"
+                " WHERE d.lexeme_id = w.id AND d.lang = 'de')")
+    if noimage:
+        sql += (" AND NOT EXISTS (SELECT 1 FROM lexeme_images li"
+                " WHERE li.lexeme_id = w.id)")
+    if nolemma:
+        sql += " AND (l.lemma IS NULL OR l.lemma = '')"
+    if no_def:
+        dl = no_def.lower()
+        sql += (" AND NOT EXISTS (SELECT 1 FROM lexeme_defs d"
+                " WHERE d.lexeme_id = w.id AND d.lang = ?)")
+        params.append(dl)
+    if nolinks:
+        # Vollständig = alle Wikis + Wikidata (+ DWDS bei de). Unvollständige
+        # nachrüsten. tn hat kein Wiki/Wikidata -> 0 erwartet.
+        l = (language or "").lower()
+        erwartet = 4 if l == "de" else (0 if l == "tn" else 3)
+        sql += (" AND (SELECT COUNT(*) FROM source_links s"
+                " WHERE s.lexeme_id = w.id) < ?")
+        params.append(erwartet)
+    sql += " ORDER BY w.id DESC" if neu else " ORDER BY w.word"
+    sql += " LIMIT ? OFFSET ?"
+    params += [limit, offset]
+    conn = get_conn()
+    try:
+        rows = conn.execute(sql, params).fetchall()
+        out = [_entry_from_row(conn, r, with_evidence=with_evidence)
+               for r in rows]
+        if with_votes and out:
+            marks = ",".join("?" for _ in out) or "NULL"
+            votes = conn.execute(
+                f"SELECT lexeme_id, "
+                f"SUM(CASE WHEN understood=1 THEN 1 ELSE 0 END) ja, "
+                f"SUM(CASE WHEN understood=0 THEN 1 ELSE 0 END) nein "
+                f"FROM ratings WHERE lexeme_id IN ({marks}) "
+                f"AND kind = 'image' GROUP BY lexeme_id",
+                [e["id"] for e in out],
+            ).fetchall()
+            vmap = {v["lexeme_id"]: (v["ja"] or 0, v["nein"] or 0)
+                    for v in votes}
+            for e in out:
+                e["ja"], e["nein"] = vmap.get(e["id"], (0, 0))
+        return out
+    finally:
+        conn.close()
+
+
+@app.get("/lookup", response_model=EntryOut)
+def lookup(word: str, language: str):
+    """Exaktes Nachschlagen eines Wortes in einer Sprache.
+
+    Fallback: Franco-Eingabe (sbe7) findet auch die arabische Schreibweise.
+    """
+    _count_search(word, language)
+    conn = get_conn()
+    try:
+        row = _find_word(conn, word.strip(), language)
+        if not row:
+            for v in franco_variants(word):
+                row = _find_word(conn, v, language)
+                if row:
+                    break
+        if not row:
+            # Skeleton: sbe7 findet die gespeicherte Form sba7
+            for v in franco_latn_matches(word):
+                row = _find_word(conn, v, language)
+                if row:
+                    break
+        if not row:
+            raise HTTPException(404, f"'{word}' nicht gefunden ({language})")
+        return _entry_from_row(conn, row)
+    finally:
+        conn.close()
 
 
 # ---------- Franco-Arabisch (Tunesisch in Lateinschrift) ----------
@@ -520,7 +766,7 @@ def _latn_words() -> list[str]:
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT word FROM entries WHERE script = 'latn'").fetchall()
+            "SELECT word FROM word_forms WHERE script = 'latn'").fetchall()
     finally:
         conn.close()
     _latn_cache.update(ts=now, words=[r["word"] for r in rows])
@@ -540,149 +786,6 @@ def franco_latn_matches(query: str) -> list[str]:
         return []
     return [w for w in _latn_words()
             if _latn_skeleton(w) == qs and w.lower() != query.lower()]
-
-
-@app.get("/entries", response_model=list[EntryOut])
-def list_entries(
-    language: str | None = None,
-    prefix: str | None = Query(default=None, description="Wörter, die so anfangen"),
-    q: str | None = Query(default=None, description="Teilstring-Suche im Wort"),
-    undefined: bool = Query(default=False,
-                            description="nur Einträge ohne Definition"),
-    noimage: bool = Query(default=False,
-                          description="nur Einträge ohne Bild"),
-    nolemma: bool = Query(default=False,
-                          description="nur Einträge ohne Grundform"),
-    with_votes: bool = Query(default=False,
-                             description="Ja/Nein-Bewertungen mit ausgeben"),
-    with_evidence: bool = Query(default=False,
-                                description="Evidenz-JSON mit ausgeben"),
-    neu: bool = Query(default=False,
-                      description="neueste Einträge zuerst (nach Anlage)"),
-    no_def: str | None = Query(
-        default=None,
-        description="nur Einträge ohne Definition in dieser Sprache ('de' = "
-                    "entries.definition, sonst definitions-Tabelle)"),
-    nolinks: bool = Query(
-        default=False,
-        description="nur Einträge mit unvollständigen Externquellen-Links"),
-    limit: int = Query(default=100, le=1000),
-    offset: int = 0,
-):
-    sql, params = "SELECT * FROM entries WHERE 1=1", []
-    if language:
-        sql += " AND language = ?"
-        params.append(language.lower())
-    if prefix:
-        # ULOWER(): SQLite foldet nur ASCII, Umlaute (Ö vs. ö) brauchen
-        # die in db.py registrierte Unicode-Funktion.
-        sql += " AND ULOWER(word) LIKE ULOWER(?)"
-        params.append(prefix + "%")
-    if q:
-        sql += " AND (word LIKE ?"
-        params.append(f"%{q}%")
-        # Franco-Eingabe? Zusätzlich die arabischen Kandidaten suchen
-        for v in franco_variants(q):
-            sql += " OR word LIKE ?"
-            params.append(f"%{v}%")
-        # ... und gespeicherte latn-Formen mit gleichem Skeleton
-        for v in franco_latn_matches(q):
-            sql += " OR word = ?"
-            params.append(v)
-        sql += ")"
-        _count_search(q, language or "")
-    if undefined:
-        sql += " AND (definition IS NULL OR definition = '')"
-    if noimage:
-        sql += " AND (image IS NULL OR image = '')"
-    if nolemma:
-        sql += " AND (lemma IS NULL OR lemma = '')"
-    if no_def:
-        dl = no_def.lower()
-        if dl == "de":
-            sql += " AND (definition IS NULL OR definition = '')"
-        else:
-            sql += (" AND id NOT IN (SELECT entry_id FROM definitions"
-                    " WHERE lang = ?)")
-            params.append(dl)
-    if nolinks:
-        # Vollständig = alle Wikis + Wikidata (+ DWDS bei de). Unvollständige
-        # nachrüsten. tn hat kein Wiki/Wikidata -> 0 erwartet.
-        l = (language or "").lower()
-        erwartet = 4 if l == "de" else (0 if l == "tn" else 3)
-        sql += (" AND (SELECT COUNT(*) FROM source_links s"
-                " WHERE s.entry_id = entries.id) < ?")
-        params.append(erwartet)
-    sql += " ORDER BY id DESC" if neu else " ORDER BY word"
-    sql += " LIMIT ? OFFSET ?"
-    params += [limit, offset]
-    conn = get_conn()
-    try:
-        rows = conn.execute(sql, params).fetchall()
-        out = [row_to_dict(r) for r in rows]
-        if with_evidence:
-            for e in out:
-                try:
-                    e["evidence"] = json.loads(e.get("evidence") or "{}")
-                except Exception:
-                    e["evidence"] = {}
-        else:
-            for e in out:
-                e.pop("evidence", None)
-        if with_votes:
-            marks = ",".join("?" for _ in out) or "NULL"
-            votes = conn.execute(
-                f"SELECT entry_id, "
-                f"SUM(CASE WHEN understood=1 THEN 1 ELSE 0 END) ja, "
-                f"SUM(CASE WHEN understood=0 THEN 1 ELSE 0 END) nein "
-                f"FROM ratings WHERE entry_id IN ({marks}) "
-                f"AND kind = 'image' GROUP BY entry_id",
-                [e["id"] for e in out],
-            ).fetchall() if out else []
-            vmap = {v["entry_id"]: (v["ja"] or 0, v["nein"] or 0)
-                    for v in votes}
-            for e in out:
-                e["ja"], e["nein"] = vmap.get(e["id"], (0, 0))
-        return out
-    finally:
-        conn.close()
-
-
-@app.get("/lookup", response_model=EntryOut)
-def lookup(word: str, language: str):
-    """Exaktes Nachschlagen eines Wortes in einer Sprache.
-
-    Fallback: Franco-Eingabe (sbe7) findet auch die arabische Schreibweise.
-    """
-    _count_search(word, language)
-    conn = get_conn()
-    try:
-        row = conn.execute(
-            "SELECT * FROM entries WHERE word = ? AND language = ?",
-            (word.strip(), language.lower()),
-        ).fetchone()
-        if not row:
-            for v in franco_variants(word):
-                row = conn.execute(
-                    "SELECT * FROM entries WHERE word = ? AND language = ?",
-                    (v, language.lower()),
-                ).fetchone()
-                if row:
-                    break
-        if not row:
-            # Skeleton: sbe7 findet die gespeicherte Form sba7
-            for v in franco_latn_matches(word):
-                row = conn.execute(
-                    "SELECT * FROM entries WHERE word = ? AND language = ?",
-                    (v, language.lower()),
-                ).fetchone()
-                if row:
-                    break
-    finally:
-        conn.close()
-    if not row:
-        raise HTTPException(404, f"'{word}' nicht gefunden ({language})")
-    return _entry(row)
 
 
 FUGENLAUTE = ("en", "er", "es", "e", "s", "n")
@@ -722,7 +825,8 @@ def zerlegen(word: str, language: str):
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT word FROM entries WHERE language = ?", (language.lower(),)
+            "SELECT word FROM word_forms WHERE language = ?",
+            (language.lower(),),
         ).fetchall()
     finally:
         conn.close()
@@ -756,20 +860,17 @@ def formen(word: str, language: str):
     lang = language.lower()
     conn = get_conn()
     try:
-        row = conn.execute(
-            "SELECT word, lemma, form, script FROM entries "
-            "WHERE word = ? AND language = ?",
-            (word.strip(), lang),
-        ).fetchone()
+        row = _find_word(conn, word.strip(), lang)
         if not row:
             raise HTTPException(404, f"'{word}' nicht gefunden ({lang})")
         lemma = row["lemma"] or row["word"]
         rows = conn.execute(
-            "SELECT word, form, script FROM entries "
-            "WHERE language = ? AND (lemma = ? OR word = ?) ORDER BY word",
+            f"{_ENTRY_SELECT} WHERE w.language = ?"
+            " AND (l.lemma = ? OR w.word = ?) ORDER BY w.word",
             (lang, lemma, lemma),
         ).fetchall()
-        forms = [{"word": r["word"], "form": r["form"] or "",
+        forms = [{"word": r["word"],
+                  "form": _attrs(r).get("form") or "",
                   "script": r["script"] or ""} for r in rows]
         return {"word": row["word"], "lemma": lemma, "forms": forms}
     finally:
@@ -783,11 +884,21 @@ def formen_batch(batch: FormBatchIn, _=Depends(require_api_key)):
     conn = get_conn()
     try:
         for it in batch.items:
+            row = conn.execute(
+                "SELECT w.id, l.attrs FROM word_forms w JOIN lexemes l"
+                " ON l.id = w.id"
+                " WHERE w.word = ? AND w.language = ?",
+                (it.word.strip(), it.language.lower()),
+            ).fetchone()
+            if not row:
+                missing += 1
+                continue
+            attrs = _attrs(row)
+            attrs["form"] = it.form.strip()
             cur = conn.execute(
-                "UPDATE entries SET lemma = ?, form = ? "
-                "WHERE word = ? AND language = ?",
-                (it.lemma.strip(), it.form.strip(),
-                 it.word.strip(), it.language.lower()),
+                "UPDATE lexemes SET lemma = ?, attrs = ? WHERE id = ?",
+                (it.lemma.strip(), json.dumps(attrs, ensure_ascii=False),
+                 row["id"]),
             )
             if cur.rowcount:
                 updated += 1
@@ -814,70 +925,136 @@ class GrammarBatchIn(BaseModel):
     items: list[GrammarIn] = Field(max_length=500)
 
 
-def _grammar_row_to_dict(r) -> dict:
-    flex = None
-    try:
-        flex = json.loads(r["flexion"]) if r["flexion"] else None
-    except Exception:
-        flex = None
-    return {"language": r["language"], "lemma": r["lemma"],
-            "word_class": r["word_class"], "gender": r["gender"],
-            "article": r["article"], "flexion": flex}
+def _flexion_nest(conn, lexeme_id: int) -> dict | None:
+    """lexeme_forms-Zellen als geschachteltes Dict (altes Flexion-Format)."""
+    rows = conn.execute(
+        "SELECT lf.cell, w.word FROM lexeme_forms lf"
+        " JOIN word_forms w ON w.id = lf.form_id"
+        " WHERE lf.lexeme_id = ? ORDER BY lf.id", (lexeme_id,),
+    ).fetchall()
+    if not rows:
+        return None
+    root: dict = {}
+    for r in rows:
+        try:
+            path = json.loads(r["cell"] or "[]")
+        except Exception:
+            path = []
+        if not path:
+            continue
+        node = root
+        for k in path[:-1]:
+            node = node.setdefault(k, {})
+        node[path[-1]] = r["word"]
+    return root or None
+
+
+def _grammar_for_lexeme(conn, row) -> dict:
+    attrs = _attrs(row)
+    return {"language": row["language"], "lemma": row["lemma"],
+            "word_class": row["word_class"] or None,
+            "gender": attrs.get("genus"),
+            "article": attrs.get("article"),
+            "flexion": _flexion_nest(conn, row["id"])}
 
 
 @app.get("/grammatik")
 def grammatik(word: str, language: str):
     """Grammatik-Informationen des Lemmas eines Wortes.
 
-    Aufloesung: lemma-Spalte des Wortes, Fallback das Wort selbst —
-    so sehen Flexionsformen (Kantone) dieselbe Grammatik wie die
-    Grundform (Kanton).
+    Aufloesung: lemma des Wortes, Fallback das Wort selbst — so sehen
+    Flexionsformen (Kantone) dieselbe Grammatik wie die Grundform (Kanton).
     """
     lang = language.lower()
     conn = get_conn()
     try:
-        row = conn.execute(
-            "SELECT lemma FROM entries WHERE word = ? AND language = ?",
-            (word.strip(), lang),
-        ).fetchone()
+        row = _find_word(conn, word.strip(), lang)
         lemma = (row["lemma"] or word.strip()) if row else word.strip()
         g = conn.execute(
-            "SELECT * FROM grammar WHERE language = ? AND lemma = ?",
+            f"{_ENTRY_SELECT} WHERE w.language = ? AND l.lemma = ?"
+            " ORDER BY w.id LIMIT 1",
             (lang, lemma),
         ).fetchone()
+        if not g:
+            raise HTTPException(404, f"Keine Grammatik für '{word}' ({lang})")
+        return _grammar_for_lexeme(conn, g)
     finally:
         conn.close()
-    if not g:
-        raise HTTPException(404, f"Keine Grammatik für '{word}' ({lang})")
-    return _grammar_row_to_dict(g)
+
+
+def _lexem_ids_fuer_lemma(conn, language: str, lemma: str) -> list[int]:
+    return [r["id"] for r in conn.execute(
+        "SELECT id FROM lexemes WHERE language = ? AND lemma = ?",
+        (language, lemma),
+    ).fetchall()]
 
 
 @app.post("/grammatik/batch")
 def grammatik_batch(batch: GrammarBatchIn, _=Depends(require_api_key)):
-    """Grammatik fuer viele Lemmata setzen (Harvest-Pipeline)."""
+    """Grammatik fuer viele Lemmata setzen (Harvest-Pipeline).
+
+    Schreibt auf alle Lexeme mit diesem Lemma (Wortfamilie); das Flexions-
+    Paradigma ersetzt die bisherigen Zellen dieser Lexeme.
+    """
     conn = get_conn()
     updated = new = 0
     try:
         for it in batch.items:
-            flex = (json.dumps(it.flexion, ensure_ascii=False)
-                    if it.flexion is not None else None)
-            cur = conn.execute(
-                "UPDATE grammar SET word_class = ?, gender = ?, article = ?,"
-                " flexion = ?, source = 'model' "
-                "WHERE language = ? AND lemma = ?",
-                (it.word_class, it.gender, it.article, flex,
-                 it.language.lower(), it.lemma.strip()),
-            )
-            if cur.rowcount:
-                updated += 1
-            else:
+            lang = it.language.lower()
+            lemma = it.lemma.strip()
+            lex_ids = _lexem_ids_fuer_lemma(conn, lang, lemma)
+            if not lex_ids:
                 conn.execute(
-                    "INSERT INTO grammar (language, lemma, word_class,"
-                    " gender, article, flexion) VALUES (?,?,?,?,?,?)",
-                    (it.language.lower(), it.lemma.strip(), it.word_class,
-                     it.gender, it.article, flex),
-                )
+                    "INSERT INTO lexemes (language, lemma, word_class,"
+                    " source, status) VALUES (?, ?, ?, 'model',"
+                    " 'provisional')",
+                    (lang, lemma, it.word_class or ""))
                 new += 1
+                lex_ids = _lexem_ids_fuer_lemma(conn, lang, lemma)
+            else:
+                updated += 1
+            for lex_id in lex_ids:
+                row = conn.execute(
+                    "SELECT attrs FROM lexemes WHERE id = ?", (lex_id,)
+                ).fetchone()
+                attrs = _attrs(row)
+                if it.gender is not None:
+                    attrs["genus"] = it.gender
+                if it.article is not None:
+                    attrs["article"] = it.article
+                attrs["grammar_source"] = "model"
+                conn.execute(
+                    "UPDATE lexemes SET word_class = ?, attrs = ? WHERE id = ?",
+                    (it.word_class or "", attrs and
+                     json.dumps(attrs, ensure_ascii=False) or "", lex_id))
+                # Paradigma ersetzen: alte Zellen weg, neue aus dem Dict
+                conn.execute(
+                    "DELETE FROM lexeme_forms WHERE lexeme_id = ?", (lex_id,))
+                if it.flexion:
+                    def walk(node, path):
+                        if isinstance(node, dict):
+                            for k, v in node.items():
+                                walk(v, path + [str(k)])
+                        elif isinstance(node, str) and node.strip():
+                            wf = conn.execute(
+                                "SELECT id FROM word_forms"
+                                " WHERE language = ? AND word = ?",
+                                (lang, node),
+                            ).fetchone()
+                            if not wf:
+                                cur = conn.execute(
+                                    "INSERT INTO word_forms (language, word,"
+                                    " source) VALUES (?, ?, 'paradigm')",
+                                    (lang, node))
+                                wf_id = cur.lastrowid
+                            else:
+                                wf_id = wf["id"]
+                            conn.execute(
+                                "INSERT OR IGNORE INTO lexeme_forms"
+                                " (lexeme_id, form_id, cell) VALUES (?, ?, ?)",
+                                (lex_id, wf_id,
+                                 json.dumps(path, ensure_ascii=False)))
+                    walk(it.flexion, [])
         conn.commit()
     finally:
         conn.close()
@@ -889,7 +1066,8 @@ def languages():
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT language, COUNT(*) AS count FROM entries GROUP BY language ORDER BY language"
+            "SELECT language, COUNT(*) AS count FROM word_forms"
+            " GROUP BY language ORDER BY language"
         ).fetchall()
         return [row_to_dict(r) for r in rows]
     finally:
@@ -906,18 +1084,19 @@ def stats():
         return _stats_cache["data"]
     conn = get_conn()
     try:
-        total = conn.execute("SELECT COUNT(*) AS n FROM entries").fetchone()["n"]
+        total = conn.execute(
+            "SELECT COUNT(*) AS n FROM word_forms").fetchone()["n"]
         with_image = conn.execute(
-            "SELECT COUNT(*) AS n FROM entries "
-            "WHERE image IS NOT NULL AND image != ''").fetchone()["n"]
+            "SELECT COUNT(DISTINCT lexeme_id) AS n FROM lexeme_images"
+        ).fetchone()["n"]
         with_definition = conn.execute(
-            "SELECT COUNT(*) AS n FROM entries "
-            "WHERE definition IS NOT NULL AND definition != ''").fetchone()["n"]
+            "SELECT COUNT(DISTINCT lexeme_id) AS n FROM lexeme_defs"
+            " WHERE lang = 'de'").fetchone()["n"]
         # Tageszuwachs: String-Vergleich funktioniert in beiden Dialekten,
         # solange das Format YYYY-MM-DD HH:MM:SS bleibt.
         heute = time.strftime("%Y-%m-%d")
         today_new = conn.execute(
-            "SELECT COUNT(*) AS n FROM entries WHERE created_at >= ?",
+            "SELECT COUNT(*) AS n FROM word_forms WHERE created_at >= ?",
             (heute,)).fetchone()["n"]
     finally:
         conn.close()
@@ -951,54 +1130,52 @@ def suchen_top(limit: int = Query(default=10, le=50)):
 
 
 @app.patch("/entries/{entry_id}", response_model=EntryOut)
-def set_definition(entry_id: int, body: DefinitionIn, _=Depends(require_api_key)):
+def set_definition(entry_id: int, body: DefinitionIn,
+                   _=Depends(require_api_key)):
     """Definition eines Eintrags setzen/überschreiben (z. B. Harvester define).
 
-    Schreibt gleichzeitig den 'de'-Eintrag der definitions-Tabelle (die
-    kanonische deutsche Bedeutung spiegelt entries.definition)."""
+    Die 'de'-Zeile der lexeme_defs ist die kanonische deutsche Bedeutung."""
     conn = get_conn()
     try:
         cur = conn.execute(
-            "UPDATE entries SET definition = ? WHERE id = ?",
+            "UPDATE lexeme_defs SET text = ? WHERE lexeme_id = ? AND lang = 'de'",
             (body.definition.strip(), entry_id),
         )
         if cur.rowcount == 0:
-            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
-        conn.execute(
-            "INSERT OR REPLACE INTO definitions (entry_id, lang, text, source)"
-            " VALUES (?, 'de', ?, 'harvester')",
-            (entry_id, body.definition.strip()),
-        )
+            exists = conn.execute(
+                "SELECT 1 FROM lexemes WHERE id = ?", (entry_id,)).fetchone()
+            if not exists:
+                raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+            conn.execute(
+                "INSERT OR REPLACE INTO lexeme_defs (lexeme_id, lang, text,"
+                " source) VALUES (?, 'de', ?, 'harvester')",
+                (entry_id, body.definition.strip()))
         conn.commit()
         row = conn.execute(
-            "SELECT * FROM entries WHERE id = ?", (entry_id,)
+            f"{_ENTRY_SELECT} WHERE w.id = ?", (entry_id,)
         ).fetchone()
-        return _entry(row)
+        return _entry_from_row(conn, row)
     finally:
         conn.close()
 
 
 @app.get("/entries/{entry_id}/definitions")
 def get_definitions(entry_id: int):
-    """Bedeutungen eines Eintrags in allen vorhandenen Sprachen.
+    """Bedeutungen eines Eintrags in allen vorhandenen Sprachen
+    (Wortebene, unzugeordneter Bestand — lexeme_defs).
 
-    Rückgabe: {"definitions": {"de": "...", "it": "...", ...}} — 'de'
-    stammt aus entries.definition, der Rest aus der definitions-Tabelle.
-    Fehlt der Eintrag: 404."""
+    Rückgabe: {"definitions": {"de": "...", "it": "...", ...}}."""
     conn = get_conn()
     try:
-        row = conn.execute(
-            "SELECT id, definition FROM entries WHERE id = ?", (entry_id,)
-        ).fetchone()
+        row = conn.execute("SELECT id FROM lexemes WHERE id = ?",
+                           (entry_id,)).fetchone()
         if not row:
             raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
         out: dict[str, str] = {}
-        if row["definition"]:
-            out["de"] = row["definition"]
-        src: dict[str, str] = {"de": "legacy"} if row["definition"] else {}
+        src: dict[str, str] = {}
         for r in conn.execute(
-                "SELECT lang, text, source FROM definitions"
-                " WHERE entry_id = ? ORDER BY lang",
+                "SELECT lang, text, source FROM lexeme_defs"
+                " WHERE lexeme_id = ? ORDER BY lang",
                 (entry_id,)).fetchall():
             out[r["lang"]] = r["text"]
             src[r["lang"]] = r["source"]
@@ -1007,28 +1184,26 @@ def get_definitions(entry_id: int):
         conn.close()
 
 
+@app.patch("/entries/{entry_id}/definitions",
+           operation_id="patch_definition")
 @app.put("/entries/{entry_id}/definitions")
 def put_definition(entry_id: int, body: DefLangIn,
                    _=Depends(require_api_key)):
     """Bedeutung in einer Sprache setzen (Upsert; Pipeline/Übersetzung).
 
-    lang = Sprache DES Textes. 'de' spiegelt zusätzlich entries.definition.
-    """
+    lang = Sprache DES Textes. Wortebenen-Bestand (lexeme_defs)."""
     lang = body.lang.lower()
     text = body.text.strip()
     conn = get_conn()
     try:
-        row = conn.execute("SELECT id FROM entries WHERE id = ?",
+        row = conn.execute("SELECT id FROM lexemes WHERE id = ?",
                            (entry_id,)).fetchone()
         if not row:
             raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
         conn.execute(
-            "INSERT OR REPLACE INTO definitions (entry_id, lang, text, source)"
+            "INSERT OR REPLACE INTO lexeme_defs (lexeme_id, lang, text, source)"
             " VALUES (?, ?, ?, ?)",
             (entry_id, lang, text, body.source))
-        if lang == "de":
-            conn.execute("UPDATE entries SET definition = ? WHERE id = ?",
-                         (text, entry_id))
         conn.commit()
         return {"ok": True, "entry_id": entry_id, "lang": lang}
     finally:
@@ -1042,11 +1217,13 @@ def definitions_audit_queue(limit: int = Query(default=50, le=200)):
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT d.entry_id AS entry_id, e.language AS language,"
-            " e.word AS word, d.text AS text"
-            " FROM definitions d JOIN entries e ON e.id = d.entry_id"
+            "SELECT d.lexeme_id AS entry_id, w.language AS language,"
+            " w.word AS word, d.text AS text"
+            " FROM lexeme_defs d"
+            " JOIN lexemes l ON l.id = d.lexeme_id"
+            " JOIN word_forms w ON w.id = l.id"
             " WHERE d.lang = 'de' AND d.source = 'legacy'"
-            " ORDER BY d.entry_id LIMIT ?", (limit,)).fetchall()
+            " ORDER BY d.lexeme_id LIMIT ?", (limit,)).fetchall()
         return {"rows": [dict(r) for r in rows]}
     finally:
         conn.close()
@@ -1057,8 +1234,8 @@ class DefAuditIn(BaseModel):
                           # "move" (Text gehört in eine andere Sprache)
     lang: str = "de"      # Zielsprache bei action="move"
     source: str = "legacy-checked"   # neuer Herkunftshinweis
-    clear_entry_def: bool = False    # entries.definition leeren (wenn der
-                                     # deutsche Slot frei wird)
+    clear_entry_def: bool = False    # 'de'-Lexemdefinition entfernen (wenn
+                                     # der deutsche Slot frei wird)
 
 
 @app.post("/entries/{entry_id}/definitions/audit")
@@ -1076,32 +1253,32 @@ def audit_definition(entry_id: int, body: DefAuditIn,
     conn = get_conn()
     try:
         row = conn.execute(
-            "SELECT id FROM definitions WHERE entry_id = ? AND lang = 'de'",
+            "SELECT id FROM lexeme_defs WHERE lexeme_id = ? AND lang = 'de'",
             (entry_id,)).fetchone()
         if not row:
             raise HTTPException(404, "keine 'de'-Definition zu diesem Eintrag")
         if action == "confirm":
             conn.execute(
-                "UPDATE definitions SET source = ?"
-                " WHERE entry_id = ? AND lang = 'de'",
+                "UPDATE lexeme_defs SET source = ?"
+                " WHERE lexeme_id = ? AND lang = 'de'",
                 (body.source, entry_id))
         else:
             clash = conn.execute(
-                "SELECT id FROM definitions WHERE entry_id = ? AND lang = ?",
+                "SELECT id FROM lexeme_defs WHERE lexeme_id = ? AND lang = ?",
                 (entry_id, to_lang)).fetchone()
             if clash:
                 conn.execute(
-                    "UPDATE definitions SET source = 'legacy-dup'"
-                    " WHERE entry_id = ? AND lang = 'de'",
+                    "UPDATE lexeme_defs SET source = 'legacy-dup'"
+                    " WHERE lexeme_id = ? AND lang = 'de'",
                     (entry_id,))
             else:
                 conn.execute(
-                    "UPDATE definitions SET lang = ?, source = ?"
-                    " WHERE entry_id = ? AND lang = 'de'",
+                    "UPDATE lexeme_defs SET lang = ?, source = ?"
+                    " WHERE lexeme_id = ? AND lang = 'de'",
                     (to_lang, body.source, entry_id))
             if body.clear_entry_def:
                 conn.execute(
-                    "UPDATE entries SET definition = NULL WHERE id = ?",
+                    "DELETE FROM lexeme_defs WHERE lexeme_id = ? AND lang = 'de'",
                     (entry_id,))
         conn.commit()
         return {"ok": True, "entry_id": entry_id, "action": action}
@@ -1127,6 +1304,10 @@ class SenseTransIn(BaseModel):
     entry_id: int
     approx: bool = False  # ungefähre Entsprechung (kein 1:1-Äquivalent)
     source: str = Field(default="model", max_length=40)
+    # Optional: konkrete Ziel-Bedeutung, falls der Zieleintrag mehrere
+    # Bedeutungen hat (409-Auflösung durch die Pipeline anhand
+    # sprachlicher Belege; keine erfundene Zuordnung ohne dieses Feld).
+    target_sense_id: int | None = None
 
 
 class SenseLinkIn(BaseModel):
@@ -1136,36 +1317,48 @@ class SenseLinkIn(BaseModel):
     source: str = Field(default="manual", max_length=40)
 
 
+class SenseImageIn(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    assign: bool = True  # False = Zuordnung aufheben
+
+
 def _senses_fuer_eintrag(conn, entry_id: int) -> list[dict]:
-    """Alle Sinne eines Eintrags, verschachtelt mit Definitionen,
-    Übersetzungszielen und Belegen."""
+    """Alle Bedeutungen eines Lexems, verschachtelt mit Beschreibungen,
+    Übersetzungszielen und Belegen (meanings-Modell)."""
     sinne = conn.execute(
-        "SELECT id, label, word_class, source FROM senses"
-        " WHERE entry_id = ? ORDER BY id", (entry_id,)).fetchall()
+        "SELECT id, label, word_class, source, status FROM meanings"
+        " WHERE lexeme_id = ? ORDER BY id", (entry_id,)).fetchall()
     out = []
     for s in sinne:
         sid = s["id"]
         defs = conn.execute(
-            "SELECT lang, text, source FROM sense_definitions"
-            " WHERE sense_id = ?", (sid,)).fetchall()
+            "SELECT lang, text, source FROM meaning_definitions"
+            " WHERE meaning_id = ?", (sid,)).fetchall()
         trans = conn.execute(
-            "SELECT t.entry_id AS entry_id, e.word AS word,"
-            " e.language AS language, t.approx AS approx,"
+            "SELECT m2.lexeme_id AS entry_id, w.word AS word,"
+            " w.language AS language, t.approx AS approx,"
             " t.source AS source"
-            " FROM sense_translations t JOIN entries e ON e.id = t.entry_id"
-            " WHERE t.sense_id = ? ORDER BY e.language, e.word",
+            " FROM meaning_translations t"
+            " JOIN meanings m2 ON m2.id = t.to_meaning_id"
+            " JOIN word_forms w ON w.id = m2.lexeme_id"
+            " WHERE t.from_meaning_id = ? ORDER BY w.language, w.word",
             (sid,)).fetchall()
         links = conn.execute(
-            "SELECT kind, url, claim, source FROM sense_links"
-            " WHERE sense_id = ? ORDER BY kind, claim", (sid,)).fetchall()
+            "SELECT kind, url, claim, source FROM meaning_links"
+            " WHERE meaning_id = ? ORDER BY kind, claim", (sid,)).fetchall()
+        imgs = conn.execute(
+            "SELECT filename FROM meaning_images WHERE meaning_id = ?"
+            " ORDER BY id", (sid,)).fetchall()
         out.append({
             "id": sid, "label": s["label"],
             "word_class": s["word_class"],
             "source": s["source"],
+            "status": s["status"],
             "definitions": {d["lang"]: d["text"] for d in defs},
             "def_sources": {d["lang"]: d["source"] for d in defs},
             "translations": [dict(t) for t in trans],
             "links": [dict(l) for l in links],
+            "images": [i["filename"] for i in imgs],
         })
     return out
 
@@ -1175,12 +1368,12 @@ def add_sense(entry_id: int, body: SenseIn, _=Depends(require_api_key)):
     """Bedeutung (Sinn) zu einem Eintrag anlegen."""
     conn = get_conn()
     try:
-        row = conn.execute("SELECT id FROM entries WHERE id = ?",
+        row = conn.execute("SELECT id FROM lexemes WHERE id = ?",
                            (entry_id,)).fetchone()
         if not row:
             raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
         cur = conn.execute(
-            "INSERT INTO senses (entry_id, label, word_class, source)"
+            "INSERT INTO meanings (lexeme_id, label, word_class, source)"
             " VALUES (?, ?, ?, ?)",
             (entry_id, body.label.strip(), body.word_class.strip(),
              body.source))
@@ -1195,7 +1388,7 @@ def add_sense(entry_id: int, body: SenseIn, _=Depends(require_api_key)):
 def get_senses(entry_id: int):
     conn = get_conn()
     try:
-        row = conn.execute("SELECT id FROM entries WHERE id = ?",
+        row = conn.execute("SELECT id FROM lexemes WHERE id = ?",
                            (entry_id,)).fetchone()
         if not row:
             raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
@@ -1204,21 +1397,62 @@ def get_senses(entry_id: int):
         conn.close()
 
 
+@app.post("/senses/{sense_id}/images")
+def sense_image_zuordnen(sense_id: int, body: SenseImageIn,
+                         _=Depends(require_api_key)):
+    """Bild einer Bedeutung zuordnen (assign=True) oder Zuordnung aufheben.
+
+    Die Datei muss dem Lexem des Sinns bereits gehören (Hauptbild oder
+    Galerie) — die Zuordnung ordnet sie einer Bedeutung zu, sie ändert
+    nicht den Bildbestand.
+    """
+    conn = get_conn()
+    try:
+        s = conn.execute(
+            "SELECT id, lexeme_id FROM meanings WHERE id = ?",
+            (sense_id,)).fetchone()
+        if not s:
+            raise HTTPException(404, f"Sinn {sense_id} nicht gefunden")
+        gehoert = conn.execute(
+            "SELECT 1 FROM lexeme_images WHERE lexeme_id = ? AND filename = ?",
+            (s["lexeme_id"], body.filename)).fetchone()
+        if not gehoert:
+            raise HTTPException(
+                404, f"Bild {body.filename!r} gehört nicht zum Eintrag")
+        if body.assign:
+            conn.execute(
+                "INSERT OR IGNORE INTO meaning_images"
+                " (meaning_id, filename) VALUES (?, ?)",
+                (sense_id, body.filename))
+        else:
+            conn.execute(
+                "DELETE FROM meaning_images"
+                " WHERE meaning_id = ? AND filename = ?",
+                (sense_id, body.filename))
+        conn.commit()
+        return {"ok": True, "sense_id": sense_id,
+                "filename": body.filename, "assign": body.assign}
+    finally:
+        conn.close()
+
+
 @app.get("/senses/queue")
 def senses_queue(language: str = Query(min_length=2, max_length=8),
                  limit: int = Query(default=50, le=200)):
-    """Einträge mit Definition, aber noch ohne Sinn-Ebenen — Futter für
+    """Einträge mit Definition, aber noch ohne Bedeutungsebenen — Futter für
     die autonome Sinntrennung."""
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT e.id AS id, e.word AS word, e.language AS language,"
-            " e.definition AS definition"
-            " FROM entries e"
-            " WHERE e.language = ?"
-            " AND (e.definition IS NOT NULL AND e.definition != '')"
-            " AND NOT EXISTS (SELECT 1 FROM senses s WHERE s.entry_id = e.id)"
-            " ORDER BY e.id LIMIT ?", (language.lower(), limit)).fetchall()
+            "SELECT l.id AS id, w.word AS word, w.language AS language,"
+            " d.text AS definition"
+            " FROM lexemes l"
+            " JOIN word_forms w ON w.id = l.id"
+            " JOIN lexeme_defs d ON d.lexeme_id = l.id AND d.lang = 'de'"
+            " WHERE w.language = ?"
+            " AND NOT EXISTS (SELECT 1 FROM meanings m"
+            "  WHERE m.lexeme_id = l.id)"
+            " ORDER BY l.id LIMIT ?", (language.lower(), limit)).fetchall()
         return {"rows": [dict(r) for r in rows]}
     finally:
         conn.close()
@@ -1229,23 +1463,29 @@ def senses_translate_queue(frm: str = Query(min_length=2, max_length=8,
                                             alias="from"),
                            to: str = Query(min_length=2, max_length=8),
                            limit: int = Query(default=50, le=200)):
-    """Sinne mit Definition in der Ausgangssprache, die noch KEINE
-    Übersetzungsverbindung zu einem Wort der Zielsprache haben."""
+    """Bedeutungen mit Beschreibung in der Ausgangssprache, die noch KEINE
+    Übersetzungsverbindung zu einer Bedeutung eines Zielsprache-Wortes
+    haben. Keine Obergrenze mehr — jede Bedeutung darf beliebig viele
+    Übersetzungen tragen."""
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT s.id AS sense_id, s.label AS label,"
-            " sd.text AS text,"
-            " e.id AS entry_id, e.word AS word, e.language AS language"
-            " FROM senses s"
-            " JOIN entries e ON e.id = s.entry_id"
-            " JOIN sense_definitions sd ON sd.sense_id = s.id"
+            "SELECT m.id AS sense_id, m.label AS label,"
+            " m.word_class AS word_class, sd.text AS text,"
+            " l.id AS entry_id, w.word AS word, w.language AS language"
+            " FROM meanings m"
+            " JOIN lexemes l ON l.id = m.lexeme_id"
+            " JOIN word_forms w ON w.id = l.id"
+            " JOIN meaning_definitions sd ON sd.meaning_id = m.id"
             "  AND sd.lang = ?"
-            " WHERE e.language = ?"
-            " AND (SELECT COUNT(*) FROM sense_translations st"
-            "      JOIN entries te ON te.id = st.entry_id"
-            "      WHERE st.sense_id = s.id AND te.language = ?) < 3"
-            " ORDER BY s.id LIMIT ?",
+            " WHERE w.language = ?"
+            " AND NOT EXISTS ("
+            "  SELECT 1 FROM meaning_translations t"
+            "  JOIN meanings tm ON tm.id = t.to_meaning_id"
+            "  JOIN lexemes tl ON tl.id = tm.lexeme_id"
+            "  JOIN word_forms tw ON tw.id = tl.id"
+            "  WHERE t.from_meaning_id = m.id AND tw.language = ?)"
+            " ORDER BY m.id LIMIT ?",
             (frm.lower(), frm.lower(), to.lower(), limit)).fetchall()
         return {"rows": [dict(r) for r in rows]}
     finally:
@@ -1255,23 +1495,24 @@ def senses_translate_queue(frm: str = Query(min_length=2, max_length=8,
 @app.get("/senses/etym-queue")
 def senses_etym_queue(language: str = Query(min_length=2, max_length=8),
                       limit: int = Query(default=50, le=200)):
-    """Sinne ohne Herkunftsbeleg — Futter für die autonome Belegung.
+    """Bedeutungen ohne Herkunftsbeleg — Futter für die autonome Belegung.
     Liefert Wort, Glosse und Beschreibung gleich mit."""
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT s.id AS sense_id, s.label AS label,"
+            "SELECT m.id AS sense_id, m.label AS label,"
             " sd.text AS text,"
-            " e.word AS word, e.language AS language"
-            " FROM senses s"
-            " JOIN entries e ON e.id = s.entry_id"
-            " LEFT JOIN sense_definitions sd ON sd.sense_id = s.id"
-            "  AND sd.lang = e.language"
-            " WHERE e.language = ?"
+            " w.word AS word, w.language AS language"
+            " FROM meanings m"
+            " JOIN lexemes l ON l.id = m.lexeme_id"
+            " JOIN word_forms w ON w.id = l.id"
+            " LEFT JOIN meaning_definitions sd ON sd.meaning_id = m.id"
+            "  AND sd.lang = w.language"
+            " WHERE w.language = ?"
             " AND NOT EXISTS ("
-            "  SELECT 1 FROM sense_links sl"
-            "  WHERE sl.sense_id = s.id AND sl.kind = 'etymologie')"
-            " ORDER BY s.id LIMIT ?", (language.lower(), limit)).fetchall()
+            "  SELECT 1 FROM meaning_links sl"
+            "  WHERE sl.meaning_id = m.id AND sl.kind = 'etymologie')"
+            " ORDER BY m.id LIMIT ?", (language.lower(), limit)).fetchall()
         return {"rows": [dict(r) for r in rows]}
     finally:
         conn.close()
@@ -1282,23 +1523,24 @@ def senses_def_queue(frm: str = Query(min_length=2, max_length=8,
                                       alias="from"),
                      to: str = Query(min_length=2, max_length=8),
                      limit: int = Query(default=50, le=200)):
-    """Sinne mit Beschreibung in der Ausgangssprache, aber noch ohne
-    Beschreibung in der Zielsprache — Futter für die Sinn-Beschreibungs-
-    Matrix (jede Bedeutung in jeder Sprache erklärt)."""
+    """Bedeutungen mit Beschreibung in der Ausgangssprache, aber noch ohne
+    Beschreibung in der Zielsprache — Futter für die Bedeutungs-
+    Beschreibungsmatrix (jede Bedeutung in jeder Sprache erklärt)."""
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT s.id AS sense_id, s.label AS label,"
+            "SELECT m.id AS sense_id, m.label AS label,"
             " sd.text AS text,"
-            " e.word AS word, e.language AS language"
-            " FROM senses s"
-            " JOIN entries e ON e.id = s.entry_id"
-            " JOIN sense_definitions sd ON sd.sense_id = s.id"
+            " w.word AS word, w.language AS language"
+            " FROM meanings m"
+            " JOIN lexemes l ON l.id = m.lexeme_id"
+            " JOIN word_forms w ON w.id = l.id"
+            " JOIN meaning_definitions sd ON sd.meaning_id = m.id"
             "  AND sd.lang = ?"
             " WHERE NOT EXISTS ("
-            "  SELECT 1 FROM sense_definitions zd"
-            "  WHERE zd.sense_id = s.id AND zd.lang = ?)"
-            " ORDER BY s.id LIMIT ?",
+            "  SELECT 1 FROM meaning_definitions zd"
+            "  WHERE zd.meaning_id = m.id AND zd.lang = ?)"
+            " ORDER BY m.id LIMIT ?",
             (frm.lower(), to.lower(), limit)).fetchall()
         return {"rows": [dict(r) for r in rows]}
     finally:
@@ -1308,16 +1550,16 @@ def senses_def_queue(frm: str = Query(min_length=2, max_length=8,
 @app.put("/senses/{sense_id}/definitions")
 def put_sense_definition(sense_id: int, body: SenseDefIn,
                          _=Depends(require_api_key)):
-    """Definition für einen Sinn in einer bestimmten Sprache (Upsert)."""
+    """Beschreibung für eine Bedeutung in einer bestimmten Sprache (Upsert)."""
     conn = get_conn()
     try:
-        row = conn.execute("SELECT id FROM senses WHERE id = ?",
+        row = conn.execute("SELECT id FROM meanings WHERE id = ?",
                            (sense_id,)).fetchone()
         if not row:
             raise HTTPException(404, f"Sinn {sense_id} nicht gefunden")
         conn.execute(
-            "INSERT OR REPLACE INTO sense_definitions"
-            " (sense_id, lang, text, source) VALUES (?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO meaning_definitions"
+            " (meaning_id, lang, text, source) VALUES (?, ?, ?, ?)",
             (sense_id, body.lang.lower(), body.text.strip(), body.source))
         conn.commit()
         return {"ok": True, "sense_id": sense_id, "lang": body.lang.lower()}
@@ -1325,44 +1567,72 @@ def put_sense_definition(sense_id: int, body: SenseDefIn,
         conn.close()
 
 
+def _zielbedeutung_fuer_eintrag(conn, entry_id: int) -> int:
+    """Bedeutung des Ziel-Eintrags für eine Übersetzungsbeziehung.
+
+    Genau eine vorhandene Bedeutung → diese. Keine → provisionale
+    Träger-Bedeutung anlegen (mechanisch, status provisional — die
+    Pipeline füllt sie aus). Mehrere → 409, die Pipeline muss die
+    Bedeutung wählen (keine erfundene Zuordnung).
+    """
+    ms = conn.execute(
+        "SELECT id FROM meanings WHERE lexeme_id = ? ORDER BY id",
+        (entry_id,)).fetchall()
+    if len(ms) > 1:
+        raise HTTPException(
+            409, f"Zieleintrag {entry_id} hat mehrere Bedeutungen —"
+                 " Sinn explizit wählen")
+    if len(ms) == 1:
+        return ms[0]["id"]
+    w = conn.execute(
+        "SELECT word FROM word_forms WHERE id = ?", (entry_id,)).fetchone()
+    cur = conn.execute(
+        "INSERT INTO meanings (lexeme_id, label, source, status)"
+        " VALUES (?, ?, 'translation-carrier', 'provisional')",
+        (entry_id, (w["word"] if w else "")[:200]))
+    return cur.lastrowid
+
+
 @app.post("/senses/{sense_id}/translations", status_code=201)
 def add_sense_translation(sense_id: int, body: SenseTransIn,
                           _=Depends(require_api_key)):
-    """Übersetzungsverbindung: Sinn <-> passender Eintrag (anderer Sprache).
+    """Übersetzungsverbindung: Bedeutung <-> Bedeutung (anderer Sprache).
 
-    Ein Wort-Paar pro Sinn — Mehrdeutigkeiten gehören auf mehrere Sinne.
+    Verbindlich nach Fachmodell: keine Obergrenze der Übersetzungszahl.
+    Der Zieleintrag wird auf seine (einzige/provisionale) Bedeutung
+    aufgelöst; bei mehreren Bedeutungen 409 statt erfundener Zuordnung.
     """
     conn = get_conn()
     try:
-        s = conn.execute("SELECT id FROM senses WHERE id = ?",
+        s = conn.execute("SELECT id FROM meanings WHERE id = ?",
                          (sense_id,)).fetchone()
         if not s:
             raise HTTPException(404, f"Sinn {sense_id} nicht gefunden")
-        t = conn.execute("SELECT id, language FROM entries WHERE id = ?",
+        t = conn.execute("SELECT id FROM lexemes WHERE id = ?",
                          (body.entry_id,)).fetchone()
         if not t:
             raise HTTPException(404, f"Eintrag {body.entry_id} nicht gefunden")
+        if body.target_sense_id is not None:
+            tz = conn.execute(
+                "SELECT id FROM meanings WHERE id = ? AND lexeme_id = ?",
+                (body.target_sense_id, body.entry_id)).fetchone()
+            if not tz:
+                raise HTTPException(
+                    404, f"Sinn {body.target_sense_id} gehört nicht zu"
+                         f" Eintrag {body.entry_id}")
+            to_mid = tz["id"]
+        else:
+            to_mid = _zielbedeutung_fuer_eintrag(conn, body.entry_id)
         dup = conn.execute(
-            "SELECT id FROM sense_translations"
-            " WHERE sense_id = ? AND entry_id = ?",
-            (sense_id, body.entry_id)).fetchone()
+            "SELECT id FROM meaning_translations"
+            " WHERE from_meaning_id = ? AND to_meaning_id = ?",
+            (sense_id, to_mid)).fetchone()
         if dup:
             raise HTTPException(409, "Übersetzungsverbindung existiert bereits")
-        pro_sprache = conn.execute(
-            "SELECT COUNT(*) AS n FROM sense_translations t"
-            " JOIN entries e ON e.id = t.entry_id"
-            " WHERE t.sense_id = ? AND e.language = ?",
-            (sense_id, t["language"])).fetchone()
-        if pro_sprache["n"] >= 3:
-            raise HTTPException(
-                400,
-                f"Bereits 3 Übersetzungen für Sprache {t['language']}"
-                " an diesem Sinn — Mehrdeutigkeit gehört auf mehrere Sinne")
         conn.execute(
-            "INSERT INTO sense_translations (sense_id, entry_id, approx,"
-            " source) VALUES (?, ?, ?, ?)",
-            (sense_id, body.entry_id, 1 if body.approx else 0,
-             body.source))
+            "INSERT INTO meaning_translations (from_meaning_id, to_meaning_id,"
+            " approx, source) VALUES (?, ?, ?, ?)",
+            (sense_id, to_mid, 1 if body.approx else 0, body.source))
         conn.commit()
         return {"ok": True, "sense_id": sense_id,
                 "entry_id": body.entry_id}
@@ -1376,8 +1646,9 @@ def delete_sense_translation(sense_id: int, entry_id: int,
     conn = get_conn()
     try:
         cur = conn.execute(
-            "DELETE FROM sense_translations"
-            " WHERE sense_id = ? AND entry_id = ?",
+            "DELETE FROM meaning_translations"
+            " WHERE from_meaning_id = ? AND to_meaning_id IN"
+            " (SELECT id FROM meanings WHERE lexeme_id = ?)",
             (sense_id, entry_id))
         conn.commit()
     finally:
@@ -1389,20 +1660,20 @@ def delete_sense_translation(sense_id: int, entry_id: int,
 @app.post("/senses/{sense_id}/links")
 def put_sense_link(sense_id: int, body: SenseLinkIn,
                    _=Depends(require_api_key)):
-    """Beleg pro Sinn UND Aussage (claim): Wortgeschichte nachvollziehbar."""
+    """Beleg pro Bedeutung UND Aussage (claim): Wortgeschichte nachvollziehbar."""
     kind = body.kind.strip().lower()
     url = body.url.strip()
     if not url.startswith("https://"):
         raise HTTPException(400, "Nur https-URLs erlaubt")
     conn = get_conn()
     try:
-        row = conn.execute("SELECT id FROM senses WHERE id = ?",
+        row = conn.execute("SELECT id FROM meanings WHERE id = ?",
                            (sense_id,)).fetchone()
         if not row:
             raise HTTPException(404, f"Sinn {sense_id} nicht gefunden")
         conn.execute(
-            "INSERT OR REPLACE INTO sense_links"
-            " (sense_id, kind, url, claim, source)"
+            "INSERT OR REPLACE INTO meaning_links"
+            " (meaning_id, kind, url, claim, source)"
             " VALUES (?, ?, ?, ?, ?)",
             (sense_id, kind, url, body.claim.strip(), body.source))
         conn.commit()
@@ -1413,15 +1684,21 @@ def put_sense_link(sense_id: int, body: SenseLinkIn,
 
 @app.delete("/senses/{sense_id}", status_code=204)
 def delete_sense(sense_id: int, _=Depends(require_api_key)):
-    """Sinn samt Definitionen, Übersetzungen und Belegen entfernen
+    """Bedeutung samt Beschreibungen, Übersetzungen und Belegen entfernen
     (Pipeline-Korrekturen, Merge falscher Dubletten)."""
     conn = get_conn()
     try:
-        for tbl in ("sense_definitions", "sense_translations",
-                    "sense_links"):
-            conn.execute(f"DELETE FROM {tbl} WHERE sense_id = ?",
+        for tbl in ("meaning_definitions", "meaning_links",
+                    "meaning_images", "meaning_examples"):
+            conn.execute(f"DELETE FROM {tbl} WHERE meaning_id = ?",
                          (sense_id,))
-        cur = conn.execute("DELETE FROM senses WHERE id = ?", (sense_id,))
+        conn.execute(
+            "DELETE FROM meaning_translations WHERE from_meaning_id = ?"
+            " OR to_meaning_id = ?", (sense_id, sense_id))
+        conn.execute(
+            "DELETE FROM meaning_synonyms WHERE a_meaning_id = ?"
+            " OR b_meaning_id = ?", (sense_id, sense_id))
+        cur = conn.execute("DELETE FROM meanings WHERE id = ?", (sense_id,))
         conn.commit()
     finally:
         conn.close()
@@ -1443,12 +1720,12 @@ def put_source_link(entry_id: int, body: SourceLinkIn,
         raise HTTPException(400, "Nur https-URLs erlaubt")
     conn = get_conn()
     try:
-        row = conn.execute("SELECT id FROM entries WHERE id = ?",
+        row = conn.execute("SELECT id FROM lexemes WHERE id = ?",
                            (entry_id,)).fetchone()
         if not row:
             raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
         conn.execute(
-            "INSERT OR REPLACE INTO source_links (entry_id, kind, url)"
+            "INSERT OR REPLACE INTO source_links (lexeme_id, kind, url)"
             " VALUES (?, ?, ?)",
             (entry_id, kind, url))
         conn.commit()
@@ -1468,27 +1745,27 @@ def set_word(entry_id: int, body: WordIn, _=Depends(require_api_key)):
     conn = get_conn()
     try:
         row = conn.execute(
-            "SELECT language FROM entries WHERE id = ?", (entry_id,)
+            "SELECT language FROM word_forms WHERE id = ?", (entry_id,)
         ).fetchone()
         if not row:
             raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
         dup = conn.execute(
-            "SELECT 1 FROM entries WHERE word = ? AND language = ?",
-            (body.word.strip(), row["language"]),
+            "SELECT 1 FROM word_forms WHERE word = ? AND language = ?"
+            " AND id != ?",
+            (body.word.strip(), row["language"], entry_id),
         ).fetchone()
         if dup:
             raise HTTPException(
                 409, f"'{body.word.strip()}' existiert bereits "
                      f"({row['language']}) — Zusammenfuehrung noetig")
         conn.execute(
-            "UPDATE entries SET word = ? WHERE id = ?",
+            "UPDATE word_forms SET word = ? WHERE id = ?",
             (body.word.strip(), entry_id),
         )
         conn.commit()
-        row = conn.execute(
-            "SELECT * FROM entries WHERE id = ?", (entry_id,)
-        ).fetchone()
-        return _entry(row)
+        r2 = conn.execute(
+            f"{_ENTRY_SELECT} WHERE w.id = ?", (entry_id,)).fetchone()
+        return _entry_from_row(conn, r2)
     except HTTPException:
         raise
     except Exception:
@@ -1498,19 +1775,153 @@ def set_word(entry_id: int, body: WordIn, _=Depends(require_api_key)):
         conn.close()
 
 
-# ---------- Bilder & Bewertung ----------
+# ---------- Wortdaten-Bundle (generische Wortseite) ----------
 
-@app.get("/bewerten", include_in_schema=False)
-def bewerten():
-    """Seite zum Bewerten der Wort-Bilder."""
-    return FileResponse(Path(__file__).parent / "static" / "bewerten.html")
+def _bundle_fuer_lexem(conn, form_row, lex_row) -> dict:
+    """Ein Lesart-Eintrag des Bundles: Lexem mit Bedeutungen, Bildern,
+    Grammatik, Aussprachen und Stimmbilanzen — generisch, keine
+    Sonderbehandlung einzelner Wörter."""
+    lex_id = lex_row["id"]
+    attrs = _attrs(lex_row)
+    definitions: dict[str, dict] = {}
+    for d in conn.execute(
+            "SELECT lang, text, source FROM lexeme_defs"
+            " WHERE lexeme_id = ? ORDER BY lang", (lex_id,)).fetchall():
+        definitions[d["lang"]] = {"text": d["text"], "source": d["source"]}
+    imgs = conn.execute(
+        "SELECT filename, is_main FROM lexeme_images"
+        " WHERE lexeme_id = ? ORDER BY id", (lex_id,)).fetchall()
+    examples = [r["text"] for r in conn.execute(
+        "SELECT text FROM lexeme_examples WHERE lexeme_id = ? ORDER BY id",
+        (lex_id,)).fetchall()]
+    links = [{"kind": l["kind"], "url": l["url"]} for l in conn.execute(
+        "SELECT kind, url FROM source_links WHERE lexeme_id = ? ORDER BY kind",
+        (lex_id,)).fetchall()]
+    # Grammatik: Wortart/Merkmale dieses Lexems + Paradigma der Familie
+    # (lemma-gemittelt, wie /grammatik).
+    g = conn.execute(
+        f"{_ENTRY_SELECT} WHERE w.language = ? AND l.lemma = ?"
+        " ORDER BY w.id LIMIT 1",
+        (lex_row["language"], lex_row["lemma"] or form_row["word"]),
+    ).fetchone()
+    grammar = _grammar_for_lexeme(conn, g) if g else None
+    # Lesart (genau diese Form+Lexem-Kombination) mit Aussprache und Audio
+    reading = conn.execute(
+        "SELECT id FROM readings WHERE form_id = ? AND lexeme_id = ?",
+        (form_row["id"], lex_id)).fetchone()
+    readings = []
+    if reading:
+        rid = reading["id"]
+        prons = [{"transcription": p["transcription"], "note": p["note"]}
+                 for p in conn.execute(
+                     "SELECT transcription, note FROM pronunciations"
+                     " WHERE reading_id = ? ORDER BY id", (rid,)).fetchall()]
+        audio = [{"voice": a["voice"] or None, "length_scale": a["length_scale"],
+                  "filename": a["filename"]}
+                 for a in conn.execute(
+                     "SELECT voice, length_scale, filename FROM reading_audio"
+                     " WHERE reading_id = ? ORDER BY voice, length_scale",
+                     (rid,)).fetchall()]
+        readings.append({"id": rid, "pronunciations": prons, "audio": audio})
+    # Stimmbilanzen
+    img = conn.execute(
+        "SELECT SUM(CASE WHEN understood=1 THEN 1 ELSE 0 END) ja,"
+        " SUM(CASE WHEN understood=0 THEN 1 ELSE 0 END) nein"
+        " FROM ratings WHERE lexeme_id = ? AND kind = 'image'",
+        (lex_id,)).fetchone()
+    unknown = conn.execute(
+        "SELECT COUNT(*) n FROM ratings WHERE lexeme_id = ? AND kind = 'unknown'",
+        (lex_id,)).fetchone()["n"]
+    wr = {r["kind"]: r["n"] for r in conn.execute(
+        "SELECT kind, COUNT(*) n FROM lexeme_ratings WHERE lexeme_id = ?"
+        " GROUP BY kind", (lex_id,)).fetchall()}
+    per_img = {r["image"]: {"ja": r["ja"] or 0, "nein": r["nein"] or 0}
+               for r in conn.execute(
+        "SELECT image,"
+        " SUM(CASE WHEN understood=1 THEN 1 ELSE 0 END) ja,"
+        " SUM(CASE WHEN understood=0 THEN 1 ELSE 0 END) nein"
+        " FROM ratings WHERE lexeme_id = ? AND kind = 'image'"
+        " GROUP BY image", (lex_id,)).fetchall()}
+    meaning_list = []
+    for m in _senses_fuer_eintrag(conn, lex_id):
+        meaning_list.append(m)
+    evidence = lex_row["evidence"]
+    try:
+        evidence = json.loads(evidence) if isinstance(evidence, str) else evidence
+    except Exception:
+        evidence = None
+    return {
+        "id": lex_id,
+        "lemma": lex_row["lemma"],
+        "word_class": lex_row["word_class"],
+        "attrs": attrs,
+        "status": lex_row["status"],
+        "source": lex_row["source"],
+        "created_at": lex_row["created_at"],
+        "confidence": lex_row["confidence"],
+        "sprache_unsicher": lex_row["sprache_unsicher"],
+        "evidence": evidence,
+        "definitions": definitions,
+        "images": {"main": next((i["filename"] for i in imgs if i["is_main"]),
+                                None),
+                   "gallery": [i["filename"] for i in imgs if not i["is_main"]]},
+        "examples": examples,
+        "grammar": grammar,
+        "paradigm": [{"cell": json.loads(lf["cell"] or "[]"), "word": lf["word"]}
+                     for lf in conn.execute(
+            "SELECT lf.cell, w.word FROM lexeme_forms lf"
+            " JOIN word_forms w ON w.id = lf.form_id"
+            " WHERE lf.lexeme_id = ? ORDER BY lf.id", (lex_id,)).fetchall()],
+        "meanings": meaning_list,
+        "readings": readings,
+        "source_links": links,
+        "ratings": {
+            "image": {"ja": img["ja"] or 0, "nein": img["nein"] or 0},
+            "unknown": unknown,
+            "word": {"dazu": wr.get("dazu", 0), "nicht": wr.get("nicht", 0),
+                     "unsicher": wr.get("unsicher", 0)},
+            "per_image": per_img,
+        },
+    }
 
 
-@app.get("/sprecher", include_in_schema=False)
-def sprecher_seite():
-    """Sprecher-Testseite: Stimmen anhören, Tempo testen, bewerten."""
-    return FileResponse(Path(__file__).parent / "static" / "sprecher.html")
+@app.get("/wortdaten")
+def wortdaten(word: str, language: str):
+    """Generisches Wortdaten-Bundle für die Wortseite.
 
+    Eine Schreibweise (Wortform), darunter alle Lesarten (Lexeme) mit
+    ihren Bedeutungen, Bildern, Grammatiken und Aussprachen. Die
+    Darstellung entscheidet nichts selbst — sie zeigt, was das Modell
+    hergibt (inkl. unzugeordnetem Wortebenen-Bestand).
+    """
+    conn = get_conn()
+    try:
+        form = conn.execute(
+            "SELECT id, word, language, script FROM word_forms"
+            " WHERE word = ? AND language = ?",
+            (word.strip(), language.lower())).fetchone()
+        if not form:
+            raise HTTPException(404, f"'{word}' nicht gefunden ({language})")
+        # Lesarten = (form, lexeme)-Paare; Fallback: das 1:1-Lexem der Form
+        lesarten = conn.execute(
+            f"{_ENTRY_SELECT} JOIN readings r"
+            " ON r.form_id = w.id AND r.lexeme_id = l.id"
+            " WHERE w.id = ? ORDER BY l.id", (form["id"],)).fetchall()
+        if not lesarten:
+            lex = conn.execute(
+                f"{_ENTRY_SELECT} WHERE w.id = ?", (form["id"],)).fetchone()
+            lesarten = [lex] if lex else []
+        lexemes = [_bundle_fuer_lexem(conn, form, lr) for lr in lesarten]
+        return {
+            "form": {"id": form["id"], "word": form["word"],
+                     "language": form["language"], "script": form["script"]},
+            "lexemes": lexemes,
+        }
+    finally:
+        conn.close()
+
+
+# ---------- Bilder ----------
 
 @app.get("/bilder/neu", include_in_schema=False)
 def bilder_neu(limit: int = Query(default=12, le=30)):
@@ -1518,10 +1929,11 @@ def bilder_neu(limit: int = Query(default=12, le=30)):
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT ei.filename AS filename, e.word AS word, "
-            "       e.language AS language, e.id AS entry_id "
-            "FROM entry_images ei JOIN entries e ON e.id = ei.entry_id "
-            "ORDER BY ei.id DESC LIMIT ?",
+            "SELECT li.filename AS filename, w.word AS word, "
+            "       w.language AS language, li.lexeme_id AS entry_id "
+            "FROM lexeme_images li "
+            "JOIN word_forms w ON w.id = li.lexeme_id "
+            "ORDER BY li.id DESC LIMIT ?",
             (limit,),
         ).fetchall()
         return [row_to_dict(r) for r in rows]
@@ -1603,53 +2015,51 @@ def raten_next(request: Request, response: Response,
     Legt anonyme Sitzung an (Cookie) und liefert einen Einmal-Nonce,
     der zum Abstimmen noetig ist.
     """
-    sql = ("SELECT e.id, e.word, e.language, e.definition, e.image, "
-           "(SELECT COUNT(*) FROM ratings r WHERE r.entry_id = e.id "
+    sql = ("SELECT l.id, w.word, w.language,"
+           " (SELECT filename FROM lexeme_images li WHERE li.lexeme_id = l.id"
+           "  AND li.is_main = 1) AS image,"
+           " (SELECT COUNT(*) FROM ratings r WHERE r.lexeme_id = l.id "
            " AND r.kind = 'image') AS votes "
-           "FROM entries e WHERE e.image IS NOT NULL AND e.image != ''")
+           "FROM lexemes l JOIN word_forms w ON w.id = l.id "
+           "WHERE EXISTS (SELECT 1 FROM lexeme_images li"
+           " WHERE li.lexeme_id = l.id AND li.is_main = 1)")
     params: list = []
     if language:
-        sql += " AND e.language = ?"
+        sql += " AND w.language = ?"
         params.append(language.lower())
     seen = [int(x) for x in exclude.split(",") if x.strip().isdigit()][:300]
     if seen:
-        sql += f" AND e.id NOT IN ({','.join('?' * len(seen))})"
+        sql += f" AND l.id NOT IN ({','.join('?' * len(seen))})"
         params += seen
     sql += " ORDER BY votes ASC, RANDOM() LIMIT 1"
     conn = get_conn()
     try:
         row = conn.execute(sql, params).fetchone()
-    finally:
-        conn.close()
-    if not row:
-        raise HTTPException(404, "Keine neuen Bilder mehr vorhanden")
-    out = row_to_dict(row)
-    # Sitzung + Einmal-Nonce (an Sitzung und Eintrag gebunden)
-    sid = _get_session(request, response)
-    nonce = secrets.token_urlsafe(16)
-    conn_n = get_conn()
-    try:
-        conn_n.execute(
+        if not row:
+            raise HTTPException(404, "Keine neuen Bilder mehr vorhanden")
+        out = row_to_dict(row)
+        out["definition"] = _de_definition(conn, out["id"])
+        # Sitzung + Einmal-Nonce (an Sitzung und Eintrag gebunden)
+        sid = _get_session(request, response)
+        nonce = secrets.token_urlsafe(16)
+        conn.execute(
             "DELETE FROM rating_nonces WHERE expires_at < datetime('now')")
-        conn_n.execute(
-            "INSERT INTO rating_nonces (nonce, session_id, entry_id, "
+        conn.execute(
+            "INSERT INTO rating_nonces (nonce, session_id, lexeme_id, "
             "expires_at) VALUES (?, ?, ?, ?)",
             (nonce, sid, out["id"], now_str(NONCE_TTL_MIN)))
-        conn_n.commit()
-    finally:
-        conn_n.close()
-    out["nonce"] = nonce
-    # Galerie: weitere Bilder, die den Begriff mitbeschreiben
-    conn2 = get_conn()
-    try:
-        out["gallery"] = [r["filename"] for r in conn2.execute(
-            "SELECT filename FROM entry_images "
-            "WHERE entry_id = ? AND filename != ? ORDER BY id",
+        conn.commit()
+        out["nonce"] = nonce
+        # Galerie: weitere Bilder, die den Begriff mitbeschreiben
+        out["gallery"] = [r["filename"] for r in conn.execute(
+            "SELECT filename FROM lexeme_images "
+            "WHERE lexeme_id = ? AND filename != ? AND is_main = 0"
+            " ORDER BY id",
             (out["id"], out["image"] or "")).fetchall()]
     finally:
-        conn2.close()
+        conn.close()
     # Alternative Kandidaten desselben Wortes (rendern liefert immer
-    # mehrere Entwürfe; Gewinner steht in entries.image) — direkt vom
+    # mehrere Entwürfe; Gewinner steht als is_main) — direkt vom
     # Dateisystem, keine DB-Spalte noetig.
     out["candidates"] = []
     if IMAGE_NAME_RE.fullmatch(out["image"] or ""):
@@ -1668,21 +2078,39 @@ def zufall(language: str = ""):
     Leere Sprache = beliebige Sprache."""
     conn = get_conn()
     try:
+        base = ("SELECT w.word, w.language,"
+                " (SELECT filename FROM lexeme_images li"
+                "  WHERE li.lexeme_id = w.id AND li.is_main = 1) AS image"
+                " FROM word_forms w"
+                " WHERE EXISTS (SELECT 1 FROM lexeme_images li"
+                " WHERE li.lexeme_id = w.id AND li.is_main = 1)")
         if language:
             row = conn.execute(
-                "SELECT word, language, definition, image FROM entries "
-                "WHERE language = ? AND image IS NOT NULL AND image != '' "
-                "ORDER BY RANDOM() LIMIT 1", (language.lower(),)).fetchone()
+                base + " AND w.language = ? ORDER BY RANDOM() LIMIT 1",
+                (language.lower(),)).fetchone()
         else:
             row = conn.execute(
-                "SELECT word, language, definition, image FROM entries "
-                "WHERE image IS NOT NULL AND image != '' "
-                "ORDER BY RANDOM() LIMIT 1").fetchone()
+                base + " ORDER BY RANDOM() LIMIT 1").fetchone()
     finally:
         conn.close()
     if not row:
         raise HTTPException(404, "Keine Einträge mit Bild in dieser Sprache")
-    return row_to_dict(row)
+    out = row_to_dict(row)
+    conn2 = get_conn()
+    try:
+        lex_id = _lexem_id_zu_form(conn2, out["word"], out["language"])
+        out["id"] = lex_id
+        out["definition"] = _de_definition(conn2, lex_id) if lex_id else None
+    finally:
+        conn2.close()
+    return out
+
+
+def _lexem_id_zu_form(conn, word: str, language: str) -> int | None:
+    r = conn.execute(
+        "SELECT id FROM word_forms WHERE word = ? AND language = ?",
+        (word, language)).fetchone()
+    return r["id"] if r else None
 
 
 @app.post("/raten/pick")
@@ -1693,36 +2121,36 @@ def raten_pick(pick: PickIn):
     oder <lang>-<id>-v<N>.png, und die auf der Platte existieren.
     Das bisherige Hauptbild bleibt als Galerie-Bild erhalten — die
     Kombination mehrerer Bilder beschreibt den Begriff. Stimmen werden
-    pro Datei gezaehlt: alte Hauptbild-Stimmen (image IS NULL) werden auf
+    pro Datei gezaehlt: alte Hauptbild-Stimmen (image = '') werden auf
     den Dateinamen des alten Hauptbilds umgebogen.
     """
     conn = get_conn()
     try:
         row = conn.execute(
-            "SELECT id, language, image FROM entries WHERE id = ?",
+            "SELECT w.language, l.id AS lex_id FROM lexemes l"
+            " JOIN word_forms w ON w.id = l.id WHERE l.id = ?",
             (pick.entry_id,),
         ).fetchone()
         if not row:
             raise HTTPException(404, f"Eintrag {pick.entry_id} nicht gefunden")
-        prefix = f"{row['language']}-{row['id']}-"
+        prefix = f"{row['language']}-{pick.entry_id}-"
         if not pick.filename.startswith(prefix):
             raise HTTPException(400, "Datei gehört nicht zu diesem Eintrag")
         if not (IMAGES_DIR / pick.filename).is_file():
             raise HTTPException(404, "Bilddatei nicht vorhanden")
-        old = row["image"] or ""
+        old = _main_image(conn, pick.entry_id) or ""
         if old != pick.filename:
             if old:
                 conn.execute(
-                    "INSERT OR IGNORE INTO entry_images (entry_id, filename) "
-                    "VALUES (?, ?)", (pick.entry_id, old))
+                    "INSERT OR IGNORE INTO lexeme_images (lexeme_id, filename)"
+                    " VALUES (?, ?)", (pick.entry_id, old))
                 conn.execute(
-                    "UPDATE ratings SET image = ? WHERE entry_id = ? "
-                    "AND image IS NULL", (old, pick.entry_id))
+                    "UPDATE ratings SET image = ? WHERE lexeme_id = ? "
+                    "AND image = ''", (old, pick.entry_id))
             conn.execute(
-                "INSERT OR IGNORE INTO entry_images (entry_id, filename) "
-                "VALUES (?, ?)", (pick.entry_id, pick.filename))
-            conn.execute("UPDATE entries SET image = ? WHERE id = ?",
-                         (pick.filename, pick.entry_id))
+                "INSERT OR IGNORE INTO lexeme_images (lexeme_id, filename)"
+                " VALUES (?, ?)", (pick.entry_id, pick.filename))
+            _set_main_image(conn, pick.entry_id, pick.filename)
             conn.commit()
     finally:
         conn.close()
@@ -1731,7 +2159,7 @@ def raten_pick(pick: PickIn):
 
 @app.post("/bilder/upload", status_code=201)
 def bilder_upload(body: ImageIn, _=Depends(require_api_key)):
-    """Bilddatei nur speichern (ohne entries.image zu ändern) — für
+    """Bilddatei nur speichern (ohne Hauptbild zu ändern) — für
     Kandidaten-Entwürfe der Bild-Pipeline."""
     try:
         data = base64.b64decode(body.data_b64, validate=True)
@@ -1765,29 +2193,30 @@ def raten_vote(vote: VoteIn, request: Request):
     conn = get_conn()
     try:
         exists = conn.execute(
-            "SELECT 1 FROM entries WHERE id = ?", (vote.entry_id,)
+            "SELECT 1 FROM lexemes WHERE id = ?", (vote.entry_id,)
         ).fetchone()
         if not exists:
             raise HTTPException(404, f"Eintrag {vote.entry_id} nicht gefunden")
+        image = vote.image or ""
         if not keyed:
             # Nonce atomar verbrauchen (gebunden an Sitzung + Eintrag)
             cur = conn.execute(
                 "DELETE FROM rating_nonces WHERE nonce = ? AND session_id = ? "
-                "AND entry_id = ? AND expires_at > datetime('now')",
+                "AND lexeme_id = ? AND expires_at > datetime('now')",
                 (vote.nonce or "", sid, vote.entry_id))
             if cur.rowcount != 1:
                 raise HTTPException(403, "Ungültiger oder verbrauchter Nonce.")
             # Dasselbe Bild in derselben Sitzung nur einmal
             dup = conn.execute(
-                "SELECT 1 FROM ratings WHERE session_id = ? AND entry_id = ? "
-                "AND COALESCE(image, '') = COALESCE(?, '')",
-                (sid, vote.entry_id, vote.image)).fetchone()
+                "SELECT 1 FROM ratings WHERE session_id = ? AND lexeme_id = ? "
+                "AND image = ?",
+                (sid, vote.entry_id, image)).fetchone()
             if dup:
                 raise HTTPException(409, "Bereits bewertet.")
         conn.execute(
-            "INSERT INTO ratings (entry_id, understood, image, kind, "
+            "INSERT INTO ratings (lexeme_id, understood, image, kind, "
             "session_id) VALUES (?, ?, ?, ?, ?)",
-            (vote.entry_id, 1 if vote.understood else 0, vote.image,
+            (vote.entry_id, 1 if vote.understood else 0, image,
              vote.kind, sid or None),
         )
         conn.commit()
@@ -1805,21 +2234,20 @@ def raten_move(move: MoveIn):
     conn = get_conn()
     try:
         row = conn.execute(
-            "SELECT id, language, image FROM entries WHERE id = ?",
+            "SELECT l.id, w.language FROM lexemes l"
+            " JOIN word_forms w ON w.id = l.id WHERE l.id = ?",
             (move.entry_id,),
         ).fetchone()
         if not row:
             raise HTTPException(404, f"Eintrag {move.entry_id} nicht gefunden")
         mine = {r["filename"] for r in conn.execute(
-            "SELECT filename FROM entry_images WHERE entry_id = ?",
+            "SELECT filename FROM lexeme_images WHERE lexeme_id = ?",
             (move.entry_id,)).fetchall()}
-        if row["image"]:
-            mine.add(row["image"])
         if move.filename not in mine:
             raise HTTPException(400,
                                 "Datei gehört nicht zu diesem Eintrag")
         target = conn.execute(
-            "SELECT id FROM entries WHERE word = ? AND language = ?",
+            "SELECT id FROM word_forms WHERE word = ? AND language = ?",
             (move.target_word.strip(), row["language"]),
         ).fetchone()
         if not target:
@@ -1827,7 +2255,7 @@ def raten_move(move: MoveIn):
                                 f"'{move.target_word}' gibt es im "
                                 f"{row['language']}-Bestand nicht")
         conn.execute(
-            "INSERT INTO image_moves (filename, from_entry_id, target_word,"
+            "INSERT INTO image_moves (filename, from_lexeme_id, target_word,"
             " language) VALUES (?, ?, ?, ?)",
             (move.filename, move.entry_id,
              move.target_word.strip(), row["language"]))
@@ -1843,8 +2271,8 @@ def raten_moves(status: str = "offen", _=Depends(require_api_key)):
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT m.*, e.word AS from_word FROM image_moves m "
-            "JOIN entries e ON e.id = m.from_entry_id "
+            "SELECT m.*, w.word AS from_word FROM image_moves m "
+            "JOIN word_forms w ON w.id = m.from_lexeme_id "
             "WHERE m.status = ? ORDER BY m.id",
             (status,),
         ).fetchall()
@@ -1868,37 +2296,47 @@ def raten_resolve(move_id: int, body: ResolveIn,
             raise HTTPException(409, "Umzug ist schon entschieden")
         note = body.note
         if body.accept:
-            src = conn.execute(
-                "SELECT image FROM entries WHERE id = ?",
-                (m["from_entry_id"],)).fetchone()
-            is_main = bool(src and src["image"] == m["filename"])
+            src_main = conn.execute(
+                "SELECT 1 FROM lexeme_images WHERE lexeme_id = ?"
+                " AND filename = ? AND is_main = 1",
+                (m["from_lexeme_id"], m["filename"])).fetchone()
+            is_main = bool(src_main)
             if is_main:
                 nxt = conn.execute(
-                    "SELECT filename FROM entry_images "
-                    "WHERE entry_id = ? AND filename != ? ORDER BY id LIMIT 1",
-                    (m["from_entry_id"], m["filename"])).fetchone()
+                    "SELECT filename FROM lexeme_images "
+                    "WHERE lexeme_id = ? AND filename != ?"
+                    " ORDER BY id LIMIT 1",
+                    (m["from_lexeme_id"], m["filename"])).fetchone()
                 conn.execute(
-                    "UPDATE entries SET image = ? WHERE id = ?",
-                    (nxt["filename"] if nxt else None, m["from_entry_id"]))
+                    "UPDATE lexeme_images SET is_main = 0"
+                    " WHERE lexeme_id = ?", (m["from_lexeme_id"],))
+                if nxt:
+                    conn.execute(
+                        "UPDATE lexeme_images SET is_main = 1"
+                        " WHERE lexeme_id = ? AND filename = ?",
+                        (m["from_lexeme_id"], nxt["filename"]))
             conn.execute(
-                "DELETE FROM entry_images WHERE entry_id = ? AND filename = ?",
-                (m["from_entry_id"], m["filename"]))
+                "DELETE FROM lexeme_images WHERE lexeme_id = ?"
+                " AND filename = ?",
+                (m["from_lexeme_id"], m["filename"]))
             # Stimmen im alten Kontext verwirren nur
             conn.execute(
-                "DELETE FROM ratings WHERE entry_id = ? AND image = ?",
-                (m["from_entry_id"], m["filename"]))
+                "DELETE FROM ratings WHERE lexeme_id = ? AND image = ?",
+                (m["from_lexeme_id"], m["filename"]))
             tgt = conn.execute(
-                "SELECT id, image FROM entries WHERE word = ? AND language = ?",
+                "SELECT l.id FROM lexemes l JOIN word_forms w ON w.id = l.id"
+                " WHERE w.word = ? AND w.language = ?",
                 (m["target_word"], m["language"])).fetchone()
             if not tgt:
                 raise HTTPException(404, "Zieleintrag nicht gefunden")
             conn.execute(
-                "INSERT OR IGNORE INTO entry_images (entry_id, filename) "
-                "VALUES (?, ?)", (tgt["id"], m["filename"]))
-            if not tgt["image"]:
+                "INSERT OR IGNORE INTO lexeme_images (lexeme_id, filename)"
+                " VALUES (?, ?)", (tgt["id"], m["filename"]))
+            if not _main_image(conn, tgt["id"]):
                 conn.execute(
-                    "UPDATE entries SET image = ? WHERE id = ?",
-                    (m["filename"], tgt["id"]))
+                    "UPDATE lexeme_images SET is_main = 1"
+                    " WHERE lexeme_id = ? AND filename = ?",
+                    (tgt["id"], m["filename"]))
         conn.execute(
             "UPDATE image_moves SET status = ?, note = ?, "
             "decided_at = datetime('now') WHERE id = ?",
@@ -1916,12 +2354,17 @@ def raten_schlecht(min_votes: int = 2, _=Depends(require_api_key)):
     conn = get_conn()
     try:
         rows = conn.execute(
-            "SELECT e.id, e.word, e.language, e.definition, e.image, "
+            "SELECT l.id, w.word, w.language,"
+            " (SELECT text FROM lexeme_defs d WHERE d.lexeme_id = l.id"
+            "  AND d.lang = 'de') AS definition,"
+            " (SELECT filename FROM lexeme_images li WHERE li.lexeme_id = l.id"
+            "  AND li.is_main = 1) AS image, "
             "SUM(CASE WHEN r.understood = 1 THEN 1 ELSE 0 END) AS ja, "
             "SUM(CASE WHEN r.understood = 0 THEN 1 ELSE 0 END) AS nein "
-            "FROM ratings r JOIN entries e ON e.id = r.entry_id "
+            "FROM ratings r JOIN lexemes l ON l.id = r.lexeme_id "
+            "JOIN word_forms w ON w.id = l.id "
             "WHERE r.kind = 'image' "
-            "GROUP BY r.entry_id "
+            "GROUP BY r.lexeme_id "
             "HAVING nein > ja AND nein >= ? "
             "ORDER BY nein DESC",
             (min_votes,),
@@ -1946,7 +2389,7 @@ def raten_stats():
             "SELECT COUNT(*) AS n FROM ratings WHERE kind = 'unknown'"
         ).fetchone()["n"]
         with_image = conn.execute(
-            "SELECT COUNT(*) AS n FROM entries WHERE image IS NOT NULL AND image != ''"
+            "SELECT COUNT(DISTINCT lexeme_id) AS n FROM lexeme_images"
         ).fetchone()["n"]
     finally:
         conn.close()
@@ -1976,20 +2419,20 @@ def wort_bildvote(vote: BildVoteIn, request: Request, response: Response):
     conn = get_conn()
     try:
         exists = conn.execute(
-            "SELECT 1 FROM entries WHERE id = ?", (vote.entry_id,)
+            "SELECT 1 FROM lexemes WHERE id = ?", (vote.entry_id,)
         ).fetchone()
         if not exists:
             raise HTTPException(404, f"Eintrag {vote.entry_id} nicht gefunden")
-        img = vote.image or None
+        img = vote.image or ""
         dup = conn.execute(
-            "SELECT 1 FROM ratings WHERE entry_id = ? AND session_id = ? "
-            "AND kind = 'image' AND COALESCE(image, '') = COALESCE(?, '')",
+            "SELECT 1 FROM ratings WHERE lexeme_id = ? AND session_id = ? "
+            "AND kind = 'image' AND image = ?",
             (vote.entry_id, sid, img),
         ).fetchone()
         if dup:
             raise HTTPException(409, "Diese Sitzung hat hier schon abgestimmt")
         conn.execute(
-            "INSERT INTO ratings (entry_id, understood, kind, image,"
+            "INSERT INTO ratings (lexeme_id, understood, kind, image,"
             " session_id) VALUES (?, ?, 'image', ?, ?)",
             (vote.entry_id, 1 if vote.understood else 0, img, sid),
         )
@@ -2013,13 +2456,13 @@ def wort_vote(vote: WordVoteIn):
     conn = get_conn()
     try:
         exists = conn.execute(
-            "SELECT 1 FROM entries WHERE id = ?", (vote.entry_id,)
+            "SELECT 1 FROM lexemes WHERE id = ?", (vote.entry_id,)
         ).fetchone()
         if not exists:
             raise HTTPException(404, f"Eintrag {vote.entry_id} nicht gefunden")
         conn.execute(
-            "INSERT INTO word_ratings (entry_id, fits, kind) VALUES (?, ?, ?)",
-            (vote.entry_id, 1 if kind == "dazu" else 0, kind),
+            "INSERT INTO lexeme_ratings (lexeme_id, kind) VALUES (?, ?)",
+            (vote.entry_id, kind),
         )
         conn.commit()
     finally:
@@ -2033,92 +2476,79 @@ def get_evidence(entry_id: int):
     conn = get_conn()
     try:
         row = conn.execute(
-            "SELECT id, word, language, definition, image, source,"
-            "       confidence, evidence, sprache_unsicher, created_at "
-            "FROM entries WHERE id = ?", (entry_id,),
+            f"{_ENTRY_SELECT} WHERE w.id = ?", (entry_id,),
         ).fetchone()
         if not row:
             raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
         img = conn.execute(
             "SELECT SUM(CASE WHEN understood=1 THEN 1 ELSE 0 END) ja,"
             "       SUM(CASE WHEN understood=0 THEN 1 ELSE 0 END) nein "
-            "FROM ratings WHERE entry_id = ? AND kind = 'image'", (entry_id,),
+            "FROM ratings WHERE lexeme_id = ? AND kind = 'image'", (entry_id,)
         ).fetchone()
         wr_rows = conn.execute(
-            "SELECT kind, COUNT(*) AS n FROM word_ratings "
-            "WHERE entry_id = ? GROUP BY kind", (entry_id,),
+            "SELECT kind, COUNT(*) AS n FROM lexeme_ratings "
+            "WHERE lexeme_id = ? GROUP BY kind", (entry_id,)
         ).fetchall()
         wr_counts = {r["kind"]: r["n"] for r in wr_rows}
         unbekannt = conn.execute(
             "SELECT COUNT(*) AS n FROM ratings "
-            "WHERE entry_id = ? AND kind = 'unknown'", (entry_id,),
+            "WHERE lexeme_id = ? AND kind = 'unknown'", (entry_id,)
         ).fetchone()["n"]
-        # Stimmen pro Bilddatei (NULL/'' = Hauptbild)
+        # Stimmen pro Bilddatei ('' = Hauptbild)
         per_img = {}
         for r in conn.execute(
-                "SELECT COALESCE(image, '') AS img,"
+                "SELECT image AS img,"
                 " SUM(CASE WHEN understood=1 THEN 1 ELSE 0 END) ja,"
                 " SUM(CASE WHEN understood=0 THEN 1 ELSE 0 END) nein "
-                "FROM ratings WHERE entry_id = ? AND kind = 'image' "
-                "GROUP BY img",
+                "FROM ratings WHERE lexeme_id = ? AND kind = 'image' "
+                "GROUP BY image",
                 (entry_id,)).fetchall():
             per_img[r["img"]] = {"ja": r["ja"] or 0, "nein": r["nein"] or 0}
+        main = _main_image(conn, entry_id)
         gallery = [g["filename"] for g in conn.execute(
-            "SELECT filename FROM entry_images WHERE entry_id = ? "
+            "SELECT filename FROM lexeme_images WHERE lexeme_id = ? "
             "AND filename != ? ORDER BY id",
-            (entry_id, row["image"] or "")).fetchall()]
+            (entry_id, main or "")).fetchall()]
         # Grammatik des Lemmas (Wortart, Genus, Flexion) — einmal pro
         # Wortfamilie, die Einzelworte verweisen darauf.
-        er = conn.execute("SELECT lemma FROM entries WHERE id = ?",
-                          (entry_id,)).fetchone()
-        lemma_for_grammar = (er["lemma"] or row["word"]) if er else row["word"]
         g = conn.execute(
-            "SELECT word_class, gender, article, flexion "
-            "FROM grammar WHERE language = ? AND lemma = ?",
-            (row["language"], lemma_for_grammar),
+            f"{_ENTRY_SELECT} WHERE w.language = ? AND l.lemma = ?"
+            " ORDER BY w.id LIMIT 1",
+            (row["language"], row["lemma"] or row["word"]),
         ).fetchone()
         links = [{"kind": l["kind"], "url": l["url"]} for l in conn.execute(
-            "SELECT kind, url FROM source_links WHERE entry_id = ? "
+            "SELECT kind, url FROM source_links WHERE lexeme_id = ? "
             "ORDER BY kind", (entry_id,)).fetchall()]
+        out = _entry_from_row(conn, row, with_evidence=False)
+        out["evidence"] = None
+        try:
+            out["evidence"] = json.loads(row["evidence"] or "{}")
+        except Exception:
+            out["evidence"] = {}
+        out["image_votes"] = {"ja": img["ja"] or 0, "nein": img["nein"] or 0}
+        out["word_votes"] = {"dazu": wr_counts.get("dazu", 0),
+                             "nicht": wr_counts.get("nicht", 0),
+                             "unsicher": wr_counts.get("unsicher", 0)}
+        # "Wort unbekannt"-Stimmen der Bewertungsseite — eigenes Signal:
+        # verstehen Menschen den Begriff, unabhaengig vom Bild?
+        out["unknown_votes"] = unbekannt
+        # Grammatik der Wortfamilie (NULL, wenn das Lemma noch nicht
+        # erntet wurde)
+        out["grammar"] = _grammar_for_lexeme(conn, g) if g else None
+        # Bilder des Eintrags: Hauptbild zuerst, dann Galerie — jeweils mit
+        # ihren eigenen Stimmen (Kombination beschreibt den Begriff).
+        bilder = []
+        if main:
+            v = per_img.get(main, per_img.get("", {"ja": 0, "nein": 0}))
+            bilder.append({"filename": main, "main": True, **v})
+        for fn in gallery:
+            v = per_img.get(fn, {"ja": 0, "nein": 0})
+            bilder.append({"filename": fn, "main": False, **v})
+        out["bilder"] = bilder
+        out["source_links"] = links
+        return out
     finally:
         conn.close()
-    out = row_to_dict(row)
-    out["source_links"] = links
-    try:
-        out["evidence"] = json.loads(out["evidence"] or "{}")
-    except Exception:
-        out["evidence"] = {}
-    out["image_votes"] = {"ja": img["ja"] or 0, "nein": img["nein"] or 0}
-    out["word_votes"] = {"dazu": wr_counts.get("dazu", 0),
-                         "nicht": wr_counts.get("nicht", 0),
-                         "unsicher": wr_counts.get("unsicher", 0)}
-    # "Wort unbekannt"-Stimmen der Bewertungsseite — eigenes Signal:
-    # verstehen Menschen den Begriff, unabhaengig vom Bild?
-    out["unknown_votes"] = unbekannt
-    # Grammatik der Wortfamilie (NULL, wenn das Lemma noch nicht erntet wurde)
-    if g:
-        flex = None
-        try:
-            flex = json.loads(g["flexion"]) if g["flexion"] else None
-        except Exception:
-            flex = None
-        out["grammar"] = {"word_class": g["word_class"],
-                          "gender": g["gender"],
-                          "article": g["article"],
-                          "flexion": flex}
-    else:
-        out["grammar"] = None
-    # Bilder des Eintrags: Hauptbild zuerst, dann Galerie — jeweils mit
-    # ihren eigenen Stimmen (Kombination beschreibt den Begriff).
-    bilder = []
-    if row["image"]:
-        v = per_img.get(row["image"], per_img.get("", {"ja": 0, "nein": 0}))
-        bilder.append({"filename": row["image"], "main": True, **v})
-    for fn in gallery:
-        v = per_img.get(fn, {"ja": 0, "nein": 0})
-        bilder.append({"filename": fn, "main": False, **v})
-    out["bilder"] = bilder
-    return out
 
 
 @app.post("/entries/{entry_id}/evidence", response_model=EntryOut)
@@ -2128,7 +2558,7 @@ def set_evidence(entry_id: int, body: EvidenceIn,
     conn = get_conn()
     try:
         cur = conn.execute(
-            "UPDATE entries SET confidence = ?, evidence = ?,"
+            "UPDATE lexemes SET confidence = ?, evidence = ?,"
             " sprache_unsicher = ? WHERE id = ?",
             (body.confidence, json.dumps(body.evidence, ensure_ascii=False),
              1 if body.sprache_unsicher else 0, entry_id),
@@ -2137,9 +2567,9 @@ def set_evidence(entry_id: int, body: EvidenceIn,
         if cur.rowcount == 0:
             raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
         row = conn.execute(
-            "SELECT * FROM entries WHERE id = ?", (entry_id,)
+            f"{_ENTRY_SELECT} WHERE w.id = ?", (entry_id,)
         ).fetchone()
-        return _entry(row)
+        return _entry_from_row(conn, row)
     finally:
         conn.close()
 
@@ -2235,6 +2665,42 @@ def _stimme_namen(lang: str, voice: str | None) -> str:
     return voice
 
 
+def _lesart_fuer(conn, form_id: int):
+    """Lesart (reading) einer Wortform — 1:1-Fall: (form, form)."""
+    return conn.execute(
+        "SELECT id FROM readings WHERE form_id = ? ORDER BY id LIMIT 1",
+        (form_id,)).fetchone()
+
+
+def _audio_als_db_zeile(conn, form_id: int, voice: str, ls: float,
+                        default_voice: str):
+    """Passende Audiodatei aus reading_audio (inkl. stimmenlosem
+    Altbestand, voice='' = Default-Stimme)."""
+    row = conn.execute(
+        "SELECT a.filename FROM reading_audio a"
+        " JOIN readings r ON r.id = a.reading_id"
+        " WHERE r.form_id = ? AND (a.voice = ? OR (a.voice = '' AND ?))"
+        " AND a.length_scale = ?"
+        " ORDER BY (a.voice = '') LIMIT 1",
+        (form_id, voice, 1 if voice == default_voice else 0, ls)).fetchone()
+    return row["filename"] if row else None
+
+
+def _audio_dbschreiben(conn, form_id: int, lexeme_id: int | None,
+                       voice: str, ls: float, filename: str) -> None:
+    """Synthese-Ergebnis als reading_audio-Zeile festhalten."""
+    r = _lesart_fuer(conn, form_id)
+    if not r:
+        conn.execute(
+            "INSERT OR IGNORE INTO readings (form_id, lexeme_id, source)"
+            " VALUES (?, ?, 'synthesis')", (form_id, lexeme_id))
+        r = _lesart_fuer(conn, form_id)
+    conn.execute(
+        "INSERT OR IGNORE INTO reading_audio (reading_id, voice,"
+        " length_scale, filename) VALUES (?, ?, ?, ?)",
+        (r["id"], voice, ls, filename))
+
+
 @app.get("/anhoeren")
 def anhoeren(word: str, language: str = "de", voice: str | None = None,
              length_scale: float | None = None):
@@ -2257,9 +2723,18 @@ def anhoeren(word: str, language: str = "de", voice: str | None = None,
     conn = get_conn()
     try:
         row = conn.execute(
-            "SELECT id, word FROM entries WHERE word = ? AND language = ?",
+            "SELECT w.id, w.word, l.id AS lex_id FROM word_forms w"
+            " JOIN lexemes l ON l.id = w.id"
+            " WHERE w.word = ? AND w.language = ?",
             (wort, lang),
         ).fetchone()
+        db_file = None
+        if row:
+            voice_cfg = PIPER_VOICES[lang][voice_key]
+            ls = voice_cfg["length_scale"] if length_scale is None \
+                else length_scale
+            db_file = _audio_als_db_zeile(conn, row["id"], voice_key, ls,
+                                          _default_voice(lang))
     finally:
         conn.close()
     voice = PIPER_VOICES[lang][voice_key]
@@ -2268,16 +2743,30 @@ def anhoeren(word: str, language: str = "de", voice: str | None = None,
     # verunreinigen nicht den Standard-Cache).
     ls_tag = "" if ls == voice["length_scale"] else f"-ls{ls:g}"
     if row:
+        if db_file and (AUDIO_DIR / db_file).is_file():
+            return FileResponse(AUDIO_DIR / db_file, media_type="audio/wav",
+                                filename=f"{wort}.wav")
         out = AUDIO_DIR / f"{lang}-{row['id']}-{voice_key}{ls_tag}.wav"
         text = row["word"]
+        lex_id = row["lex_id"]
+        form_id = row["id"]
     else:
         h = hashlib.sha1(wort.encode()).hexdigest()[:10]
         out = AUDIO_DIR / f"_t-{lang}-{voice_key}{ls_tag}-{h}.wav"
         text = wort
+        lex_id = None
+        form_id = None
     if not out.is_file():
         _synth_wort(text, lang, voice_key, out, length_scale)
-    return FileResponse(out, media_type="audio/wav",
-                        filename=f"{text}.wav")
+        if form_id is not None:
+            conn2 = get_conn()
+            try:
+                _audio_dbschreiben(conn2, form_id, lex_id, voice_key, ls,
+                                   out.name)
+                conn2.commit()
+            finally:
+                conn2.close()
+    return FileResponse(out, media_type="audio/wav", filename=f"{text}.wav")
 
 
 class StimmeVoteIn(BaseModel):
@@ -2340,8 +2829,11 @@ def stimmen():
             examples = [
                 {"word": r["word"], "image": r["image"]}
                 for r in conn.execute(
-                    "SELECT word, image FROM entries WHERE language = ?"
-                    " ORDER BY id LIMIT 4", (lang,)).fetchall()
+                    "SELECT w.word,"
+                    " (SELECT filename FROM lexeme_images li"
+                    "  WHERE li.lexeme_id = w.id AND li.is_main = 1) AS image"
+                    " FROM word_forms w WHERE w.language = ?"
+                    " ORDER BY w.id LIMIT 4", (lang,)).fetchall()
             ]
             voice_list = []
             for key, v in voices.items():
@@ -2379,7 +2871,8 @@ def _vorwaermen_job(lang: str, voice: str | None) -> None:
         conn = get_conn()
         try:
             rows = conn.execute(
-                "SELECT id, word FROM entries WHERE language = ?",
+                "SELECT w.id, w.word, l.id AS lex_id FROM word_forms w"
+                " JOIN lexemes l ON l.id = w.id WHERE w.language = ?",
                 (lang,)).fetchall()
         finally:
             conn.close()
@@ -2393,6 +2886,13 @@ def _vorwaermen_job(lang: str, voice: str | None) -> None:
                     continue
                 try:
                     _synth_wort(row["word"], lang, vkey, out)
+                    conn2 = get_conn()
+                    try:
+                        _audio_dbschreiben(conn2, row["id"], row["lex_id"],
+                                           vkey, v["length_scale"], out.name)
+                        conn2.commit()
+                    finally:
+                        conn2.close()
                 except HTTPException:
                     pass  # einzelner Fehler stoppt den Lauf nicht
         _vorwaermen_state[lang] = "fertig"
@@ -2435,11 +2935,7 @@ def audio_status(_=Depends(require_api_key)):
     return {"zustaende": dict(_vorwaermen_state), "dateien": counts}
 
 
-@app.get("/worteintrag", include_in_schema=False)
-def worteintrag():
-    """Wort-Detailseite: Konfidenzbalken, Evidenz, Votes, Formen."""
-    return FileResponse(Path(__file__).parent / "static" / "wort.html")
-
+# ---------- Bild setzen (Pipeline) ----------
 
 @app.post("/entries/{entry_id}/image", response_model=EntryOut)
 def set_image(entry_id: int, body: ImageIn, _=Depends(require_api_key)):
@@ -2452,30 +2948,29 @@ def set_image(entry_id: int, body: ImageIn, _=Depends(require_api_key)):
         raise HTTPException(413, "Bild zu groß (max. 2 MB)")
     conn = get_conn()
     try:
-        old = conn.execute(
-            "SELECT image FROM entries WHERE id = ?", (entry_id,)
-        ).fetchone()
+        old = _main_image(conn, entry_id)
         if old is None:
-            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
-        if (old["image"] or "") != body.filename:
+            exists = conn.execute(
+                "SELECT 1 FROM lexemes WHERE id = ?", (entry_id,)).fetchone()
+            if not exists:
+                raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        if (old or "") != body.filename:
             # Neue Bildversion: alte Bewertungen bezogen sich auf das
             # vorherige Bild -> zurücksetzen, damit das neue fair bewertet wird
-            conn.execute("DELETE FROM ratings WHERE entry_id = ?", (entry_id,))
-        conn.execute(
-            "UPDATE entries SET image = ? WHERE id = ?",
-            (body.filename, entry_id),
-        )
+            conn.execute("DELETE FROM ratings WHERE lexeme_id = ?",
+                         (entry_id,))
         # Galerie-Zeitstrahl: Neuzugänge (/bilder/neu) leben von dieser
-        # Verknüpfungs-Zeile — UNIQUE(entry_id, filename) macht sie idempotent
+        # Verknüpfungs-Zeile — UNIQUE(lexeme_id, filename) macht sie idempotent
         conn.execute(
-            "INSERT OR IGNORE INTO entry_images (entry_id, filename) "
+            "INSERT OR IGNORE INTO lexeme_images (lexeme_id, filename) "
             "VALUES (?,?)", (entry_id, body.filename))
+        _set_main_image(conn, entry_id, body.filename)
         conn.commit()
         (IMAGES_DIR / body.filename).write_bytes(data)
         row = conn.execute(
-            "SELECT * FROM entries WHERE id = ?", (entry_id,)
+            f"{_ENTRY_SELECT} WHERE w.id = ?", (entry_id,)
         ).fetchone()
-        return _entry(row)
+        return _entry_from_row(conn, row)
     finally:
         conn.close()
 
@@ -2488,34 +2983,73 @@ def set_image_ref(entry_id: int, body: ImageIn, _=Depends(require_api_key)):
         raise HTTPException(404, "Bilddatei nicht auf dem Server")
     conn = get_conn()
     try:
-        old = conn.execute(
-            "SELECT image FROM entries WHERE id = ?", (entry_id,)
-        ).fetchone()
+        old = _main_image(conn, entry_id)
         if old is None:
-            raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
-        if (old["image"] or "") != body.filename:
-            conn.execute("DELETE FROM ratings WHERE entry_id = ?", (entry_id,))
+            exists = conn.execute(
+                "SELECT 1 FROM lexemes WHERE id = ?", (entry_id,)).fetchone()
+            if not exists:
+                raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
+        if (old or "") != body.filename:
+            conn.execute("DELETE FROM ratings WHERE lexeme_id = ?",
+                         (entry_id,))
             conn.execute(
-                "UPDATE entries SET image = ? WHERE id = ?",
-                (body.filename, entry_id),
-            )
-            conn.execute(
-                "INSERT OR IGNORE INTO entry_images (entry_id, filename) "
-                "VALUES (?,?)", (entry_id, body.filename))
+                "INSERT OR IGNORE INTO lexeme_images (lexeme_id, filename)"
+                " VALUES (?,?)", (entry_id, body.filename))
+            _set_main_image(conn, entry_id, body.filename)
             conn.commit()
         row = conn.execute(
-            "SELECT * FROM entries WHERE id = ?", (entry_id,)
+            f"{_ENTRY_SELECT} WHERE w.id = ?", (entry_id,)
         ).fetchone()
-        return _entry(row)
+        return _entry_from_row(conn, row)
     finally:
         conn.close()
 
 
 @app.delete("/entries/{entry_id}", status_code=204)
 def delete_entry(entry_id: int, _=Depends(require_api_key)):
+    """Eintrag (Wortform + 1:1-Lexem samt abhängiger Daten) entfernen."""
     conn = get_conn()
     try:
-        cur = conn.execute("DELETE FROM entries WHERE id = ?", (entry_id,))
+        mid_rows = conn.execute(
+            "SELECT id FROM meanings WHERE lexeme_id = ?",
+            (entry_id,)).fetchall()
+        for m in mid_rows:
+            mid = m["id"]
+            for tbl in ("meaning_definitions",
+                        "meaning_links", "meaning_images", "meaning_examples"):
+                conn.execute(f"DELETE FROM {tbl} WHERE meaning_id = ?",
+                             (mid,))
+            conn.execute(
+                "DELETE FROM meaning_translations WHERE to_meaning_id = ?",
+                (mid,))
+            conn.execute(
+                "DELETE FROM meaning_synonyms WHERE a_meaning_id = ?"
+                " OR b_meaning_id = ?", (mid, mid))
+        conn.execute("DELETE FROM meanings WHERE lexeme_id = ?", (entry_id,))
+        for tbl in ("lexeme_defs", "lexeme_images", "lexeme_examples",
+                    "lexeme_ratings", "source_links", "ratings"):
+            conn.execute(f"DELETE FROM {tbl} WHERE lexeme_id = ?",
+                         (entry_id,))
+        conn.execute(
+            "DELETE FROM lexeme_forms WHERE lexeme_id = ? OR form_id = ?",
+            (entry_id, entry_id))
+        rid_rows = conn.execute(
+            "SELECT id FROM readings WHERE form_id = ? OR lexeme_id = ?",
+            (entry_id, entry_id)).fetchall()
+        for r in rid_rows:
+            conn.execute("DELETE FROM reading_audio WHERE reading_id = ?",
+                         (r["id"],))
+            conn.execute("DELETE FROM pronunciations WHERE reading_id = ?",
+                         (r["id"],))
+        conn.execute(
+            "DELETE FROM readings WHERE form_id = ? OR lexeme_id = ?",
+            (entry_id, entry_id))
+        conn.execute("DELETE FROM rating_nonces WHERE lexeme_id = ?",
+                     (entry_id,))
+        conn.execute("DELETE FROM image_moves WHERE from_lexeme_id = ?",
+                     (entry_id,))
+        cur = conn.execute("DELETE FROM lexemes WHERE id = ?", (entry_id,))
+        conn.execute("DELETE FROM word_forms WHERE id = ?", (entry_id,))
         conn.commit()
     finally:
         conn.close()
