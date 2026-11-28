@@ -888,7 +888,7 @@ def _define_batch(batch: list[dict], lang: str, temperature: float,
 
 
 def harvest_define(language: str, batch_size: int, delay: float,
-                   temperature: float = 0.3) -> None:
+                   temperature: float = 0.3, limit: int = 0) -> None:
     """Definitionen für alle Einträge ohne definition nachrüsten.
 
     Holt die undefinierten Einträge einmalig als Snapshot (seitenweise) und
@@ -910,7 +910,10 @@ def harvest_define(language: str, batch_size: int, delay: float,
         todo += page
         offset += len(page)
     # Reine Schreibweisen werden erst durch diesen regulären
-    # Definitions-/Analyse-Schritt zu Lexemen.
+    # Definitions-/Analyse-Schritt zu Lexemen und haben Vorrang vor
+    # bereits analysierten, aber noch definitionslosen Resten.
+    existing_without_definition = todo
+    todo = []
     offset = 0
     while True:
         page = api_get(
@@ -923,6 +926,9 @@ def harvest_define(language: str, batch_size: int, delay: float,
             break
         todo += page
         offset += len(page)
+    todo += existing_without_definition
+    if limit:
+        todo = todo[:limit]
     print(f"{len(todo)} Einträge ohne Definition")
     total = 0
     for i in range(0, len(todo), batch_size):
@@ -996,6 +1002,8 @@ def main() -> None:
     ap.add_argument("--pairs", type=int, default=4, help="Paare pro gap-Runde")
     ap.add_argument("--temperature", type=float, default=1.0)
     ap.add_argument("--delay", type=float, default=1.0)
+    ap.add_argument("--limit", type=int, default=0,
+                    help="maximale Arbeitseinheiten (0 = unbegrenzt)")
     ap.add_argument("--seed", action="store_true", help="Startbestand einspielen und beenden")
     args = ap.parse_args()
 
@@ -1005,7 +1013,8 @@ def main() -> None:
 
     if args.mode == "define":
         print(f"Modus: define | Modell: {MODEL_NAME} @ {MODEL_BASE_URL}")
-        harvest_define(args.language, args.per_round, args.delay)
+        harvest_define(args.language, args.per_round, args.delay,
+                       limit=args.limit)
         print(f"\nFertig. DB-Stand: {api_get('/stats')}")
         return
 

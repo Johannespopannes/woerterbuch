@@ -124,7 +124,7 @@ kette() {
   export MODEL_NAME=$(modell_fuer "$lang") FALLBACK_MODEL=$(fallback_fuer "$lang")
   log "Kette $lang via $MODEL_NAME"
   run harvester.py --seed --language "$lang"
-  run harvester.py --mode define  --language "$lang" --per-round 30 --delay 0.3
+  run harvester.py --mode define  --language "$lang" --limit 150 --per-round 30 --delay 0.3
   run define_langs.py --mode own --language "$lang" --limit 300 --batch 20 --delay 0.4
   run sense_split.py --language "$lang" --limit 150 --batch 5
   run sense_review.py --language "$lang" --limit 100 --batch 5
