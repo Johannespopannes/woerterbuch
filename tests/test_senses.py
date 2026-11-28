@@ -7,9 +7,11 @@ os.environ["RATE_WRITE_PER_MIN"] = "10000"
 os.environ["RATE_WRITE_KEYED_PER_MIN"] = "10000"
 os.environ["RATE_VOTE_PER_MIN"] = "10000"
 os.environ["API_KEY"] = "test-key-senses"
+os.environ["DICT_API_KEY"] = "test-key-senses"
 
 import app.db as db
 from app.main import app, API_KEY
+import sense_translate
 
 from fastapi.testclient import TestClient
 
@@ -238,3 +240,82 @@ def test_sinn_bilder_zuordnen():
         assert next(x for x in s if x["id"] == s2)["images"] == []
     finally:
         (IMAGES_DIR / fn).unlink(missing_ok=True)
+
+
+def test_uebersetzungsziel_wird_semantisch_gewaehlt(monkeypatch):
+    """Gleiche Wortart darf Speise und Justizorgan nicht verwechseln."""
+    monkeypatch.setattr(
+        sense_translate, "api_get",
+        lambda _path: {"senses": [
+            {"id": 10, "label": "Mahlzeit", "word_class": "Substantiv",
+             "definitions": {"de": "zubereitete Speise"}},
+            {"id": 11, "label": "Justizorgan", "word_class": "Substantiv",
+             "definitions": {"de": "staatliche Rechtsprechungsinstanz"}},
+        ]})
+    monkeypatch.setattr(
+        sense_translate, "post_chat_completions",
+        lambda _body, _timeout: {
+            "choices": [{"message": {"content": '{"id":11}'}}]})
+    quelle = {"word": "Gericht", "label": "Justizbehörde",
+              "text": "staatliche Einrichtung, die Recht spricht",
+              "word_class": "Substantiv"}
+    assert sense_translate.sinn_einordnen(quelle, 7, "testmodell") == 11
+
+
+def test_uebersetzungsziel_bleibt_bei_unklarheit_offen(monkeypatch):
+    monkeypatch.setattr(
+        sense_translate, "api_get",
+        lambda _path: {"senses": [
+            {"id": 20, "label": "A", "definitions": {}},
+            {"id": 21, "label": "B", "definitions": {}},
+        ]})
+    monkeypatch.setattr(
+        sense_translate, "post_chat_completions",
+        lambda _body, _timeout: {
+            "choices": [{"message": {"content": '{"id":null}'}}]})
+    assert sense_translate.sinn_einordnen(
+        {"word": "x", "label": "unklar", "text": ""}, 8, "testmodell"
+    ) is None
+
+
+def test_vorlaeufiger_sinn_wird_regulaer_geprueft_und_erhalten():
+    eid = _eintrag("Pruefsinn", "de", "Altbestand")
+    sid = _sinn(eid, "unbelegte Behauptung")
+    queue = client.get(
+        "/senses/review-queue", params={"language": "de", "limit": 200}
+    ).json()["rows"]
+    assert any(row["sense_id"] == sid for row in queue)
+    r = client.patch(
+        f"/senses/{sid}/review",
+        json={"valid": False, "source": "sense-review:test"},
+        headers=KEY)
+    assert r.status_code == 200, r.text
+    assert client.get(f"/entries/{eid}/senses").json()["senses"] == []
+    conn = db.get_conn()
+    try:
+        saved = conn.execute(
+            "SELECT status FROM meanings WHERE id = ?", (sid,)).fetchone()
+        assert saved["status"] == "rejected"
+    finally:
+        conn.close()
+
+
+def test_bildqueue_arbeitet_auf_geprueften_bedeutungen():
+    eid = _eintrag("Bildsinn", "de", "Wortebenenbestand")
+    sid = _sinn(eid, "konkreter Sinn")
+    client.put(
+        f"/senses/{sid}/definitions",
+        json={"lang": "de", "text": "ein konkret sichtbarer Gegenstand"},
+        headers=KEY)
+    client.patch(
+        f"/senses/{sid}/review",
+        json={"valid": True, "label": "Gegenstand",
+              "word_class": "Substantiv",
+              "description": "ein konkret sichtbarer Gegenstand"},
+        headers=KEY)
+    rows = client.get(
+        "/senses/image-queue", params={"language": "de", "limit": 500}
+    ).json()["rows"]
+    row = next(x for x in rows if x["sense_id"] == sid)
+    assert row["entry_id"] == eid
+    assert row["label"] == "Gegenstand"

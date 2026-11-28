@@ -40,6 +40,13 @@ if not legacy:
     print("Keine migration_legacy_*-Tabellen vorhanden — nichts zu tun.")
     sys.exit(0)
 
+# Historische Tabellen sind Bestandsinformationen. Sie dürfen nicht mehr
+# gelöscht werden; nicht eindeutig zuordenbare Datensätze werden in
+# unassigned_legacy_records übernommen und die Originale bleiben erhalten.
+print("Abbruch: Legacy-Tabellen werden aus Gründen der Verlustfreiheit "
+      "nicht gelöscht.")
+sys.exit(2)
+
 ERWARTET = {
     "migration_legacy_entries", "migration_legacy_definitions",
     "migration_legacy_senses", "migration_legacy_sense_definitions",

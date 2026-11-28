@@ -1,8 +1,8 @@
-"""Bild-Pipeline: Piktogramme für Wörterbuch-Einträge.
+"""Bild-Pipeline: Piktogramme für konkrete Wörterbuch-Bedeutungen.
 
 Ablauf je Sprache:
-1. Einträge ohne Bild holen (API-Filter noimage=true)
-2. Mistral übersetzt Wörter portionsweise in kurze englische Bildmotive
+1. Geprüfte Bedeutungen ohne Bild holen
+2. Mistral übersetzt Wort, Glosse und Beschreibung in ein Bildmotiv
    (SD 1.5 kann Deutsch kaum; ein LLM-Batch pro 50 Wörter)
 3. sd-server (stable-diffusion.cpp, Vulkan) rendert das Piktogramm
 4. Upload per POST /entries/{id}/image (Base64), lokaler Cache bleibt
@@ -28,7 +28,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-from harvester import LANG_NAMES, api_get, chat, parse_definitions
+from harvester import LANG_NAMES, api_get, api_post, chat, parse_definitions
 
 SD_CLI = os.environ.get(
     "SD_CLI", r"C:\Users\johan\Bonsai-demo\bin\sd-vulkan\sd-cli.exe")
@@ -480,22 +480,22 @@ def main() -> None:
     lang_name = LANG_NAMES.get(args.language, f"{args.language}-sprachige")
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Einträge ohne Bild einsammeln
+    # Geprüfte Bedeutungen ohne eigenes Bild einsammeln
     todo: list[dict] = []
     offset = 0
     while True:
         import urllib.parse
-        page = api_get("/entries?" + urllib.parse.urlencode({
-            "language": args.language, "noimage": "true",
+        page = api_get("/senses/image-queue?" + urllib.parse.urlencode({
+            "language": args.language,
             "limit": 500, "offset": offset,
-        }))
+        })).get("rows", [])
         if not page:
             break
         todo += page
         offset += len(page)
     if args.limit:
         todo = todo[: args.limit]
-    print(f"{len(todo)} Einträge ohne Bild ({args.language})")
+    print(f"{len(todo)} geprüfte Bedeutungen ohne Bild ({args.language})")
 
     done = failed = 0
     for i in range(0, len(todo), 50):
@@ -506,14 +506,17 @@ def main() -> None:
             print("  pausiert (PAUSE-Datei) …", flush=True)
             time.sleep(20)
         chunk = todo[i:i + 50]
-        concepts = translate_batch([e["word"] for e in chunk], lang_name)
+        for e in chunk:
+            e["motif_key"] = (
+                f"{e['word']} ({e['label']}): {str(e.get('text') or '')[:180]}")
+        concepts = translate_batch([e["motif_key"] for e in chunk], lang_name)
         for e in chunk:
             try:
-                concept = concepts.get(e["word"])
+                concept = concepts.get(e["motif_key"])
                 if not concept:
                     # Kein deutsches Motiv an Flux — lieber einzeln
                     # nachholen und in diesem Durchlauf auslassen.
-                    concept = translate_one(e["word"], lang_name)
+                    concept = translate_one(e["motif_key"], lang_name)
                     if not concept:
                         print(f"  {e['word']!r}: kein englisches Motiv — "
                               f"übersprungen (kommt im nächsten Lauf dran)",
@@ -521,13 +524,15 @@ def main() -> None:
                         failed += 1
                         time.sleep(args.delay)
                         continue
-                filename = f"{args.language}-{e['id']}.png"
+                filename = (
+                    f"{args.language}-{e['entry_id']}-s{e['sense_id']}.png")
                 out = CACHE_DIR / filename
                 cand_paths: list[Path] = []
                 if out.is_file() and out.stat().st_size > 1000:
                     ok = True  # Cache-Treffer: nur hochladen
                 elif args.candidates <= 1:
-                    seed = (e["id"] + args.seed_offset * 1_000_003) % 2**31
+                    seed = (e["sense_id"]
+                            + args.seed_offset * 1_000_003) % 2**31
                     ok = render_queued(concept, out, args.size, args.steps,
                                        seed, direct=args.direct)
                 else:
@@ -535,8 +540,9 @@ def main() -> None:
                     cand_files = []
                     for ci in range(args.candidates):
                         cand = CACHE_DIR / (
-                            f"{args.language}-{e['id']}-cand{ci + 1}.png")
-                        seed = (e["id"] + args.seed_offset * 1_000_003
+                            f"{args.language}-{e['entry_id']}-"
+                            f"s{e['sense_id']}-cand{ci + 1}.png")
+                        seed = (e["sense_id"] + args.seed_offset * 1_000_003
                                 + ci * 104_729) % 2**31
                         if (cand.is_file() and cand.stat().st_size > 1000) or \
                                 render_queued(concept, cand, args.size,
@@ -547,7 +553,7 @@ def main() -> None:
                     if not cand_paths:
                         ok = False
                     else:
-                        pick = gemma_pick(e["word"], cand_paths) \
+                        pick = gemma_pick(e["motif_key"], cand_paths) \
                             if len(cand_paths) > 1 else 0
                         shutil.copyfile(
                             cand_paths[pick] if pick >= 0 else cand_paths[0],
@@ -555,7 +561,10 @@ def main() -> None:
                         ok = True
                 if ok:
                     try:
-                        api_upload_image(e["id"], filename, out.read_bytes())
+                        api_upload_image(
+                            e["entry_id"], filename, out.read_bytes())
+                        api_post(f"/senses/{e['sense_id']}/images",
+                                 {"filename": filename})
                         done += 1
                         # Kandidaten-Entwürfe ebenfalls hochladen, damit
                         # die Voting-Seite Alternativen zum Anklicken hat

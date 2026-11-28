@@ -285,6 +285,42 @@ CREATE TABLE IF NOT EXISTS speaker_ratings (
     UNIQUE (language, voice, session_id)
 );
 """),
+    ("v2_head_form_links", """
+INSERT OR IGNORE INTO lexeme_forms (lexeme_id, form_id, cell)
+SELECT lexeme_id, form_id, '' FROM readings
+WHERE lexeme_id IS NOT NULL;
+"""),
+    ("v2_unsubstantiated_candidates", """
+UPDATE lexemes SET status = 'candidate'
+WHERE status = 'provisional'
+  AND (word_class = '' OR word_class IS NULL)
+  AND (evidence IS NULL OR evidence = '')
+  AND NOT EXISTS (
+    SELECT 1 FROM lexeme_defs d WHERE d.lexeme_id = lexemes.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM meanings m WHERE m.lexeme_id = lexemes.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM lexeme_images i WHERE i.lexeme_id = lexemes.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM ratings r WHERE r.lexeme_id = lexemes.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM lexeme_ratings r WHERE r.lexeme_id = lexemes.id);
+"""),
+    ("v2_unassigned_legacy_records", """
+CREATE TABLE IF NOT EXISTS unassigned_legacy_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    record_type VARCHAR(40) NOT NULL,
+    legacy_table VARCHAR(80) NOT NULL,
+    legacy_id INTEGER NOT NULL,
+    related_id INTEGER,
+    payload TEXT NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (legacy_table, legacy_id)
+);
+CREATE INDEX IF NOT EXISTS idx_unassigned_legacy_type
+ON unassigned_legacy_records (record_type);
+"""),
 ]
 
 

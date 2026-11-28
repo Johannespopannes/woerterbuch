@@ -80,27 +80,60 @@ def uebersetzungen_holen(model: str, ziel: str,
     return erg
 
 
-def sinn_einordnen(quell_wortart: str, ziel_entry_id: int) -> int | None:
-    """Mehrdeutigen Zieleintrag über die Sinn-Ebene einordnen.
+def sinn_einordnen(quell_sinn: dict, ziel_entry_id: int,
+                   model: str) -> int | None:
+    """Mehrdeutigen Zieleintrag semantisch auf einen Ziel-Sinn abbilden.
 
-    409 vom API (Zieleintrag hat mehrere Bedeutungen): Ziel-Sinne holen
-    und anhand der Wortart der Quell-Bedeutung wählen. Nur bei genau
-    einem Kandidaten wird eine Verbindung gesetzt — sonst None (keine
-    erfundene Zuordnung, die Bedeutung bleibt für später offen).
+    Eine gleiche Wortart ist keine Bedeutungsübereinstimmung (Speise und
+    Justizorgan sind beide Substantive). Das Modell sieht deshalb Glosse
+    und Beschreibung des Quell-Sinns sowie alle Ziel-Sinne. Nur eine
+    explizit gewählte, existierende Sinn-ID wird übernommen; ``null`` oder
+    unklare Antworten lassen die Bestandsinformation offen.
     """
     try:
         sinne = api_get(f"/entries/{ziel_entry_id}/senses").get("senses", [])
     except Exception:
         return None
-    if not quell_wortart:
-        return None
-    kandidaten = [s for s in sinne
-                  if (s.get("word_class") or "") == quell_wortart]
-    if len(kandidaten) == 1:
-        return kandidaten[0]["id"]
-    if not kandidaten and len(sinne) == 1:
+    if len(sinne) == 1:
         return sinne[0]["id"]
-    return None
+    if not sinne:
+        return None
+    kandidaten = [{
+        "id": s["id"],
+        "label": s.get("label") or "",
+        "beschreibungen": s.get("definitions") or {},
+    } for s in sinne]
+    prompt = (
+        "Ordne eine konkrete Wörterbuchbedeutung genau einer semantisch "
+        "gleichen Zielbedeutung zu. Wortartgleichheit allein ist KEIN "
+        "Beleg. Wenn keine Kandidatin eindeutig dieselbe Bedeutung hat, "
+        'antworte mit {\"id\":null}. Sonst antworte ausschließlich mit '
+        '{"id":ZAHL}.\nQuellbedeutung: '
+        + json.dumps({
+            "wort": quell_sinn.get("word") or "",
+            "label": quell_sinn.get("label") or "",
+            "beschreibung": quell_sinn.get("text") or "",
+        }, ensure_ascii=False)
+        + "\nZielbedeutungen: "
+        + json.dumps(kandidaten, ensure_ascii=False)
+    )
+    body = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 60,
+        "temperature": 0,
+    }
+    try:
+        antwort = post_chat_completions(
+            body, int(os.environ.get("MODEL_TIMEOUT", "180")))
+        text = antwort["choices"][0]["message"].get("content") or ""
+        m = re.search(r"\{.*?\}", text, re.S)
+        gewaehlt = json.loads(m.group(0)).get("id") if m else None
+        gewaehlt = int(gewaehlt) if gewaehlt is not None else None
+    except Exception:
+        return None
+    gueltig = {int(s["id"]) for s in sinne}
+    return gewaehlt if gewaehlt in gueltig else None
 
 
 def main() -> None:
@@ -151,9 +184,9 @@ def main() -> None:
                     if e.code != 409:
                         stat["doppelt"] += 1
                         continue
-                    # Zieleintrag mehrdeutig: Sinn anhand Wortart wählen
-                    zid = sinn_einordnen(r.get("word_class") or "",
-                                         lu["id"])
+                    # Zieleintrag mehrdeutig: konkrete Bedeutungen
+                    # semantisch vergleichen; Wortart allein reicht nicht.
+                    zid = sinn_einordnen(r, lu["id"], a.model)
                     if zid is None:
                         stat["mehrdeutig"] += 1
                         continue

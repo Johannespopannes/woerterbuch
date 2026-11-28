@@ -627,12 +627,12 @@ def api_patch(path: str, payload: dict):
 
 
 def letter_words(language: str, letter: str) -> list[str]:
-    """Alle bekannten Wörter eines Buchstabens, sortiert (seitenweise von der API)."""
+    """Alle bekannten Wortformen eines Buchstabens, analysiert oder offen."""
     out: list[str] = []
     offset = 0
     while True:
         page = api_get(
-            "/entries?" + urllib.parse.urlencode({
+            "/word-forms?" + urllib.parse.urlencode({
                 "language": language, "prefix": letter,
                 "limit": 1000, "offset": offset,
             })
@@ -654,8 +654,8 @@ def insert(language: str, words: list[str]) -> int:
     if not words:
         return 0
     try:
-        result = api_post("/entries/batch", {
-            "entries": [
+        result = api_post("/word-forms/batch", {
+            "forms": [
                 {"word": w, "language": language, "source": f"model:{MODEL_NAME}"}
                 for w in words
             ]
@@ -667,10 +667,10 @@ def insert(language: str, words: list[str]) -> int:
         added = 0
         for w in words:
             try:
-                api_post("/entries", {
+                api_post("/word-forms/batch", {"forms": [{
                     "word": w, "language": language,
                     "source": f"model:{MODEL_NAME}",
-                })
+                }]})
                 added += 1
             except urllib.error.HTTPError as single:
                 if single.code == 409:
@@ -872,7 +872,15 @@ def _define_batch(batch: list[dict], lang: str, temperature: float,
         if not d or len(d) > 1000:
             continue
         try:
-            api_patch(f"/entries/{e['id']}", {"definition": d})
+            if e.get("analyzed", 1):
+                api_patch(f"/entries/{e['id']}", {"definition": d})
+            else:
+                api_post("/lexemes/analyze", {
+                    "form_id": e["form_id"],
+                    "lemma": e["word"],
+                    "definition": d,
+                    "source": f"model-analysis:{MODEL_NAME}",
+                })
             added += 1
         except Exception as e2:
             print(f"  {e['word']!r}: PATCH-Fehler: {e2}", file=sys.stderr)
@@ -901,6 +909,20 @@ def harvest_define(language: str, batch_size: int, delay: float,
             break
         todo += page
         offset += len(page)
+    # Reine Schreibweisen werden erst durch diesen regulären
+    # Definitions-/Analyse-Schritt zu Lexemen.
+    offset = 0
+    while True:
+        page = api_get(
+            "/word-forms?" + urllib.parse.urlencode({
+                "language": language, "unanalyzed": "true",
+                "limit": 1000, "offset": offset,
+            })
+        )
+        if not page:
+            break
+        todo += page
+        offset += len(page)
     print(f"{len(todo)} Einträge ohne Definition")
     total = 0
     for i in range(0, len(todo), batch_size):
@@ -919,8 +941,8 @@ def seed(language: str) -> None:
         print(f"Keine Seeds für '{language}' eingebaut — bitte selbst per API eintragen.")
         return
     words = [w for letter_words_list in seeds.values() for w in letter_words_list]
-    result = api_post("/entries/batch", {
-        "entries": [
+    result = api_post("/word-forms/batch", {
+        "forms": [
             {"word": w, "language": language, "source": "seed"} for w in words
         ]
     })

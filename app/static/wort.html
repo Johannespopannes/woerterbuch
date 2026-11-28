@@ -345,12 +345,19 @@ function renderLexem(lex, index, anzahl) {
     sec.appendChild(w);
   }
 
-  // Bild (Lexemebene) + Inhalt nebeneinander
+  const sinne = lex.meanings || [];
+  const hatUnzugeordneteBilder = Boolean(
+    sinne.length && (lex.images.main || lex.images.gallery.length));
+
+  // Ein Lexem-Bild darf bei vorhandenen Bedeutungen nicht wie eine
+  // Illustration aller Bedeutungen wirken. Dann bleibt es sichtbar, aber
+  // ausdrücklich unzugeordnet im Bestandsblock weiter unten.
+  const zeigeLexemBild = Boolean(lex.images.main && !sinne.length);
   const inhalt = document.createElement('div');
-  inhalt.className = 'inhalt' + (lex.images.main ? '' : ' ohne-bild');
+  inhalt.className = 'inhalt' + (zeigeLexemBild ? '' : ' ohne-bild');
   const spalte = document.createElement('div');
 
-  if (lex.images.main) {
+  if (zeigeLexemBild) {
     const bildbox = document.createElement('div');
     bildbox.className = 'bildbox';
     const hb = document.createElement('img');
@@ -411,7 +418,6 @@ function renderLexem(lex, index, anzahl) {
 
   // --- Bedeutungen: jede mit eigenen Beschreibungen, Bildern,
   //     Übersetzungen und Belegen
-  const sinne = lex.meanings || [];
   if (sinne.length) {
     const card = document.createElement('div');
     card.id = 'sinncard-' + lex.id;
@@ -527,7 +533,8 @@ function renderLexem(lex, index, anzahl) {
       if (sinnSprachen.has(lc)) delete wortDefs[lc];
   }
   const beispiele = lex.examples || [];
-  if (Object.keys(wortDefs).length || beispiele.length) {
+  if (Object.keys(wortDefs).length || beispiele.length ||
+      hatUnzugeordneteBilder) {
     const u = document.createElement('div');
     u.className = 'unzugeordnet';
     const h = document.createElement('h2');
@@ -556,6 +563,21 @@ function renderLexem(lex, index, anzahl) {
         ul.appendChild(li);
       }
       u.appendChild(ul);
+    }
+    if (hatUnzugeordneteBilder) {
+      const ib = document.createElement('div');
+      ib.className = 'sinn-bilder';
+      const dateien = [lex.images.main, ...lex.images.gallery]
+        .filter((fn, i, alle) => fn && alle.indexOf(fn) === i);
+      for (const fn of dateien) {
+        const img = document.createElement('img');
+        img.src = '/bilder/' + fn;
+        img.alt = 'Noch keiner Bedeutung zugeordnetes Bestandsbild';
+        img.title = fn + ' — noch keiner Bedeutung zugeordnet';
+        img.loading = 'lazy';
+        ib.appendChild(img);
+      }
+      u.appendChild(ib);
     }
     spalte.appendChild(u);
   }

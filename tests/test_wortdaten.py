@@ -108,3 +108,39 @@ def test_translate_queue_liefert_word_class():
                       params={"from": "de", "to": "en"}).json()["rows"]
     row = next(r for r in rows if r["sense_id"] == sid)
     assert row["word_class"] == "Substantiv"
+
+
+def test_wortform_begruendet_nicht_automatisch_lexem():
+    wort = "nurwortform"
+    r = client.post(
+        "/word-forms/batch",
+        json={"forms": [{"word": wort, "language": "de",
+                         "source": "test-kandidat"}]},
+        headers=KEY)
+    assert r.status_code == 200, r.text
+    assert r.json()["inserted"] == 1
+    offen = client.get(
+        "/word-forms",
+        params={"language": "de", "prefix": wort, "unanalyzed": True}
+    ).json()
+    assert len(offen) == 1
+    assert offen[0]["analyzed"] == 0
+    assert client.get(
+        "/wortdaten", params={"word": wort, "language": "de"}
+    ).json()["lexemes"] == []
+
+    r = client.post(
+        "/lexemes/analyze",
+        json={"form_id": offen[0]["form_id"], "lemma": wort,
+              "word_class": "Substantiv",
+              "definition": "eine regulär untersuchte Testbedeutung",
+              "source": "test-analyse"},
+        headers=KEY)
+    assert r.status_code == 201, r.text
+    bundle = client.get(
+        "/wortdaten", params={"word": wort, "language": "de"}
+    ).json()
+    assert len(bundle["lexemes"]) == 1
+    assert bundle["lexemes"][0]["lemma"] == wort
+    assert bundle["lexemes"][0]["definitions"]["de"]["text"].startswith(
+        "eine regulär untersuchte")

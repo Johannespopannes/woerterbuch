@@ -78,6 +78,18 @@ def executemany(sql: str, rows, chunk: int = 2000) -> None:
         cur.executemany(sql, rows[i:i + chunk])
 
 
+def preserve_unassigned(record_type: str, legacy_table: str, rows: list,
+                        related_key: str, reason: str) -> None:
+    """Nicht zuordenbaren Bestand vollständig und abfragbar erhalten."""
+    executemany(
+        "INSERT IGNORE INTO unassigned_legacy_records"
+        " (record_type, legacy_table, legacy_id, related_id, payload, reason)"
+        " VALUES (%s,%s,%s,%s,%s,%s)",
+        [(record_type, legacy_table, r["id"], r.get(related_key),
+          json.dumps(r, ensure_ascii=False, default=str), reason)
+         for r in rows])
+
+
 def table_exists(name: str) -> bool:
     return one("SELECT 1 FROM information_schema.TABLES"
                " WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s",
@@ -257,8 +269,8 @@ executemany("INSERT INTO lexeme_images (lexeme_id, filename, is_main)"
 log(f"   {len(li)} Bilder")
 
 log("== 7/10 Übersetzungen, Belege, Beispiele ==")
-mt, skipped_t = [], 0
-for t in q("SELECT sense_id, entry_id, approx, source, created_at"
+mt, skipped_translations = [], []
+for t in q("SELECT id, sense_id, entry_id, approx, source, created_at"
            " FROM sense_translations"):
     ms = q("SELECT id FROM meanings WHERE lexeme_id = %s"
            " ORDER BY id LIMIT 2", (t["entry_id"],))
@@ -266,13 +278,16 @@ for t in q("SELECT sense_id, entry_id, approx, source, created_at"
         mt.append((t["sense_id"], ms[0]["id"], t["approx"],
                    t["source"], t["created_at"]))
     else:
-        skipped_t += 1
+        skipped_translations.append(t)
 executemany("INSERT INTO meaning_translations (from_meaning_id,"
             " to_meaning_id, approx, source, created_at)"
             " VALUES (%s,%s,%s,%s,%s)", mt)
+preserve_unassigned(
+    "translation", "sense_translations", skipped_translations, "sense_id",
+    "Ziellexem hat keine eindeutig zuordenbare Bedeutung")
 log(f"   {len(mt)} Übersetzungsbeziehungen"
-    f" ({skipped_t} ohne eindeutige Zielbedeutung übersprungen —"
-    " bleiben im Legacy-Bestand, keine Erfindung)")
+    f" ({len(skipped_translations)} ohne eindeutige Zielbedeutung als"
+    " unzugeordneter Bestand erhalten)")
 run("INSERT INTO meaning_links (meaning_id, kind, url, claim, source,"
     " created_at) SELECT sense_id, kind, url, claim, source, created_at"
     " FROM sense_links")
@@ -299,8 +314,13 @@ log("== 8/10 Stimmen, Kuratierung, Nonces, Moves, Links ==")
 # Verwaiste Zeilen (Bewertungen für früher gelöschte Einträge) werden
 # gezählt, übersprungen und im Abschlussbericht sichtbar — sie sind im
 # Altbestand (migration_legacy_*) weiterhin vorhanden.
-orph = one("SELECT COUNT(*) c FROM migration_legacy_ratings r"
-           " LEFT JOIN lexemes l ON l.id = r.entry_id WHERE l.id IS NULL")["c"]
+orphan_ratings = q(
+    "SELECT r.* FROM migration_legacy_ratings r"
+    " LEFT JOIN lexemes l ON l.id = r.entry_id WHERE l.id IS NULL")
+orph = len(orphan_ratings)
+preserve_unassigned(
+    "rating", "ratings", orphan_ratings, "entry_id",
+    "Bewertung verweist auf keinen erhaltenen Lexemträger")
 run("INSERT INTO ratings (lexeme_id, understood, image, kind, session_id,"
     " created_at) SELECT r.entry_id, r.understood, COALESCE(r.image,''),"
     " r.kind, r.session_id, r.created_at"
@@ -308,8 +328,13 @@ run("INSERT INTO ratings (lexeme_id, understood, image, kind, session_id,"
     " JOIN lexemes l ON l.id = r.entry_id")
 log(f"   {cur.rowcount} Bild-/unknown-Stimmen"
     f" ({orph} verwaist übersprungen — Eintrag existiert nicht mehr)")
-orph = one("SELECT COUNT(*) c FROM word_ratings r"
-           " LEFT JOIN lexemes l ON l.id = r.entry_id WHERE l.id IS NULL")["c"]
+orphan_word_ratings = q(
+    "SELECT r.* FROM word_ratings r"
+    " LEFT JOIN lexemes l ON l.id = r.entry_id WHERE l.id IS NULL")
+orph = len(orphan_word_ratings)
+preserve_unassigned(
+    "word_rating", "word_ratings", orphan_word_ratings, "entry_id",
+    "Bewertung verweist auf keinen erhaltenen Lexemträger")
 run("INSERT INTO lexeme_ratings (lexeme_id, kind, created_at)"
     " SELECT r.entry_id,"
     " CASE WHEN r.fits=1 THEN 'dazu' ELSE 'nicht' END, r.created_at"
@@ -353,6 +378,9 @@ log("== 9/10 Lesarten + Audiodateien ==")
 r_rows = [(e["id"], e["id"], "migration") for e in entries]
 executemany("INSERT IGNORE INTO readings (form_id, lexeme_id, source)"
             " VALUES (%s,%s,%s)", r_rows)
+executemany("INSERT IGNORE INTO lexeme_forms (lexeme_id, form_id, cell)"
+            " VALUES (%s,%s,'')",
+            [(e["id"], e["id"]) for e in entries])
 # Audiodateien: <lang>-<id>-<voice>[-ls<x>].wav; stimmenlose Altdateien
 # (<lang>-<id>.wav) → voice='' = Default-Stimme der Sprache.
 # _t-*-Dateien sind Test-Cache, kein Bestand, werden nicht migriert.
@@ -393,6 +421,23 @@ for t in RENAME:
 conn.commit()
 
 log("== Verifikation ==")
+# Reine Schreibweisen ohne irgendeinen lexikalischen Befund bleiben als
+# Kandidaten erhalten, zählen aber nicht als untersuchte Lexeme.
+run("UPDATE lexemes SET status='candidate'"
+    " WHERE status='provisional'"
+    " AND (word_class='' OR word_class IS NULL)"
+    " AND (evidence IS NULL OR evidence='')"
+    " AND NOT EXISTS (SELECT 1 FROM lexeme_defs d"
+    "                 WHERE d.lexeme_id=lexemes.id)"
+    " AND NOT EXISTS (SELECT 1 FROM meanings m"
+    "                 WHERE m.lexeme_id=lexemes.id)"
+    " AND NOT EXISTS (SELECT 1 FROM lexeme_images i"
+    "                 WHERE i.lexeme_id=lexemes.id)"
+    " AND NOT EXISTS (SELECT 1 FROM ratings r"
+    "                 WHERE r.lexeme_id=lexemes.id)"
+    " AND NOT EXISTS (SELECT 1 FROM lexeme_ratings r"
+    "                 WHERE r.lexeme_id=lexemes.id)")
+conn.commit()
 wf = one("SELECT COUNT(*) c FROM word_forms")["c"]
 lx = one("SELECT COUNT(*) c FROM lexemes")["c"]
 mn = one("SELECT COUNT(*) c FROM meanings")["c"]

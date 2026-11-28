@@ -290,10 +290,31 @@ class BatchIn(BaseModel):
     entries: list[EntryIn] = Field(max_length=500)
 
 
+class WordFormIn(BaseModel):
+    """Reine beobachtete/vorgeschlagene Schreibweise, noch kein Lexem."""
+    word: str = Field(min_length=1, max_length=100)
+    language: str = Field(min_length=2, max_length=10, pattern=r"^[a-z]+$")
+    source: str = Field(default="model-candidate", max_length=50)
+    script: str = Field(default="", max_length=20)
+
+
+class WordFormBatchIn(BaseModel):
+    forms: list[WordFormIn] = Field(max_length=500)
+
+
 class BatchResult(BaseModel):
     inserted: int
     duplicates: int
     errors: int
+
+
+class LexemeAnalysisIn(BaseModel):
+    """Sprachliche Untersuchung, die aus einer Wortform ein Lexem begründet."""
+    form_id: int
+    lemma: str = Field(min_length=1, max_length=100)
+    word_class: str = Field(default="", max_length=50)
+    definition: str = Field(min_length=1, max_length=1000)
+    source: str = Field(default="model-analysis", max_length=50)
 
 
 class DefinitionIn(BaseModel):
@@ -429,7 +450,8 @@ def _set_main_image(conn, lexeme_id: int, filename: str) -> None:
 
 def _find_word(conn, word: str, language: str):
     return conn.execute(
-        f"{_ENTRY_SELECT} WHERE w.word = ? AND w.language = ?",
+        f"{_ENTRY_SELECT} WHERE w.word = ? AND w.language = ?"
+        " AND l.status <> 'candidate'",
         (word, language.lower()),
     ).fetchone()
 
@@ -503,7 +525,12 @@ def sprecher_seite():
 
 def _create_entry(conn, word: str, language: str, definition: str | None,
                   source: str, script: str) -> int:
-    """Wortform + 1:1-provisionales Lexem anlegen; liefert die neue ID."""
+    """Kompatibilitätspfad für bereits untersuchte Einträge.
+
+    Neue Ernte legt zunächst nur Wortformen über /word-forms/batch an.
+    Dieser alte Pfad erzeugt weiterhin ein Lexem, verknüpft die Identitäten
+    aber ausdrücklich über Lesart und Formbeziehung.
+    """
     cur = conn.execute(
         "INSERT INTO word_forms (word, language, source, script)"
         " VALUES (?, ?, ?, ?)",
@@ -515,6 +542,12 @@ def _create_entry(conn, word: str, language: str, definition: str | None,
         " VALUES (?, ?, ?, ?)",
         (new_id, language, word, source),
     )
+    conn.execute(
+        "INSERT INTO readings (form_id, lexeme_id, source)"
+        " VALUES (?, ?, ?)", (new_id, new_id, source))
+    conn.execute(
+        "INSERT INTO lexeme_forms (lexeme_id, form_id, cell)"
+        " VALUES (?, ?, '')", (new_id, new_id))
     if definition:
         conn.execute(
             "INSERT OR REPLACE INTO lexeme_defs (lexeme_id, lang, text, source)"
@@ -580,6 +613,141 @@ def create_batch(batch: BatchIn, _=Depends(require_api_key)):
     return BatchResult(inserted=inserted, duplicates=duplicates, errors=errors)
 
 
+@app.post("/word-forms/batch", response_model=BatchResult)
+def create_word_forms(batch: WordFormBatchIn, _=Depends(require_api_key)):
+    """Schreibweisen sammeln, ohne daraus automatisch Lexeme zu behaupten."""
+    inserted = duplicates = errors = 0
+    conn = get_conn()
+    try:
+        for item in batch.forms:
+            word = item.word.strip()
+            lang = item.language.lower()
+            exists = conn.execute(
+                "SELECT id FROM word_forms WHERE language = ? AND word = ?"
+                " AND script = ?", (lang, word, item.script)).fetchone()
+            if exists:
+                duplicates += 1
+                continue
+            try:
+                conn.execute(
+                    "INSERT INTO word_forms"
+                    " (language, word, script, source) VALUES (?, ?, ?, ?)",
+                    (lang, word, item.script, item.source))
+                inserted += 1
+            except Exception:
+                errors += 1
+        conn.commit()
+        return BatchResult(inserted=inserted, duplicates=duplicates,
+                           errors=errors)
+    finally:
+        conn.close()
+
+
+@app.get("/word-forms")
+def list_word_forms(
+    language: str,
+    prefix: str | None = None,
+    unanalyzed: bool = False,
+    limit: int = Query(default=100, le=1000),
+    offset: int = 0,
+):
+    """Wortformen unabhängig von einer vorhandenen lexikalischen Analyse."""
+    sql = (
+        "SELECT w.id AS form_id, w.word, w.language, w.script, w.source,"
+        " w.created_at,"
+        " CASE WHEN EXISTS (SELECT 1 FROM readings r"
+        "  JOIN lexemes rl ON rl.id = r.lexeme_id"
+        "  WHERE r.form_id = w.id AND rl.status <> 'candidate')"
+        " THEN 1 ELSE 0 END AS analyzed"
+        " FROM word_forms w WHERE w.language = ?"
+    )
+    params: list = [language.lower()]
+    if prefix:
+        sql += " AND ULOWER(w.word) LIKE ULOWER(?)"
+        params.append(prefix + "%")
+    if unanalyzed:
+        sql += (" AND NOT EXISTS (SELECT 1 FROM readings r"
+                " JOIN lexemes rl ON rl.id = r.lexeme_id"
+                " WHERE r.form_id = w.id AND rl.status <> 'candidate')")
+    sql += " ORDER BY w.word LIMIT ? OFFSET ?"
+    params += [limit, offset]
+    conn = get_conn()
+    try:
+        return [dict(r) for r in conn.execute(sql, params).fetchall()]
+    finally:
+        conn.close()
+
+
+@app.post("/lexemes/analyze", status_code=201)
+def analyze_word_form(body: LexemeAnalysisIn, _=Depends(require_api_key)):
+    """Nach sprachlicher Untersuchung ein Lexem zu einer Wortform anlegen."""
+    conn = get_conn()
+    try:
+        form = conn.execute(
+            "SELECT id, word, language FROM word_forms WHERE id = ?",
+            (body.form_id,)).fetchone()
+        if not form:
+            raise HTTPException(404, f"Wortform {body.form_id} nicht gefunden")
+        existing = conn.execute(
+            "SELECT r.lexeme_id, l.status FROM readings r"
+            " JOIN lexemes l ON l.id = r.lexeme_id"
+            " WHERE r.form_id = ? AND r.lexeme_id IS NOT NULL LIMIT 1",
+            (body.form_id,)).fetchone()
+        if existing and existing["status"] != "candidate":
+            raise HTTPException(
+                409, f"Wortform {body.form_id} ist bereits analysiert")
+        if existing:
+            lexeme_id = existing["lexeme_id"]
+            conn.execute(
+                "UPDATE lexemes SET lemma = ?, word_class = ?,"
+                " status = 'provisional', source = ? WHERE id = ?",
+                (body.lemma.strip(), body.word_class.strip(), body.source,
+                 lexeme_id))
+            conn.execute(
+                "INSERT OR REPLACE INTO lexeme_defs"
+                " (lexeme_id, lang, text, source) VALUES (?, ?, ?, ?)",
+                (lexeme_id, form["language"], body.definition.strip(),
+                 body.source))
+            conn.commit()
+            row = _find_word(conn, form["word"], form["language"])
+            return _entry_from_row(conn, row)
+        # Getrennte Identitäten, aber für die alten Pipeline-Payloads bleibt
+        # die numerische ID bei neu analysierten Trägerformen stabil.
+        collision = conn.execute(
+            "SELECT id FROM lexemes WHERE id = ?", (body.form_id,)).fetchone()
+        if collision:
+            raise HTTPException(
+                409, f"Lexem-ID {body.form_id} ist bereits belegt")
+        conn.execute(
+            "INSERT INTO lexemes"
+            " (id, language, lemma, word_class, status, source)"
+            " VALUES (?, ?, ?, ?, 'provisional', ?)",
+            (body.form_id, form["language"], body.lemma.strip(),
+             body.word_class.strip(), body.source))
+        conn.execute(
+            "INSERT INTO readings (form_id, lexeme_id, source)"
+            " VALUES (?, ?, ?)", (body.form_id, body.form_id, body.source))
+        conn.execute(
+            "INSERT INTO lexeme_forms (lexeme_id, form_id, cell)"
+            " VALUES (?, ?, '')", (body.form_id, body.form_id))
+        conn.execute(
+            "INSERT INTO lexeme_defs (lexeme_id, lang, text, source)"
+            " VALUES (?, ?, ?, ?)",
+            (body.form_id, form["language"], body.definition.strip(),
+             body.source))
+        conn.commit()
+        row = _find_word(conn, form["word"], form["language"])
+        return _entry_from_row(conn, row)
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 @app.get("/entries", response_model=list[EntryOut])
 def list_entries(
     language: str | None = None,
@@ -606,7 +774,8 @@ def list_entries(
     limit: int = Query(default=100, le=1000),
     offset: int = 0,
 ):
-    sql = (_ENTRY_SELECT.replace("SELECT", "SELECT", 1) + " WHERE 1=1")
+    sql = (_ENTRY_SELECT.replace("SELECT", "SELECT", 1)
+           + " WHERE l.status <> 'candidate'")
     params: list = []
     if language:
         sql += " AND w.language = ?"
@@ -1084,8 +1253,17 @@ def stats():
         return _stats_cache["data"]
     conn = get_conn()
     try:
-        total = conn.execute(
+        total_word_forms = conn.execute(
             "SELECT COUNT(*) AS n FROM word_forms").fetchone()["n"]
+        total_lexemes = conn.execute(
+            "SELECT COUNT(*) AS n FROM lexemes"
+            " WHERE status <> 'candidate'").fetchone()["n"]
+        pending_forms = conn.execute(
+            "SELECT COUNT(*) AS n FROM word_forms w"
+            " WHERE NOT EXISTS (SELECT 1 FROM readings r"
+            " JOIN lexemes l ON l.id = r.lexeme_id"
+            " WHERE r.form_id = w.id AND l.status <> 'candidate')"
+        ).fetchone()["n"]
         with_image = conn.execute(
             "SELECT COUNT(DISTINCT lexeme_id) AS n FROM lexeme_images"
         ).fetchone()["n"]
@@ -1096,7 +1274,8 @@ def stats():
         # solange das Format YYYY-MM-DD HH:MM:SS bleibt.
         heute = time.strftime("%Y-%m-%d")
         today_new = conn.execute(
-            "SELECT COUNT(*) AS n FROM word_forms WHERE created_at >= ?",
+            "SELECT COUNT(*) AS n FROM lexemes"
+            " WHERE status <> 'candidate' AND created_at >= ?",
             (heute,)).fetchone()["n"]
     finally:
         conn.close()
@@ -1105,7 +1284,10 @@ def stats():
     except Exception:
         with_audio = 0
     _stats_cache.update(ts=now, data={
-        "total_entries": total,
+        "total_entries": total_lexemes,
+        "total_lexemes": total_lexemes,
+        "total_word_forms": total_word_forms,
+        "pending_word_forms": pending_forms,
         "with_image": with_image,
         "with_definition": with_definition,
         "with_audio": with_audio,
@@ -1322,12 +1504,21 @@ class SenseImageIn(BaseModel):
     assign: bool = True  # False = Zuordnung aufheben
 
 
+class SenseReviewIn(BaseModel):
+    valid: bool
+    label: str = Field(default="", max_length=200)
+    word_class: str = Field(default="", max_length=40)
+    description: str = Field(default="", max_length=1000)
+    source: str = Field(default="sense-review", max_length=40)
+
+
 def _senses_fuer_eintrag(conn, entry_id: int) -> list[dict]:
     """Alle Bedeutungen eines Lexems, verschachtelt mit Beschreibungen,
     Übersetzungszielen und Belegen (meanings-Modell)."""
     sinne = conn.execute(
         "SELECT id, label, word_class, source, status FROM meanings"
-        " WHERE lexeme_id = ? ORDER BY id", (entry_id,)).fetchall()
+        " WHERE lexeme_id = ? AND status <> 'rejected' ORDER BY id",
+        (entry_id,)).fetchall()
     out = []
     for s in sinne:
         sid = s["id"]
@@ -1393,6 +1584,93 @@ def get_senses(entry_id: int):
         if not row:
             raise HTTPException(404, f"Eintrag {entry_id} nicht gefunden")
         return {"senses": _senses_fuer_eintrag(conn, entry_id)}
+    finally:
+        conn.close()
+
+
+@app.get("/senses/review-queue")
+def senses_review_queue(
+    language: str = Query(min_length=2, max_length=8),
+    limit: int = Query(default=50, le=200),
+):
+    """Vorläufige/externe Bedeutungen der regulären Prüfung zuführen."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT m.id AS sense_id, m.label, m.word_class, m.source,"
+            " d.text, w.word, w.language"
+            " FROM meanings m"
+            " JOIN lexemes l ON l.id = m.lexeme_id"
+            " JOIN word_forms w ON w.id = l.id"
+            " LEFT JOIN meaning_definitions d ON d.meaning_id = m.id"
+            "  AND d.lang = w.language"
+            " WHERE w.language = ? AND m.status = 'provisional'"
+            "  AND m.source <> 'translation-carrier'"
+            " ORDER BY CASE WHEN m.source = 'manual' THEN 0 ELSE 1 END,"
+            " m.id LIMIT ?", (language.lower(), limit)).fetchall()
+        return {"rows": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.get("/senses/image-queue")
+def senses_image_queue(
+    language: str = Query(min_length=2, max_length=8),
+    limit: int = Query(default=100, le=500),
+    offset: int = 0,
+):
+    """Geprüfte Bedeutungen ohne eigenes Bild für die Bildpipeline."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT m.id AS sense_id, m.lexeme_id AS entry_id, m.label,"
+            " d.text, w.word, w.language"
+            " FROM meanings m"
+            " JOIN lexemes l ON l.id = m.lexeme_id"
+            " JOIN word_forms w ON w.id = l.id"
+            " JOIN meaning_definitions d ON d.meaning_id = m.id"
+            "  AND d.lang = w.language"
+            " WHERE w.language = ? AND m.status = 'reviewed'"
+            " AND NOT EXISTS (SELECT 1 FROM meaning_images mi"
+            "  WHERE mi.meaning_id = m.id)"
+            " ORDER BY m.id LIMIT ? OFFSET ?",
+            (language.lower(), limit, offset)).fetchall()
+        return {"rows": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.patch("/senses/{sense_id}/review")
+def review_sense(sense_id: int, body: SenseReviewIn,
+                 _=Depends(require_api_key)):
+    """Prüfergebnis erhalten; widerlegte Sinne bleiben als rejected erhalten."""
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT m.id, l.language FROM meanings m"
+            " JOIN lexemes l ON l.id = m.lexeme_id WHERE m.id = ?",
+            (sense_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, f"Sinn {sense_id} nicht gefunden")
+        if body.valid:
+            conn.execute(
+                "UPDATE meanings SET label = ?, word_class = ?,"
+                " status = 'reviewed', source = ? WHERE id = ?",
+                (body.label.strip(), body.word_class.strip(), body.source,
+                 sense_id))
+            if body.description.strip():
+                conn.execute(
+                    "INSERT OR REPLACE INTO meaning_definitions"
+                    " (meaning_id, lang, text, source) VALUES (?, ?, ?, ?)",
+                    (sense_id, row["language"], body.description.strip(),
+                     body.source))
+        else:
+            conn.execute(
+                "UPDATE meanings SET status = 'rejected', source = ?"
+                " WHERE id = ?", (body.source, sense_id))
+        conn.commit()
+        return {"ok": True, "sense_id": sense_id,
+                "status": "reviewed" if body.valid else "rejected"}
     finally:
         conn.close()
 
@@ -1906,10 +2184,12 @@ def wortdaten(word: str, language: str):
         lesarten = conn.execute(
             f"{_ENTRY_SELECT} JOIN readings r"
             " ON r.form_id = w.id AND r.lexeme_id = l.id"
-            " WHERE w.id = ? ORDER BY l.id", (form["id"],)).fetchall()
+            " WHERE w.id = ? AND l.status <> 'candidate' ORDER BY l.id",
+            (form["id"],)).fetchall()
         if not lesarten:
             lex = conn.execute(
-                f"{_ENTRY_SELECT} WHERE w.id = ?", (form["id"],)).fetchone()
+                f"{_ENTRY_SELECT} WHERE w.id = ?"
+                " AND l.status <> 'candidate'", (form["id"],)).fetchone()
             lesarten = [lex] if lex else []
         lexemes = [_bundle_fuer_lexem(conn, form, lr) for lr in lesarten]
         return {
